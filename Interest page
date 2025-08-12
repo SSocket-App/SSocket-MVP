@@ -1,0 +1,462 @@
+// App.js — SSocket Interest Selection (standalone screen)
+// Paste this into Expo Snack (App.js). No extra dependencies.
+
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  StatusBar,
+  Platform,
+  Alert,
+} from "react-native";
+
+const BG = "#ffffff";
+const TEXT = "#111111";
+const MUTED = "#6b7280";
+const CARD = "#ffffff";
+const BDR = "#e5e7eb";
+const BLACK = "#000000";
+const YELLOW = "#FFD233";
+
+// Grouped categories (expand to view subcategories)
+const CATEGORIES = [
+  {
+    key: "hospitality",
+    title: "Hospitality & Domestic",
+    items: [
+      "Waiter / Waitress",
+      "Bartender / Bar Staff",
+      "Hotel Front Desk",
+      "Housekeeping (Hotel)",
+      "Househelp / Domestic Worker",
+      "Kitchen Assistant",
+      "Event Staff / Usher",
+      "Catering / Cook",
+      "Laundry Attendant",
+      "Nanny / Childcare",
+      "Spa Therapist / Masseuse"
+    ]
+  },
+  {
+    key: "cleaning",
+    title: "Cleaning & Facility",
+    items: [
+      "Cleaner / Janitor",
+      "Security Guard",
+      "Facility Maintenance",
+      "Office Assistant",
+      "Caretaker / Building Manager"
+    ]
+  },
+  {
+    key: "manufacturing",
+    title: "Manufacturing & Warehouse",
+    items: [
+      "Factory Worker",
+      "Warehouse / Inventory Clerk",
+      "Machine Operator",
+      "Quality Control Inspector",
+      "Packing & Sorting Staff"
+    ]
+  },
+  {
+    key: "trades",
+    title: "Trades & Skilled Labour",
+    items: [
+      "Electrician (incl. Solar)",
+      "Plumber",
+      "Welder / Fabricator",
+      "Mason / Bricklayer",
+      "Carpenter",
+      "Mechanic (Auto / Generator / Bike)",
+      "Painter & Decorator",
+      "Tailor / Fashion Designer",
+      "Shoe Maker / Cobbler",
+      "Hair Stylist",
+      "Barber"
+    ]
+  },
+  {
+    key: "transport",
+    title: "Transport & Delivery",
+    items: [
+      "Driver (Private / Bus / Truck)",
+      "Dispatch Rider",
+      "Logistics / Courier",
+      "Boat Operator"
+    ]
+  },
+  {
+    key: "retail",
+    title: "Retail & Sales",
+    items: [
+      "Shopkeeper",
+      "Market Trader",
+      "Sales Promoter",
+      "Supermarket Cashier",
+      "Merchandiser"
+    ]
+  },
+  {
+    key: "office",
+    title: "Office & Professional",
+    items: [
+      "Customer Service / Call Centre",
+      "Data Entry / Admin Clerk",
+      "Accountant / Bookkeeper",
+      "HR / Staff Management",
+      "Marketing / Growth",
+      "Project Manager",
+      "Receptionist",
+      "Procurement Officer",
+      "Secretary"
+    ]
+  },
+  {
+    key: "techcreative",
+    title: "Technology & Creative",
+    items: [
+      "Graphic Designer",
+      "Video Editor",
+      "Photographer",
+      "Social Media Manager",
+      "Web Developer",
+      "Mobile App Developer",
+      "IT Support",
+      "Content Writer",
+      "SEO Specialist",
+      "Animator"
+    ]
+  },
+  {
+    key: "education",
+    title: "Education & Training",
+    items: [
+      "Teacher (Primary / Secondary)",
+      "Lecturer / University",
+      "Tutor (Private Lessons)",
+      "Vocational Skills Trainer",
+      "Language Instructor"
+    ]
+  },
+  {
+    key: "healthcare",
+    title: "Healthcare",
+    items: [
+      "Nurse",
+      "Doctor",
+      "Laboratory Technician",
+      "Pharmacist",
+      "Caregiver / Health Assistant"
+    ]
+  },
+  {
+    key: "agriculture",
+    title: "Agriculture & Farming",
+    items: [
+      "Crop Farmer",
+      "Poultry Farmer",
+      "Fish Farmer",
+      "Farm Labourer",
+      "Agro-Processing Worker"
+    ]
+  },
+  {
+    key: "repairs",
+    title: "Maintenance & Repairs",
+    items: [
+      "Building Maintenance",
+      "AC / Refrigerator Repair",
+      "Electronics Repair",
+      "Mobile Phone Repair",
+      "Generator Repair"
+    ]
+  },
+  {
+    key: "engineering",
+    title: "Engineering & Technical",
+    items: [
+      "Civil Engineer",
+      "Mechanical Engineer",
+      "Electrical Engineer",
+      "Structural Engineer",
+      "Chemical Engineer",
+      "Industrial Engineer",
+      "Agricultural Engineer",
+      "Environmental Engineer",
+      "Petroleum Engineer",
+      "Mining Engineer",
+      "Water / Sanitation Engineer"
+    ]
+  }
+];
+
+export default function App() {
+  StatusBar.setBarStyle("dark-content");
+
+  const [openGroups, setOpenGroups] = useState({});
+  const [selected, setSelected] = useState([]);
+
+  const toggleGroup = (key) => {
+    setOpenGroups((prev) => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const toggleItem = (label) => {
+    setSelected((prev) => {
+      if (prev.includes(label)) {
+        return prev.filter((x) => x !== label);
+      }
+      return [...prev, label];
+    });
+  };
+
+  const canContinue = selected.length >= 3;
+
+  const onContinue = () => {
+    if (!canContinue) {
+      Alert.alert("Pick more", "Please select at least 3 interests.");
+      return;
+    }
+    Alert.alert("Selected", selected.join(", "));
+  };
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.headerWrap}>
+        <Text style={styles.brand}>SSocket</Text>
+        <View style={styles.brandDot} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <Text style={styles.h1}>
+          What kind of problems would you like to solve on SSocket?
+        </Text>
+        <Text style={styles.sub}>
+          Pick your areas. We’ll tailor gigs, people and tools to match.
+        </Text>
+
+        <View style={{ height: 10 }} />
+
+        {CATEGORIES.map((cat) => {
+          const isOpen = !!openGroups[cat.key];
+          return (
+            <View key={cat.key} style={styles.groupCard}>
+              <TouchableOpacity
+                onPress={() => toggleGroup(cat.key)}
+                activeOpacity={0.9}
+                style={styles.groupHeader}
+              >
+                <Text style={styles.groupTitle}>{cat.title}</Text>
+                <Text style={styles.chev}>{isOpen ? "−" : "+"}</Text>
+              </TouchableOpacity>
+
+              {isOpen ? (
+                <View style={styles.chipsWrap}>
+                  {cat.items.map((label) => {
+                    const active = selected.includes(label);
+                    return (
+                      <TouchableOpacity
+                        key={label}
+                        onPress={() => toggleItem(label)}
+                        activeOpacity={0.85}
+                        style={[
+                          styles.chip,
+                          active && styles.chipActive
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.chipText,
+                            active && styles.chipTextActive
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : null}
+            </View>
+          );
+        })}
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <TouchableOpacity
+          onPress={onContinue}
+          activeOpacity={0.9}
+          style={[styles.cta, !canContinue && styles.ctaDisabled]}
+        >
+          <Text style={styles.ctaText}>
+            Continue ⚡
+          </Text>
+          <View style={styles.countBadge}>
+            <Text style={styles.countText}>{selected.length}</Text>
+          </View>
+        </TouchableOpacity>
+
+        {!canContinue ? (
+          <Text style={styles.hint}>
+            Select at least 3 interests to continue.
+          </Text>
+        ) : (
+          <Text style={styles.hintOK}>Nice! You’re good to go.</Text>
+        )}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: BG
+  },
+  headerWrap: {
+    alignItems: "center",
+    paddingTop: Platform.OS === "android" ? 24 : 8,
+    paddingBottom: 6
+  },
+  brand: {
+    fontSize: 32,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+    color: TEXT,
+    textAlign: "center"
+  },
+  brandDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: YELLOW,
+    marginTop: 6
+  },
+  scroll: {
+    paddingHorizontal: 18,
+    paddingBottom: 20
+  },
+  h1: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: TEXT,
+    textAlign: "left"
+  },
+  sub: {
+    marginTop: 4,
+    fontSize: 13,
+    color: MUTED
+  },
+  groupCard: {
+    backgroundColor: CARD,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: BDR,
+    marginTop: 12,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2
+  },
+  groupHeader: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fafafa"
+  },
+  groupTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: TEXT
+  },
+  chev: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: TEXT
+  },
+  chipsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+    gap: 8
+  },
+  chip: {
+    borderWidth: 1,
+    borderColor: BDR,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#fff"
+  },
+  chipActive: {
+    backgroundColor: YELLOW,
+    borderColor: "#d1a900"
+  },
+  chipText: {
+    fontSize: 12, // smaller than main group titles
+    color: TEXT,
+    fontWeight: "700"
+  },
+  chipTextActive: {
+    color: BLACK
+  },
+  footer: {
+    paddingHorizontal: 18,
+    paddingBottom: 14
+  },
+  cta: {
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: BLACK,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row"
+  },
+  ctaDisabled: {
+    opacity: 0.5
+  },
+  ctaText: {
+    color: "#fff",
+    fontSize: 16.5,
+    fontWeight: "900",
+    letterSpacing: 0.3
+  },
+  countBadge: {
+    marginLeft: 10,
+    backgroundColor: YELLOW,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2
+  },
+  countText: {
+    color: BLACK,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  hint: {
+    textAlign: "center",
+    marginTop: 8,
+    color: MUTED,
+    fontSize: 12
+  },
+  hintOK: {
+    textAlign: "center",
+    marginTop: 8,
+    color: "#16a34a",
+    fontSize: 12,
+    fontWeight: "700"
+  }
+});
+
