@@ -1,0 +1,198 @@
+// App.js
+import React from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+const CONTACTS = [
+  { name: "John Doe", rank: "Level 4" },
+  { name: "Jane Smith", rank: "Level 7" },
+  { name: "Peter Obi", rank: "Level 2" },
+  { name: "Lucy Gray", rank: "Level 5" },
+  { name: "Ted Allen", rank: "Level 3" },
+  { name: "Rick Lee", rank: "Level 6" },
+  { name: "Alice Cole", rank: "Level 1" },
+  { name: "Rachel Kim", rank: "Level 8" },
+];
+
+export default function App() {
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Same tall header length as before */}
+      <View style={styles.topBar}>
+        <Text style={styles.topBarTitle}>Contacts</Text>
+      </View>
+      <View style={styles.topAccent} />
+
+      <FlatList
+        contentContainerStyle={styles.listContent}
+        data={CONTACTS}
+        keyExtractor={(item, idx) => String(idx)}
+        renderItem={({ item }) => <ContactRow item={item} />}
+      />
+
+      {/* Exact same nav bar style & icons (yellow outlines on black) */}
+      <View style={styles.bottomBar}>
+        <Ionicons name="home-outline" size={28} color={YELLOW} />
+        <Ionicons name="briefcase-outline" size={28} color={YELLOW} />
+        <Ionicons name="people-outline" size={28} color={YELLOW} />
+        <Ionicons name="notifications-outline" size={28} color={YELLOW} />
+        <Ionicons name="person-outline" size={28} color={YELLOW} />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+/* -------------------- Row -------------------- */
+function ContactRow({ item }) {
+  return (
+    <View style={styles.row}>
+      {/* Left avatar circle (simple outline person) */}
+      <View style={styles.avatar}>
+        <View style={styles.avatarHead} />
+        <View style={styles.avatarBody} />
+      </View>
+
+      {/* Name + Rank + Track pill */}
+      <View style={styles.middle}>
+        <Text style={styles.name} numberOfLines={1}>
+          {item.name}
+        </Text>
+        <View style={styles.metaRow}>
+          <View style={styles.rankBadge}>
+            <Text style={styles.rankText}>{item.rank}</Text>
+          </View>
+
+          <TouchableOpacity activeOpacity={0.7} style={styles.trackPill}>
+            <Text style={styles.trackText}>Track</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Right: Stats button */}
+      <TouchableOpacity activeOpacity={0.7} style={styles.statsBtn}>
+        <Text style={styles.statsText}>Stats</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+/* -------------------- Styles -------------------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  // Same header height/feel you approved earlier (88)
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+  },
+  topBarTitle: { color: WHITE, fontSize: 26, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  listContent: { paddingVertical: 8, paddingBottom: 86 },
+
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EFEFEF",
+    gap: 12,
+  },
+
+  /* avatar */
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarHead: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    marginBottom: 1,
+  },
+  avatarBody: {
+    width: 22,
+    height: 10,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+
+  /* middle block */
+  middle: { flex: 1 },
+  name: { color: BLACK, fontSize: 18, fontWeight: "700", marginBottom: 6 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+
+  rankBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: YELLOW, // slight yellow touch
+  },
+  rankText: { color: BLACK, fontSize: 12, fontWeight: "700" },
+
+  trackPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: YELLOW,
+    backgroundColor: WHITE,
+  },
+  trackText: { color: BLACK, fontSize: 13, fontWeight: "700" },
+
+  /* Stats button on right */
+  statsBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  statsText: { color: BLACK, fontSize: 14, fontWeight: "800" },
+
+  /* bottom nav (unchanged from your approved look) */
+  bottomBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 64,
+    backgroundColor: BLACK,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingHorizontal: 12,
+  },
+});
