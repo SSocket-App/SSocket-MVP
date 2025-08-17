@@ -1,0 +1,364 @@
+// App.js
+import React from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  FlatList,
+  ScrollView,
+  Image,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+/* -------- Sample Data -------- */
+const HELPS = [
+  { id: "new", title: "Request\na help?", icon: "help-buoy-outline", newTile: true },
+  { id: "1", title: "Accounting\nPOS not balancing", icon: "calculator-outline", ratio: "2/7" },
+  { id: "2", title: "Marketing\nSEO malfunctioning", icon: "megaphone-outline", ratio: "5/10" },
+  { id: "3", title: "Coding\nBug", icon: "bug-outline", ratio: "1/6" },
+];
+
+const POSTS = [
+  { id: "p1", name: "John Doe", rank: "Level 5", caption: "Just solved a nasty POS reconciliation!" },
+  { id: "p2", name: "Jane Smith", rank: "Level 7", caption: "Tip: use logs early and often ⚡" },
+  { id: "p3", name: "Peter Obi", rank: "Level 2", caption: "Anyone seen the kitchen inventory bug?" },
+  { id: "p4", name: "Ada Lovelace", rank: "Level 10", caption: "Throwback to our hackathon project 🚀", image: "https://picsum.photos/400/200?random=1" },
+  { id: "p5", name: "Elon Junior", rank: "Level 3", caption: "Prototype sketches look clean!", image: "https://picsum.photos/400/250?random=2" },
+  { id: "p6", name: "Ngozi Tech", rank: "Level 8", caption: "Finally launched the beta today 🎉" },
+];
+
+export default function App() {
+  const progress = 45; // percent value for rank bar
+
+  const HelpsHeader = () => (
+    <View style={styles.helpsWrap}>
+      <Text style={styles.helpsTitle}>Helps</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.helpsScroller}
+      >
+        {HELPS.map((h) => (
+          <View key={h.id} style={[styles.helpCard, h.newTile && styles.helpNewCard]}>
+            <Ionicons name={h.icon} size={18} color={BLACK} style={{ marginBottom: 6 }} />
+
+            {/* Profile avatar inside help box */}
+            <View style={styles.helpAvatar}>
+              <View style={styles.helpAvatarHead} />
+              <View style={styles.helpAvatarBody} />
+            </View>
+
+            <Text style={styles.helpText} numberOfLines={2}>
+              {h.title}
+            </Text>
+            {h.ratio ? <Text style={styles.helpRatio}>{h.ratio}</Text> : null}
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* TOP BAR */}
+      <View style={styles.topBar}>
+        {/* Left: Profile + Rank */}
+        <View style={styles.profileRankWrap}>
+          <View style={styles.avatarLarge}>
+            <View style={styles.avatarHead} />
+            <View style={styles.avatarBody} />
+          </View>
+
+          <View style={styles.rankWrap}>
+            <Text style={styles.rankText}>Rank: Level 5</Text>
+            <View style={styles.rankBarOuter}>
+              <View style={[styles.rankBarInner, { width: `${progress}%` }]}>
+                <Text style={styles.rankPercent}>{progress}%</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Center: Title */}
+        <Text style={styles.topTitle}>SSocket</Text>
+
+        {/* Right: chat + search */}
+        <View style={styles.topRight}>
+          <Ionicons name="chatbubble-outline" size={24} color={WHITE} />
+          <View style={{ width: 18 }} />
+          <Ionicons name="search-outline" size={24} color={WHITE} />
+        </View>
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Share box (unchanged) */}
+      <View style={styles.shareRow}>
+        <Text style={styles.shareText}>Talk about your ideas</Text>
+        <View style={styles.shareIconBox}>
+          <Ionicons name="image-outline" size={18} color={BLACK} />
+        </View>
+      </View>
+
+      {/* FEED with Helps as header (so it scrolls away like Stories) */}
+      <FlatList
+        data={POSTS}
+        keyExtractor={(i) => i.id}
+        ListHeaderComponent={<HelpsHeader />}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        renderItem={({ item }) => <PostCard item={item} />}
+        showsVerticalScrollIndicator={false}
+      />
+
+      {/* Bottom Nav */}
+      <View style={styles.bottomBar}>
+        <Ionicons name="home-outline" size={28} color={YELLOW} />
+        <Ionicons name="briefcase-outline" size={28} color={YELLOW} />
+        <Ionicons name="people-outline" size={28} color={YELLOW} />
+        <Ionicons name="notifications-outline" size={28} color={YELLOW} />
+        <Ionicons name="person-outline" size={28} color={YELLOW} />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+/* -------- Components -------- */
+function PostCard({ item }) {
+  return (
+    <View style={styles.post}>
+      <View style={styles.postHeader}>
+        <View style={styles.avatarSmall}>
+          <View style={styles.avatarSmallHead} />
+          <View style={styles.avatarSmallBody} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.postName}>{item.name}</Text>
+          <Text style={styles.postRank}>{item.rank}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.postCaption}>{item.caption}</Text>
+
+      {/* Optional Image */}
+      {item.image && <Image source={{ uri: item.image }} style={styles.postImage} />}
+
+      <View style={styles.actionsRow}>
+        <TouchableOpacity style={styles.actionBox}>
+          <Ionicons name="thumbs-up-outline" size={20} color={BLACK} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBox}>
+          <Ionicons name="chatbubble-outline" size={20} color={BLACK} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBox}>
+          <Ionicons name="share-social-outline" size={20} color={BLACK} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+/* -------- Styles -------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 148,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 16,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  profileRankWrap: { flexDirection: "row", alignItems: "center", flex: 1 },
+  avatarLarge: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+    backgroundColor: BLACK,
+  },
+  avatarHead: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: WHITE,
+    backgroundColor: BLACK,
+    marginBottom: 2,
+  },
+  avatarBody: {
+    width: 22,
+    height: 10,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: WHITE,
+    backgroundColor: BLACK,
+  },
+  rankWrap: { flexDirection: "column", flex: 1 },
+  rankText: { color: WHITE, fontSize: 14, fontWeight: "600", marginBottom: 6 },
+  rankBarOuter: {
+    width: 120,
+    height: 16,
+    backgroundColor: "#444",
+    borderRadius: 8,
+    overflow: "hidden",
+    justifyContent: "center",
+  },
+  rankBarInner: {
+    height: "100%",
+    backgroundColor: YELLOW,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  rankPercent: { fontSize: 10, fontWeight: "700", color: BLACK },
+
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900", flex: 1, textAlign: "center" },
+  topRight: { flexDirection: "row", alignItems: "center" },
+
+  shareRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  shareText: {
+    flex: 1,
+    backgroundColor: "#F4F4F4",
+    color: "#777",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    fontSize: 14,
+  },
+  shareIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: WHITE,
+  },
+
+  // Helps (unchanged look; now scrolls away with feed)
+  helpsWrap: { paddingBottom: 2 },
+  helpsTitle: { fontSize: 14, fontWeight: "800", color: BLACK, paddingHorizontal: 12, marginBottom: 2 },
+  helpsScroller: { paddingHorizontal: 8 },
+  helpCard: {
+    width: 140,
+    marginHorizontal: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    backgroundColor: WHITE,
+    alignItems: "center",
+  },
+  helpNewCard: { backgroundColor: YELLOW },
+  helpText: { color: BLACK, fontWeight: "700", marginBottom: 4, textAlign: "center" },
+  helpRatio: { color: BLACK, fontWeight: "800" },
+  helpAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+    backgroundColor: WHITE,
+  },
+  helpAvatarHead: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    marginBottom: 1,
+  },
+  helpAvatarBody: {
+    width: 14,
+    height: 6,
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+
+  post: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#EFEFEF", marginBottom: 6 },
+  postHeader: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  avatarSmall: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarSmallHead: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    marginBottom: 1,
+  },
+  avatarSmallBody: {
+    width: 16,
+    height: 8,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  postName: { fontWeight: "800", color: BLACK, fontSize: 16, marginBottom: 2 },
+  postRank: { color: "#666", fontSize: 12 },
+  postCaption: { paddingHorizontal: 12, paddingBottom: 10, color: BLACK, fontSize: 15 },
+  postImage: { width: "100%", height: 200, resizeMode: "cover", marginBottom: 10 },
+
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderColor: "#EFEFEF",
+  },
+  actionBox: { flex: 1, alignItems: "center", paddingVertical: 6 },
+
+  bottomBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 64,
+    backgroundColor: BLACK,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingHorizontal: 12,
+  },
+});
+
