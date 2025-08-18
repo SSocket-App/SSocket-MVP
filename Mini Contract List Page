@@ -1,0 +1,257 @@
+// MiniContractsListPage.js
+import React, { useState, useMemo } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  FlatList,
+  TouchableOpacity,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+
+/* ---- Sample data (replace with your store/API) ---- */
+const INITIAL = [
+  {
+    id: "mc1",
+    title: "Build my house",
+    role: "Bricklayer",
+    nature: "Foundation walls",
+    count: 4,
+    duration: "2 weeks",
+    location: "Lagos, Nigeria",
+    pay: "₦50,000 / day",
+    createdAt: "2025-08-18T10:15:00Z",
+  },
+  {
+    id: "mc2",
+    title: "Store repaint",
+    role: "Painter",
+    nature: "Interior & Exterior",
+    count: 2,
+    duration: "5 days",
+    location: "Abuja",
+    pay: "₦15,000 / day",
+    createdAt: "2025-08-17T09:00:00Z",
+  },
+  {
+    id: "mc3",
+    title: "Gate wiring repair",
+    role: "Electrician",
+    nature: "Fix short circuit, replace breaker",
+    count: 1,
+    duration: "1 day",
+    location: "Port Harcourt",
+    pay: "₦30,000",
+    createdAt: "2025-08-16T14:45:00Z",
+  },
+];
+
+function formatDT(iso) {
+  const d = new Date(iso);
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const mm = months[d.getMonth()];
+  const day = d.getDate();
+  const yyyy = d.getFullYear();
+  let hrs = d.getHours();
+  const mins = d.getMinutes().toString().padStart(2, "0");
+  const ampm = hrs >= 12 ? "PM" : "AM";
+  hrs = hrs % 12 || 12;
+  return `${mm} ${day}, ${yyyy} · ${hrs}:${mins} ${ampm}`;
+}
+
+export default function MiniContractsListPage() {
+  const [items, setItems] = useState(INITIAL);
+
+  const onDelete = (id) => {
+    const item = items.find((x) => x.id === id);
+    Alert.alert(
+      "Delete mini contract?",
+      `This will remove "${item?.title}" permanently.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => setItems((prev) => prev.filter((x) => x.id !== id)),
+        },
+      ]
+    );
+  };
+
+  const onEdit = (id) => {
+    const item = items.find((x) => x.id === id);
+    // Hook this to your edit screen, passing the id
+    Alert.alert("Edit", `Open editor for: ${item?.title}`);
+  };
+
+  const onPreview = (id) => {
+    const item = items.find((x) => x.id === id);
+    Alert.alert(
+      "Preview",
+      `📌 ${item.title}\n👷 Role: ${item.role}\n🛠 Nature: ${item.nature}\n👥 Needed: ${item.count}\n⏳ Duration: ${item.duration}\n📍 Location: ${item.location}\n💰 Pay: ${item.pay}`
+    );
+  };
+
+  const renderItem = ({ item }) => (
+    <ContractCard
+      data={item}
+      onPreview={() => onPreview(item.id)}
+      onEdit={() => onEdit(item.id)}
+      onDelete={() => onDelete(item.id)}
+    />
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>My Mini Contracts</Text>
+        <View style={styles.iconBox} />
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* List */}
+      <FlatList
+        data={items}
+        keyExtractor={(i) => i.id}
+        renderItem={renderItem}
+        ItemSeparatorComponent={() => <View style={styles.sep} />}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Ionicons name="briefcase-outline" size={24} color="#777" />
+            <Text style={styles.emptyText}>No mini contracts yet.</Text>
+          </View>
+        }
+        showsVerticalScrollIndicator={false}
+      />
+    </SafeAreaView>
+  );
+}
+
+/* ---- Card Component ---- */
+function ContractCard({ data, onPreview, onEdit, onDelete }) {
+  return (
+    <View style={styles.card}>
+      {/* Header row: title + date + actions */}
+      <View style={styles.cardTop}>
+        <View style={{ flex: 1, paddingRight: 8 }}>
+          <Text style={styles.title} numberOfLines={1}>{data.title}</Text>
+          <Text style={styles.date}>{formatDT(data.createdAt)}</Text>
+        </View>
+
+        {/* Actions: preview, edit, delete (icons only) */}
+        <View style={styles.actionsRight}>
+          <TouchableOpacity onPress={onPreview} style={styles.actionIcon} activeOpacity={0.8}>
+            <Ionicons name="eye-outline" size={20} color={BLACK} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onEdit} style={styles.actionIcon} activeOpacity={0.8}>
+            <Ionicons name="pencil" size={18} color={BLACK} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onDelete} style={styles.actionIcon} activeOpacity={0.8}>
+            <Ionicons name="trash-outline" size={20} color={BLACK} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Body rows */}
+      <Row label="Role" value={data.role} />
+      <Row label="Nature" value={data.nature} />
+      <Row label="Needed" value={`${data.count}`} />
+      <Row label="Duration" value={data.duration} />
+      <Row label="Location" value={data.location} />
+      <Row label="Pay" value={data.pay} />
+    </View>
+  );
+}
+
+function Row({ label, value }) {
+  return (
+    <View style={styles.row}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Text style={styles.rowValue} numberOfLines={2}>{value || "—"}</Text>
+    </View>
+  );
+}
+
+/* ---- Styles ---- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  sep: { height: 1, backgroundColor: "#F0F0F0", marginHorizontal: 12 },
+
+  emptyWrap: { padding: 28, alignItems: "center" },
+  emptyText: { marginTop: 8, color: "#777", fontWeight: "700" },
+
+  card: {
+    marginHorizontal: 12,
+    marginTop: 10,
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
+
+  cardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  title: { fontSize: 16, fontWeight: "900", color: BLACK },
+  date: { fontSize: 12, color: "#666", marginTop: 2 },
+
+  actionsRight: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  actionIcon: {
+    marginLeft: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    width: 36,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: WHITE,
+  },
+
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#EFEFEF",
+  },
+  rowLabel: { width: 90, color: "#555", fontWeight: "800" },
+  rowValue: { flex: 1, color: BLACK, fontWeight: "700" },
+});
