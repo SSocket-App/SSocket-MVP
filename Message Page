@@ -1,0 +1,161 @@
+// App.js
+import React from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  FlatList,
+  TouchableOpacity,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+
+/* Add timestamp + unreadCount per chat */
+const CHATS = [
+  { id: "1", name: "John Doe",   rank: "Level 5", preview: "Sure, I’ll send it across now…", lastMessageAt: "4:31 PM", unreadCount: 2 },
+  { id: "2", name: "Jane Smith", rank: "Level 7", preview: "Great! Let’s wrap this by EOD.", lastMessageAt: "4:15 PM", unreadCount: 0 },
+  { id: "3", name: "Peter Obi",  rank: "Level 2", preview: "I’m checking the logs 📜",        lastMessageAt: "3:58 PM", unreadCount: 1 },
+  { id: "4", name: "Lucy Gray",  rank: "Level 4", preview: "Nice fix on the POS issue!",      lastMessageAt: "3:25 PM", unreadCount: 0 },
+  { id: "5", name: "Ted Allen",  rank: "Level 3", preview: "Can we jump on a quick call?",     lastMessageAt: "2:40 PM", unreadCount: 3 },
+  { id: "6", name: "Rick Lee",   rank: "Level 6", preview: "Deployed to staging ✅",           lastMessageAt: "2:15 PM", unreadCount: 0 },
+  { id: "7", name: "Alice Cole", rank: "Level 1", preview: "On my way…",                       lastMessageAt: "Yesterday", unreadCount: 0 },
+  { id: "8", name: "Rachel Kim", rank: "Level 8", preview: "I’ll draft the mini contract.",    lastMessageAt: "Mon", unreadCount: 1 },
+];
+
+export default function App() {
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBox}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+
+        <Text style={styles.topTitle}>Messages</Text>
+
+        <TouchableOpacity style={[styles.iconBox, { alignItems: "flex-end" }]}>
+          <Ionicons name="search" size={20} color={WHITE} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Messages list */}
+      <FlatList
+        data={CHATS}
+        keyExtractor={(i) => i.id}
+        contentContainerStyle={{ paddingBottom: 12 }}
+        renderItem={({ item }) => <ChatRow item={item} />}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        showsVerticalScrollIndicator={false}
+      />
+    </SafeAreaView>
+  );
+}
+
+function ChatRow({ item }) {
+  const hasUnread = (item.unreadCount || 0) > 0;
+
+  return (
+    <TouchableOpacity activeOpacity={0.8} style={styles.row}>
+      {/* Avatar */}
+      <View style={styles.avatar}>
+        <View style={styles.avatarHead} />
+        <View style={styles.avatarBody} />
+      </View>
+
+      {/* Name + Rank + Preview */}
+      <View style={{ flex: 1 }}>
+        <View style={styles.nameRank}>
+          <Text numberOfLines={1} style={styles.name}>
+            {item.name}
+          </Text>
+          <View style={styles.rankBadge}>
+            <Text style={styles.rankText}>{item.rank}</Text>
+          </View>
+        </View>
+
+        <Text numberOfLines={1} style={styles.preview}>
+          {item.preview}
+        </Text>
+      </View>
+
+      {/* Right: time + unread dot */}
+      <View style={styles.rightMeta}>
+        <Text style={[styles.time, hasUnread && styles.timeBold]}>
+          {item.lastMessageAt}
+        </Text>
+        {hasUnread ? <View style={styles.unreadDot} /> : <View style={{ height: 10 }} />}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+/* ---------------- Styles ---------------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  separator: { height: 1, backgroundColor: "#F0F0F0", marginLeft: 14 },
+
+  /* Avatar */
+  avatar: {
+    width: 48, height: 48, borderRadius: 24,
+    borderWidth: 2, borderColor: BLACK,
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: WHITE, marginRight: 12,
+  },
+  avatarHead: {
+    width: 12, height: 12, borderRadius: 6,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE, marginBottom: 2,
+  },
+  avatarBody: {
+    width: 20, height: 10, borderRadius: 6,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+  },
+
+  nameRank: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
+  name: { fontSize: 16, fontWeight: "800", color: BLACK, flexShrink: 1 },
+  rankBadge: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: YELLOW,
+  },
+  rankText: { color: BLACK, fontWeight: "800", fontSize: 12 },
+
+  preview: { color: "#666", fontSize: 13 },
+
+  /* Right meta (time + unread dot) */
+  rightMeta: { alignItems: "flex-end", marginLeft: 10, minWidth: 64 },
+  time: { color: "#777", fontSize: 11 },
+  timeBold: { color: BLACK, fontWeight: "800" },
+  unreadDot: {
+    marginTop: 6,
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: YELLOW, borderWidth: 1, borderColor: BLACK,
+  },
+});
