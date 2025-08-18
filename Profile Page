@@ -1,4 +1,4 @@
-// App.js
+// App.js 
 import React from "react";
 import {
   SafeAreaView,
@@ -87,6 +87,7 @@ export default function App() {
         <ActionButton title="Interest" />
         <ActionButton title="Posts" />
         <ActionButton title="T & C" />
+        <ActionButton title="Saved" />   {/* ✅ New Saved button */}
 
         <BigButton title="Customer Support" />
         <BigButton title="Privacy Policy" />
@@ -305,3 +306,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
 });
+
