@@ -1,0 +1,264 @@
+// UserPostsPage.js
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  FlatList,
+  TouchableOpacity,
+  Image,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+
+/* -------- The one user whose posts we're showing -------- */
+const USER = {
+  name: "John Doe",        // <-- change to the user's display name
+  rank: "Level 5",         // <-- change to the user's rank
+};
+
+/* -------- Sample posts (all by USER above) --------
+   Only content & timestamp vary. Add/remove items as needed.
+*/
+const POSTS = [
+  { id: "p1", caption: "Just solved a nasty POS reconciliation! 💳🧾", timestamp: "2025-08-18T16:31:00Z" },
+  { id: "p2", caption: "Idea: Offline-first receipts with smart retries.", timestamp: "2025-08-18T15:05:00Z", image: "https://picsum.photos/seed/ssocket1/600/400" },
+  { id: "p3", caption: "Anyone seen that inventory drift bug? 👀", timestamp: "2025-08-17T19:12:00Z" },
+  { id: "p4", caption: "SEO coverage dropped — rebuilt the sitemap index ⚙️", timestamp: "2025-08-16T09:40:00Z", image: "https://picsum.photos/seed/ssocket2/600/400" },
+];
+
+/* Format: Aug 18, 2025 · 4:31 PM (local) */
+function formatDateTime(iso) {
+  try {
+    const d = new Date(iso);
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const mm = months[d.getMonth()];
+    const day = d.getDate();
+    const yyyy = d.getFullYear();
+    let hrs = d.getHours();
+    const mins = d.getMinutes().toString().padStart(2, "0");
+    const ampm = hrs >= 12 ? "PM" : "AM";
+    hrs = hrs % 12 || 12;
+    return `${mm} ${day}, ${yyyy} · ${hrs}:${mins} ${ampm}`;
+  } catch {
+    return iso;
+  }
+}
+
+export default function UserPostsPage() {
+  const [query, setQuery] = useState(""); // placeholder if you wire a real search
+
+  // Simple local filter (by caption text). All posts are by the same USER.
+  const data = useMemo(() => {
+    if (!query.trim()) return POSTS;
+    const q = query.trim().toLowerCase();
+    return POSTS.filter((p) => p.caption.toLowerCase().includes(q));
+  }, [query]);
+
+  const onShare = (item) => Alert.alert("Share", `Share: "${item.caption}"`);
+  const onSave = (item) => Alert.alert("Saved", "Post saved");
+
+  const onSearch = () => Alert.alert("Search", "Implement search input or screen here.");
+
+  const renderItem = ({ item }) => (
+    <PostCard
+      author={USER.name}
+      rank={USER.rank}
+      caption={item.caption}
+      timestamp={item.timestamp}
+      image={item.image}
+      onSave={() => onSave(item)}
+      onShare={() => onShare(item)}
+    />
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>{USER.name}'s Posts</Text>
+        <TouchableOpacity
+          style={[styles.iconBox, { alignItems: "flex-end" }]}
+          activeOpacity={0.7}
+          onPress={onSearch}
+        >
+          <Ionicons name="search" size={20} color={WHITE} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* List */}
+      <FlatList
+        data={data}
+        keyExtractor={(i) => i.id}
+        renderItem={renderItem}
+        ItemSeparatorComponent={() => <View style={styles.sep} />}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyText}>No posts yet.</Text>
+          </View>
+        }
+      />
+    </SafeAreaView>
+  );
+}
+
+/* -------- Components -------- */
+function PostCard({ author, rank, caption, timestamp, image, onSave, onShare }) {
+  return (
+    <View style={styles.postCard}>
+      {/* header */}
+      <View style={styles.postHeader}>
+        <View style={styles.avatar}>
+          <View style={styles.avatarHead} />
+          <View style={styles.avatarBody} />
+        </View>
+        <View style={{ flex: 1, marginRight: 10 }}>
+          <Text style={styles.author} numberOfLines={1}>
+            {author}
+          </Text>
+          <Text style={styles.rank} numberOfLines={1}>
+            {rank}
+          </Text>
+        </View>
+        <Text style={styles.timeText}>{formatDateTime(timestamp)}</Text>
+      </View>
+
+      {/* caption */}
+      <Text style={styles.caption}>{caption}</Text>
+
+      {/* optional image */}
+      {image ? (
+        <View style={styles.imageWrap}>
+          <Image source={{ uri: image }} style={styles.image} />
+        </View>
+      ) : null}
+
+      {/* actions */}
+      <View style={styles.actionsRow}>
+        <TouchableOpacity style={styles.actionBtn} activeOpacity={0.85}>
+          <Ionicons name="thumbs-up-outline" size={18} color={BLACK} />
+          <Text style={styles.actionText}>Like</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} activeOpacity={0.85}>
+          <Ionicons name="chatbubble-outline" size={18} color={BLACK} />
+          <Text style={styles.actionText}>Comment</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} activeOpacity={0.85} onPress={onShare}>
+          <Ionicons name="share-social-outline" size={18} color={BLACK} />
+          <Text style={styles.actionText}>Share</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} activeOpacity={0.85} onPress={onSave}>
+          <Ionicons name="bookmark-outline" size={18} color={BLACK} />
+          <Text style={styles.actionText}>Save</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+/* -------- Styles -------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top bar */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* List visuals */
+  sep: { height: 1, backgroundColor: "#F0F0F0", marginHorizontal: 12 },
+  emptyWrap: { padding: 24, alignItems: "center" },
+  emptyText: { color: "#666", fontWeight: "700" },
+
+  /* Post card */
+  postCard: {
+    marginHorizontal: 12,
+    marginTop: 10,
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    paddingVertical: 10,
+  },
+
+  postHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    marginBottom: 6,
+  },
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  avatarHead: {
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    marginBottom: 1,
+  },
+  avatarBody: {
+    width: 20,
+    height: 10,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  author: { fontWeight: "900", color: BLACK, fontSize: 15 },
+  rank: { color: "#666", fontSize: 12, marginTop: 2 },
+
+  timeText: { color: "#777", fontSize: 12 },
+
+  caption: { color: BLACK, fontSize: 15, paddingHorizontal: 12, paddingBottom: 8 },
+
+  imageWrap: { paddingHorizontal: 12, paddingBottom: 8 },
+  image: { width: "100%", height: 200, borderRadius: 10, borderWidth: 1, borderColor: "#EDEDED" },
+
+  actionsRow: {
+    marginTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#EFEFEF",
+    flexDirection: "row",
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    justifyContent: "space-around",
+  },
+  actionBtn: { flexDirection: "row", alignItems: "center", paddingHorizontal: 8, paddingVertical: 6 },
+  actionText: { marginLeft: 6, fontWeight: "800", color: BLACK, fontSize: 12 },
+});
