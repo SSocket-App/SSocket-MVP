@@ -1,0 +1,326 @@
+// App.js
+import React, { useState, useRef } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+// Volunteers who participated (list grows -> page scrolls)
+const ENTRIES = [
+  {
+    id: "a1",
+    name: "Anonymous 1",
+    response:
+      "I would first reconcile the POS batches against the bank settlement file, then check for time-zone cutoffs and fees. Enable detailed batch reports and re-run.",
+  },
+  {
+    id: "a2",
+    name: "Anonymous 2",
+    response:
+      "Check device firmware and network stability. If tripping is power related, add a stabilizer and test breaker ratings against peak load.",
+  },
+  {
+    id: "a3",
+    name: "Anonymous 3",
+    response:
+      "Create a clear incident log. Compare expected vs actual timestamps, export raw logs, and isolate the module throwing errors before a hotfix.",
+  },
+];
+
+// Threshold target (edit as needed)
+const THRESHOLD = 7;
+
+export default function App() {
+  const [ratings, setRatings] = useState(
+    Object.fromEntries(ENTRIES.map((e) => [e.id, 0]))
+  );
+  const [winnerId, setWinnerId] = useState(null);
+
+  // simple double-tap detector
+  const lastTapRef = useRef({});
+
+  const handleDoubleTap = (id) => {
+    const now = Date.now();
+    const last = lastTapRef.current[id] || 0;
+    if (now - last < 300) setWinnerId(id);
+    lastTapRef.current[id] = now;
+  };
+
+  const setRating = (id, val) => {
+    setRatings((r) => ({ ...r, [id]: val }));
+  };
+
+  const publish = () => {
+    if (!winnerId) {
+      Alert.alert("Pick a winner", "Double tap an entry to select the winner.");
+      return;
+    }
+    const w = ENTRIES.find((e) => e.id === winnerId);
+    Alert.alert("Published", `Winner: ${w ? w.name : "Unknown"}`);
+  };
+
+  const participated = ENTRIES.length;
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+
+        <View style={styles.topCenter}>
+          <Text style={styles.topTitle}>Helps</Text>
+          <View style={styles.chatIconWrap}>
+            <Ionicons name="chatbox-outline" size={18} color={WHITE} />
+            <Text style={styles.exMark}>!</Text>
+          </View>
+          <Text style={styles.topTitle}>Review</Text>
+        </View>
+
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Volunteer counter chip (top-right, under top bar) */}
+      <View style={styles.counterRow}>
+        <View style={{ flex: 1 }} />
+        <View style={styles.counterChip}>
+          <Ionicons name="people-outline" size={14} color={BLACK} />
+          <Text style={styles.counterText}>
+            {participated}/{THRESHOLD}
+          </Text>
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+        {/* Instruction row */}
+        <View style={styles.instructionRow}>
+          <Text style={styles.instructionText}>
+            Double tap and Publish to pick a winner
+          </Text>
+          <Text style={styles.instructionStar}>🌟</Text>
+        </View>
+
+        {/* Entries */}
+        {ENTRIES.map((e) => {
+          const isWinner = winnerId === e.id;
+          const rate = ratings[e.id] || 0;
+          return (
+            <TouchableOpacity
+              key={e.id}
+              activeOpacity={0.9}
+              onPress={() => handleDoubleTap(e.id)}
+              style={[
+                styles.card,
+                isWinner && { borderColor: YELLOW, shadowOpacity: 0.12 },
+              ]}
+            >
+              {/* Name row */}
+              <View style={styles.nameRow}>
+                <View style={styles.avatar}>
+                  <View style={styles.avatarHead} />
+                  <View style={styles.avatarBody} />
+                </View>
+                <Text style={styles.nameText}>{e.name}</Text>
+                <Ionicons name="chatbubble-ellipses-outline" size={18} color={BLACK} />
+              </View>
+
+              {/* Stars */}
+              <View style={styles.starsRow}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <TouchableOpacity key={n} onPress={() => setRating(e.id, n)}>
+                    <Ionicons
+                      name={n <= rate ? "star" : "star-outline"}
+                      size={20}
+                      color={n <= rate ? YELLOW : BLACK}
+                      style={{ marginRight: 6 }}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Response box */}
+              <View style={styles.responseBox}>
+                <Text style={styles.responseText}>{e.response}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+
+        {/* Publish button */}
+        <TouchableOpacity style={styles.publishBtn} activeOpacity={0.9} onPress={publish}>
+          <Text style={styles.publishText}>Publish</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ---------------- Styles ---------------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  backBtn: { width: 40, height: 36, justifyContent: "center" },
+
+  topCenter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+
+  chatIconWrap: {
+    position: "relative",
+    width: 20,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 4,
+  },
+  exMark: {
+    position: "absolute",
+    top: -2,
+    left: 7,
+    color: WHITE,
+    fontWeight: "900",
+    fontSize: 12,
+  },
+
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Volunteer counter row under the top bar */
+  counterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  counterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  counterText: { fontWeight: "900", color: BLACK, fontSize: 12 },
+
+  instructionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  instructionText: { fontSize: 14, fontWeight: "800", color: BLACK },
+  instructionStar: { fontSize: 18 },
+
+  card: {
+    marginHorizontal: 12,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 14,
+    backgroundColor: WHITE,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  avatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  avatarHead: {
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    marginBottom: 1,
+  },
+  avatarBody: {
+    width: 15,
+    height: 7,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  nameText: { flex: 1, marginLeft: 8, fontWeight: "800", color: BLACK },
+
+  starsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
+  responseBox: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: WHITE,
+  },
+  responseText: { color: BLACK, lineHeight: 20 },
+
+  publishBtn: {
+    alignSelf: "flex-start",
+    marginLeft: 12,
+    marginTop: 6,
+    backgroundColor: YELLOW,
+    borderColor: YELLOW,
+    borderWidth: 2,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  publishText: { fontWeight: "900", color: BLACK },
+});
