@@ -1,0 +1,333 @@
+// App.js
+import React, { useMemo, useRef, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  TextInput,
+  PanResponder,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+const TOP_BAR_HEIGHT = 88;
+const TOP_ACCENT = 3;
+
+/* Chronological (oldest -> newest); FlatList is inverted so latest shows at bottom */
+const SEED = [
+  { id: "1", fromMe: false, text: "Hello 👋", time: "3:00 PM" },
+  { id: "2", fromMe: true, text: "Hey, how’s it going?", time: "3:01 PM" },
+  { id: "3", fromMe: false, text: "All good. Working on SSocket.", time: "3:02 PM" },
+];
+
+export default function App() {
+  const [messages, setMessages] = useState(SEED);
+  const [input, setInput] = useState("");
+  const [replyTo, setReplyTo] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // auto-grow input height
+  const minH = 40, maxH = 140;
+  const [inputH, setInputH] = useState(minH);
+
+  const listRef = useRef(null);
+
+  const dataMemo = useMemo(() => messages, [messages]);
+
+  const scrollToLatest = () => {
+    // inverted list => latest is offset 0
+    listRef.current?.scrollToOffset?.({ offset: 0, animated: true });
+  };
+
+  const sendMessage = () => {
+    const val = input.trim();
+    if (!val) return;
+    const newMsg = {
+      id: Date.now().toString(),
+      fromMe: true,
+      text: val,
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      replyTo: replyTo?.text || null,
+    };
+    setMessages((prev) => [...prev, newMsg]);
+    setInput("");
+    setReplyTo(null);
+    setInputH(minH);
+    requestAnimationFrame(scrollToLatest);
+  };
+
+  // Swipe-to-reply without extra dependencies (right-swipe on others' messages)
+  const makeSwipeResponder = (msg) =>
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dy) < 12,
+      onPanResponderRelease: (_, g) => {
+        if (!msg.fromMe && g.dx > 35 && Math.abs(g.dy) < 18) setReplyTo(msg);
+      },
+    });
+
+  const renderItem = ({ item }) => {
+    const isMe = item.fromMe;
+    const pan = !isMe ? makeSwipeResponder(item) : null;
+
+    return (
+      <View
+        {...(pan ? pan.panHandlers : {})}
+        style={[styles.msgRow, isMe ? styles.rowMe : styles.rowOther]}
+      >
+        <View style={[styles.msgBubble, isMe ? styles.myMsg : styles.theirMsg]}>
+          {item.replyTo && (
+            <View style={styles.replyBox}>
+              <Text style={styles.replyLabel}>Reply</Text>
+              <Text style={styles.replyText} numberOfLines={1}>{item.replyTo}</Text>
+            </View>
+          )}
+          <Text style={[styles.msgText, isMe ? { color: WHITE } : { color: BLACK }]}>
+            {item.text}
+          </Text>
+          <Text style={styles.time}>{item.time}</Text>
+        </View>
+      </View>
+    );
+  };
+
+  const onPressProfile = () => setMenuOpen(false);
+  const onPressBlock = () => setMenuOpen(false);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* TOP BAR: back, avatar, name/rank, 3-dot menu */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+
+        <View style={styles.headerCenter}>
+          <View style={styles.avatar}>
+            <View style={styles.avatarHead} />
+            <View style={styles.avatarBody} />
+          </View>
+          <View>
+            <Text style={styles.name}>John Doe</Text>
+            <Text style={styles.rank}>Level 5</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.menuBtn}
+          activeOpacity={0.7}
+          onPress={() => setMenuOpen((v) => !v)}
+        >
+          <Ionicons name="ellipsis-vertical" size={20} color={WHITE} />
+        </TouchableOpacity>
+
+        {menuOpen && (
+          <View style={styles.menuSheet}>
+            <TouchableOpacity style={styles.menuItem} onPress={onPressProfile}>
+              <Ionicons name="person-outline" size={16} color={BLACK} />
+              <Text style={styles.menuText}>Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={onPressBlock}>
+              <Ionicons name="ban-outline" size={16} color={BLACK} />
+              <Text style={styles.menuText}>Block</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* MAIN */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0} // keeps composer flush with keyboard
+      >
+        <FlatList
+          ref={listRef}
+          data={dataMemo}
+          inverted
+          keyExtractor={(i) => i.id}
+          renderItem={renderItem}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8 }}
+          onContentSizeChange={() => listRef.current?.scrollToOffset?.({ offset: 0, animated: false })}
+        />
+
+        {/* Reply banner (appears above composer) */}
+        {replyTo && (
+          <View style={styles.replyBanner}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.replyBannerTitle}>Replying to</Text>
+              <Text style={styles.replyBannerText} numberOfLines={1}>{replyTo.text}</Text>
+            </View>
+            <TouchableOpacity onPress={() => setReplyTo(null)}>
+              <Ionicons name="close" size={18} color={BLACK} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* COMPOSER: input + mic/camera/attach + send */}
+        <View style={styles.composerRow}>
+          <View style={[styles.inputWrap, { height: inputH }]}>
+            <TextInput
+              style={styles.input}
+              value={input}
+              onChangeText={setInput}
+              placeholder="Type"
+              placeholderTextColor="#8E8E8E"
+              multiline
+              onFocus={() => {
+                setMenuOpen(false);
+                requestAnimationFrame(() => listRef.current?.scrollToOffset?.({ offset: 0, animated: true }));
+              }}
+              onContentSizeChange={(e) => {
+                const h = Math.min(maxH, Math.max(minH, e.nativeEvent.contentSize.height + 10));
+                setInputH(h);
+              }}
+            />
+            <TouchableOpacity onPress={sendMessage} activeOpacity={0.7}>
+              <Ionicons name="send" size={20} color={BLACK} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.rightActions}>
+            <IconBtn name="mic-outline" />
+            <IconBtn name="camera-outline" />
+            <IconBtn name="attach-outline" />
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+/* Small side icon buttons */
+function IconBtn({ name }) {
+  return (
+    <TouchableOpacity activeOpacity={0.8} style={styles.iconBtn}>
+      <Ionicons name={name} size={18} color={BLACK} />
+    </TouchableOpacity>
+  );
+}
+
+/* ---------------- Styles ---------------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top bar */
+  topBar: {
+    backgroundColor: BLACK,
+    height: TOP_BAR_HEIGHT,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  topAccent: { height: TOP_ACCENT, backgroundColor: YELLOW },
+  backBtn: { width: 40, height: 36, justifyContent: "center" },
+  menuBtn: { width: 40, height: 36, justifyContent: "center", alignItems: "flex-end" },
+
+  headerCenter: { flexDirection: "row", alignItems: "center", gap: 10 },
+  avatar: {
+    width: 36, height: 36, borderRadius: 18,
+    borderWidth: 2, borderColor: WHITE,
+    alignItems: "center", justifyContent: "center", backgroundColor: BLACK,
+  },
+  avatarHead: {
+    width: 10, height: 10, borderRadius: 5,
+    borderWidth: 2, borderColor: WHITE, backgroundColor: BLACK, marginBottom: 1,
+  },
+  avatarBody: {
+    width: 16, height: 8, borderRadius: 5,
+    borderWidth: 2, borderColor: WHITE, backgroundColor: BLACK,
+  },
+  name: { color: WHITE, fontWeight: "900", fontSize: 16, lineHeight: 16 },
+  rank: { color: "#DADADA", fontSize: 12, marginTop: 2 },
+
+  /* Dropdown menu */
+  menuSheet: {
+    position: "absolute",
+    right: 10,
+    top: Platform.select({ ios: 58, android: 58 }),
+    backgroundColor: WHITE,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    width: 140,
+    paddingVertical: 6,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  menuItem: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
+  menuText: { color: BLACK, fontWeight: "800" },
+
+  /* Messages */
+  msgRow: { flexDirection: "row", marginVertical: 4 },
+  rowMe: { justifyContent: "flex-end" },
+  rowOther: { justifyContent: "flex-start" },
+
+  msgBubble: {
+    maxWidth: "82%",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  myMsg: { borderColor: YELLOW, backgroundColor: "#FFFDF2" },
+  theirMsg: { backgroundColor: WHITE },
+
+  msgText: { fontSize: 15 },
+  time: { color: "#777", fontSize: 10, marginTop: 6, textAlign: "right" },
+
+  replyBox: { borderLeftWidth: 3, borderLeftColor: YELLOW, paddingLeft: 6, marginBottom: 4 },
+  replyLabel: { fontSize: 10, fontWeight: "700", color: "#555" },
+  replyText: { fontSize: 12, color: "#555" },
+
+  /* Composer */
+  composerRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    borderTopWidth: 1,
+    borderTopColor: "#EFEFEF",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: WHITE,
+  },
+  inputWrap: {
+    flex: 1,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: WHITE,
+    marginRight: 8,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  input: { flex: 1, fontSize: 15, paddingRight: 10, paddingTop: 0, paddingBottom: 0, color: BLACK },
+
+  rightActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  iconBtn: {
+    width: 34, height: 34, borderRadius: 10,
+    borderWidth: 2, borderColor: BLACK,
+    alignItems: "center", justifyContent: "center", backgroundColor: WHITE,
+  },
+});
