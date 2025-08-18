@@ -1,0 +1,228 @@
+// App.js
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  FlatList,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+const INITIAL_HELPS = [
+  { id: "1", title: "POS not\nbalancing", tag: "accounting", ratio: "3/7" },
+  { id: "2", title: "Generator keeps\ntripping", tag: "maintenance", ratio: "3/5" },
+];
+
+export default function App() {
+  const [helps, setHelps] = useState(INITIAL_HELPS);
+
+  const onDelete = (id) => setHelps((h) => h.filter((x) => x.id !== id));
+  const onReview = (item) =>
+    Alert.alert("Review", `Open review for:\n${item.title.replace("\n", " ")}`);
+  const onPreview = (item) =>
+    Alert.alert("Preview", `Previewing "${item.title.replace("\n", " ")}"`);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar (no bottom nav on this page) */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+
+        {/* Title + chatbox with exclamation */}
+        <View style={styles.topCenter}>
+          <Text style={styles.topTitle}>Helps</Text>
+
+          <View style={styles.chatIconWrap}>
+            <Ionicons name="chatbox-outline" size={20} color={WHITE} />
+            <Text style={styles.exMark}>!</Text>
+          </View>
+        </View>
+
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* List */}
+      <FlatList
+        data={helps}
+        keyExtractor={(i) => i.id}
+        contentContainerStyle={{ paddingBottom: 24, paddingTop: 8 }}
+        renderItem={({ item }) => (
+          <View style={styles.itemRow}>
+            {/* Left card */}
+            <View style={styles.helpCard}>
+              <Text style={styles.helpTitle}>{item.title}</Text>
+              <Text style={styles.helpTag}>#{item.tag}</Text>
+
+              {/* ratio chip */}
+              <View style={styles.ratioChip}>
+                <Text style={styles.ratioText}>{item.ratio}</Text>
+              </View>
+            </View>
+
+            {/* Right actions */}
+            <View style={styles.actionsCol}>
+              <TouchableOpacity
+                style={[styles.actionBtn, { borderColor: BLACK }]}
+                onPress={() => onDelete(item.id)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.actionText}>Delete</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionBtn, { borderColor: BLACK }]}
+                onPress={() => onReview(item)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.actionText}>Review</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.eyeBtn}
+                onPress={() => onPreview(item)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="eye-outline" size={18} color={BLACK} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+        ListEmptyComponent={<Text style={styles.emptyText}>No helps yet.</Text>}
+      />
+    </SafeAreaView>
+  );
+}
+
+/* ---------------- Styles ---------------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  backBtn: { width: 40, height: 36, justifyContent: "center" },
+
+  topCenter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+
+  // chatbox + "!" overlay
+  chatIconWrap: {
+    position: "relative",
+    width: 22,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  exMark: {
+    position: "absolute",
+    top: 1,        // fine-tune for your device
+    left: 8,       // centers the "!" inside the bubble
+    color: WHITE,
+    fontWeight: "900",
+    fontSize: 12,
+  },
+
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+
+  helpCard: {
+    flex: 1,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: WHITE,
+
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  helpTitle: {
+    color: BLACK,
+    fontWeight: "800",
+    fontSize: 16,
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  helpTag: { color: "#666", fontSize: 13, fontWeight: "600" },
+
+  ratioChip: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: WHITE,
+  },
+  ratioText: { fontWeight: "800", color: BLACK, fontSize: 12 },
+
+  actionsCol: {
+    width: 100,
+    marginLeft: 8,
+    alignItems: "stretch",
+    justifyContent: "space-between",
+  },
+  actionBtn: {
+    borderWidth: 2,
+    borderRadius: 10,
+    backgroundColor: WHITE,
+    paddingVertical: 10,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  actionText: { fontWeight: "800", color: BLACK },
+
+  eyeBtn: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    height: 40,
+    backgroundColor: WHITE,
+  },
+
+  emptyText: {
+    textAlign: "center",
+    color: "#666",
+    paddingTop: 24,
+    fontWeight: "600",
+  },
+});
