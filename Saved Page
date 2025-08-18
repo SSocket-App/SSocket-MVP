@@ -1,0 +1,374 @@
+// App.js
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  FlatList,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+
+/* ------- Sample Saved Items ------- 
+type: 'volunteer' | 'post' | 'contract' | 'help'
+*/
+const SAVED = [
+  {
+    id: "s1",
+    type: "volunteer",
+    title: "POS not balancing — step-by-step fix",
+    snippet:
+      "Reconcile batches vs bank, check timezone cutoffs, re-run with detailed logs…",
+    author: "Anonymous 2",
+    rank: "Level 5",
+    savedAt: "Today 4:31 PM",
+  },
+  {
+    id: "s2",
+    type: "post",
+    title: "Idea: Offline-first receipts",
+    snippet: "Queue transactions, sync diff, unify retry backoff…",
+    author: "Jane Smith",
+    rank: "Level 7",
+    savedAt: "Today 3:05 PM",
+  },
+  {
+    id: "s3",
+    type: "contract",
+    title: "Mini Contract: Inventory Count Pilot",
+    snippet: "Scope: 2 weeks, deliverables: variance report + SOP draft…",
+    author: "John Doe",
+    rank: "Level 5",
+    savedAt: "Yesterday",
+  },
+  {
+    id: "s4",
+    type: "help",
+    title: "Marketing — SEO malfunctioning",
+    snippet: "Check sitemap freshness, robots, and GSC coverage…",
+    author: "Lucy Gray",
+    rank: "Level 4",
+    savedAt: "Mon",
+  },
+];
+
+const CATEGORIES = [
+  { key: "all", label: "All" },
+  { key: "volunteer", label: "Volunteers" },
+  { key: "post", label: "Posts" },
+  { key: "contract", label: "Mini Contracts" },
+  { key: "help", label: "Helps" },
+];
+
+export default function App() {
+  const [filter, setFilter] = useState("all");
+  const [items, setItems] = useState(SAVED);
+
+  const filtered = useMemo(
+    () => (filter === "all" ? items : items.filter((i) => i.type === filter)),
+    [items, filter]
+  );
+
+  const onShare = (item) => Alert.alert("Share", `Share "${item.title}"`);
+  const onUnsave = (item) =>
+    setItems((prev) => prev.filter((x) => x.id !== item.id));
+
+  const onSearch = () =>
+    Alert.alert("Search", "Open saved items search (placeholder).");
+
+  const renderItem = ({ item }) => (
+    <SavedCard item={item} onShare={() => onShare(item)} onUnsave={() => onUnsave(item)} />
+  );
+
+  const isEmpty = filtered.length === 0;
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar (old format) */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+
+        <Text style={styles.topTitle}>Saved</Text>
+
+        <TouchableOpacity
+          style={[styles.iconBox, { alignItems: "flex-end" }]}
+          onPress={onSearch}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="search" size={20} color={WHITE} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Category Chips (horizontal) */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipsWrap}
+      >
+        {CATEGORIES.map((c, idx) => {
+          const active = filter === c.key;
+          return (
+            <TouchableOpacity
+              key={c.key}
+              onPress={() => setFilter(c.key)}
+              activeOpacity={0.9}
+              style={[
+                styles.chip,
+                active && styles.chipActive,
+                idx !== CATEGORIES.length - 1 && { marginRight: 8 },
+              ]}
+            >
+              <Text style={[styles.chipText, active && { color: BLACK }]} numberOfLines={1}>
+                {c.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      {/* List (always starts from top) */}
+      <FlatList
+        data={filtered}
+        keyExtractor={(i) => i.id}
+        renderItem={renderItem}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        contentContainerStyle={{
+          paddingBottom: 20,
+          // IMPORTANT: no flexGrow here; keep content pinned to top
+          paddingTop: isEmpty ? 0 : 0, // explicit top 0 prevents odd spacing
+        }}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyText}>No saved items here yet.</Text>
+          </View>
+        }
+      />
+    </SafeAreaView>
+  );
+}
+
+function SavedCard({ item, onShare, onUnsave }) {
+  return (
+    <View style={styles.card}>
+      {/* Header Row: avatar + title + type badge */}
+      <View style={styles.cardHeader}>
+        <View style={styles.avatar}>
+          <View style={styles.avatarHead} />
+          <View style={styles.avatarBody} />
+        </View>
+
+        <View style={{ flex: 1, marginRight: 10 }}>
+          <Text numberOfLines={1} style={styles.title}>
+            {item.title}
+          </Text>
+
+          <View style={styles.metaRow}>
+            <Text style={styles.metaAuthor} numberOfLines={1}>
+              {item.author}
+            </Text>
+            <View style={styles.rankBadge}>
+              <Text style={styles.rankText}>{item.rank}</Text>
+            </View>
+          </View>
+        </View>
+
+        <TypeBadge type={item.type} />
+      </View>
+
+      {/* Snippet */}
+      <Text numberOfLines={2} style={styles.snippet}>
+        {item.snippet}
+      </Text>
+
+      {/* Footer: time + actions */}
+      <View style={styles.footerRow}>
+        <Text style={styles.timeText}>{item.savedAt}</Text>
+
+        <View style={styles.actionsRow}>
+          <IconBtn name="share-social-outline" label="Share" onPress={onShare} />
+          <IconBtn name="bookmark" label="Unsave" onPress={onUnsave} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/* Small icon button with label */
+function IconBtn({ name, label, onPress }) {
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.iconBtn}>
+      <Ionicons name={name} size={16} color={BLACK} />
+      <Text style={styles.iconBtnText}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+/* Type badge (yellow chip with icon) */
+function TypeBadge({ type }) {
+  const labelMap = {
+    volunteer: { text: "Volunteer", icon: "star-outline" },
+    post: { text: "Post", icon: "chatbubble-outline" },
+    contract: { text: "Contract", icon: "document-text-outline" },
+    help: { text: "Help", icon: "help-buoy-outline" },
+  };
+  const info = labelMap[type] || { text: "Saved", icon: "bookmark-outline" };
+  return (
+    <View style={styles.typeBadge}>
+      <Ionicons name={info.icon} size={14} color={BLACK} />
+      <Text style={styles.typeBadgeText}>{info.text}</Text>
+    </View>
+  );
+}
+
+/* ---------------- Styles ---------------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top bar (old look) */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Chips row (horizontal) */
+  chipsWrap: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    alignSelf: "flex-start", // prevents stretching when switching tabs
+  },
+  chipActive: { backgroundColor: YELLOW, borderColor: YELLOW },
+  chipText: { fontWeight: "800", color: BLACK, fontSize: 12 },
+
+  /* List visuals */
+  separator: { height: 1, backgroundColor: "#F0F0F0", marginHorizontal: 12 },
+
+  card: {
+    marginHorizontal: 12,
+    padding: 12,
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    marginVertical: 8,
+  },
+
+  cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  avatarHead: {
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    marginBottom: 1,
+  },
+  avatarBody: {
+    width: 20,
+    height: 10,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+
+  title: { fontSize: 16, fontWeight: "900", color: BLACK },
+
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  metaAuthor: { color: "#333", fontWeight: "700", maxWidth: "68%", marginRight: 8 },
+  rankBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: YELLOW,
+  },
+  rankText: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  typeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: YELLOW,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: BLACK,
+    marginLeft: 8,
+  },
+  typeBadgeText: { color: BLACK, fontWeight: "900", fontSize: 12, marginLeft: 6 },
+
+  snippet: { color: "#444", fontSize: 13, marginTop: 2 },
+
+  footerRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  timeText: { color: "#777", fontSize: 12 },
+
+  actionsRow: { flexDirection: "row", alignItems: "center" },
+  iconBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: WHITE,
+    marginLeft: 10,
+  },
+  iconBtnText: { color: BLACK, fontWeight: "800", fontSize: 12, marginLeft: 6 },
+
+  /* Empty state pinned to top (not vertically centered) */
+  emptyWrap: { padding: 24, alignItems: "center" },
+  emptyText: { color: "#666", fontWeight: "700" },
+});
