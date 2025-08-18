@@ -1,0 +1,158 @@
+// PrivacyPolicyPage.js
+import React from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+
+export default function PrivacyPolicyPage() {
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Privacy Policy</Text>
+        <View style={styles.iconBox} /> 
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Content */}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.sectionTitle}>1. Introduction</Text>
+        <Text style={styles.paragraph}>
+          At SSocket, your privacy is important to us. This Privacy Policy
+          explains how we collect, use, and protect your information when you
+          use our platform.
+        </Text>
+
+        <Text style={styles.sectionTitle}>2. Information We Collect</Text>
+        <Text style={styles.paragraph}>
+          - Personal details such as your name, email, and profile information.{"\n"}
+          - Professional information such as skills, experience, and
+          employment history.{"\n"}
+          - Usage data including how you interact with posts, jobs, and other
+          features.
+        </Text>
+
+        <Text style={styles.sectionTitle}>3. How We Use Your Information</Text>
+        <Text style={styles.paragraph}>
+          We use your data to:{"\n"}
+          - Connect you with employers and employees.{"\n"}
+          - Improve your experience through personalized features.{"\n"}
+          - Ensure safety, security, and compliance on our platform.
+        </Text>
+
+        <Text style={styles.sectionTitle}>4. Sharing of Information</Text>
+        <Text style={styles.paragraph}>
+          We do not sell your personal data. We may share limited information
+          with trusted partners for services like analytics, verification, and
+          payment processing.
+        </Text>
+
+        <Text style={styles.sectionTitle}>5. Data Security</Text>
+        <Text style={styles.paragraph}>
+          We use industry-standard measures to protect your data. However, no
+          system is completely secure, and we encourage you to use strong
+          passwords and remain cautious online.
+        </Text>
+
+        <Text style={styles.sectionTitle}>6. Your Rights</Text>
+        <Text style={styles.paragraph}>
+          You have the right to:{"\n"}
+          - Access and update your data.{"\n"}
+          - Request deletion of your account.{"\n"}
+          - Control visibility of your professional information.
+        </Text>
+
+        <Text style={styles.sectionTitle}>7. Updates</Text>
+        <Text style={styles.paragraph}>
+          We may update this Privacy Policy from time to time. Changes will be
+          notified to users, and continued use of SSocket means acceptance of
+          the updated terms.
+        </Text>
+
+        <Text style={styles.sectionTitle}>8. Contact Us</Text>
+        <Text style={styles.paragraph}>
+          If you have any questions about this Privacy Policy, contact us at:
+        </Text>
+        <View style={styles.contactBadge}>
+          <Ionicons name="mail-outline" size={16} color={BLACK} />
+          <Text style={styles.contactText}>support@ssocket.app</Text>
+        </View>
+
+        <Text style={styles.footerNote}>
+          Last updated: August 18, 2025
+        </Text>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ---------------- STYLES ---------------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  scrollContent: { padding: 16, paddingBottom: 30 },
+
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: BLACK,
+    marginTop: 20,
+    marginBottom: 6,
+  },
+  paragraph: { fontSize: 14, lineHeight: 20, color: "#333" },
+
+  contactBadge: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: YELLOW,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  contactText: { marginLeft: 6, fontWeight: "900", color: BLACK, fontSize: 12 },
+
+  footerNote: {
+    marginTop: 30,
+    fontSize: 12,
+    color: "#888",
+    textAlign: "center",
+  },
+});
