@@ -1,0 +1,217 @@
+// App.js
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+export default function App() {
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
+  const [detail, setDetail] = useState("");
+  const [volLimit, setVolLimit] = useState("14");
+  const [preview, setPreview] = useState(false);
+
+  const onCreate = () => {
+    Alert.alert(
+      "Help Created",
+      `Title: ${title || "Untitled"}\nCategory: ${category || "—"}\nVolunteers: ${volLimit}`
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top bar (no bottom nav on this page) */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Create help</Text>
+        <View style={{ width: 24 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={styles.content}>
+        {/* Header row: Request a help + eye */}
+        <View style={styles.headerRow}>
+          <Text style={styles.headerText}>Request a help</Text>
+          <TouchableOpacity
+            onPress={() => setPreview((v) => !v)}
+            activeOpacity={0.8}
+            style={styles.previewBtn}
+          >
+            <Ionicons name={preview ? "eye-off-outline" : "eye-outline"} size={20} color={BLACK} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Title */}
+        <Text style={styles.label}>Title</Text>
+        <View style={styles.inputWrap}>
+          <TextInput
+            value={title}
+            onChangeText={setTitle}
+            placeholder="e.g. Zero conversion"
+            placeholderTextColor="#9A9A9A"
+            style={styles.input}
+            returnKeyType="next"
+          />
+        </View>
+
+        {/* Category (typed by user) */}
+        <Text style={styles.label}>Category</Text>
+        <View style={styles.inputWrap}>
+          <TextInput
+            value={category}
+            onChangeText={setCategory}
+            placeholder="e.g. Marketing"
+            placeholderTextColor="#9A9A9A"
+            style={styles.input}
+            returnKeyType="next"
+          />
+        </View>
+
+        {/* Detail */}
+        <Text style={styles.label}>Detail</Text>
+        <View style={styles.textareaWrap}>
+          <TextInput
+            value={detail}
+            onChangeText={setDetail}
+            style={styles.textarea}
+            placeholder="Describe the issue, what you have tried, the expected outcome…"
+            placeholderTextColor="#9A9A9A"
+            multiline
+            numberOfLines={6}
+            textAlignVertical="top"
+          />
+        </View>
+
+        {/* Volunteer limit */}
+        <Text style={styles.label}>Volunteer Limit</Text>
+        <View style={styles.inputWrap}>
+          <TextInput
+            value={volLimit}
+            onChangeText={(t) => setVolLimit(t.replace(/[^0-9]/g, ""))}
+            keyboardType="numeric"
+            placeholder="0"
+            placeholderTextColor="#9A9A9A"
+            style={styles.input}
+          />
+        </View>
+
+        {/* Create button */}
+        <TouchableOpacity onPress={onCreate} activeOpacity={0.9} style={styles.primaryBtn}>
+          <Text style={styles.primaryBtnText}>Create help</Text>
+        </TouchableOpacity>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ---------------- Styles ---------------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    paddingBottom: 12,
+    justifyContent: "space-between",
+  },
+  backBtn: { width: 40, height: 36, alignItems: "flex-start", justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  content: { paddingHorizontal: 16, paddingTop: 12 },
+
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  headerText: { fontSize: 16, fontWeight: "800", color: BLACK },
+  previewBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  label: { color: "#555", fontSize: 13, fontWeight: "700", marginBottom: 6, marginTop: 6 },
+
+  inputWrap: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  input: { color: BLACK, fontSize: 15 },
+
+  textareaWrap: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 14,
+    backgroundColor: WHITE,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  textarea: { color: BLACK, fontSize: 15, minHeight: 140 },
+
+  primaryBtn: {
+    alignSelf: "flex-start",
+    backgroundColor: YELLOW,
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderWidth: 2,
+    borderColor: YELLOW,
+
+    shadowColor: "#000",
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  primaryBtnText: { color: BLACK, fontWeight: "900", fontSize: 15 },
+});
