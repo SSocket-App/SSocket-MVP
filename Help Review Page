@@ -1,5 +1,5 @@
 // App.js
-import React, { useState, useRef } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   SafeAreaView,
   StatusBar,
@@ -8,85 +8,83 @@ import {
   StyleSheet,
   Platform,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
+  Pressable,
   Alert,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
-const YELLOW = "#FFD54A";
 const BLACK = "#000";
 const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
 
-// Volunteers who participated (list grows -> page scrolls)
-const ENTRIES = [
-  {
-    id: "a1",
-    name: "Anonymous 1",
-    response:
-      "I would first reconcile the POS batches against the bank settlement file, then check for time-zone cutoffs and fees. Enable detailed batch reports and re-run.",
-  },
-  {
-    id: "a2",
-    name: "Anonymous 2",
-    response:
-      "Check device firmware and network stability. If tripping is power related, add a stabilizer and test breaker ratings against peak load.",
-  },
-  {
-    id: "a3",
-    name: "Anonymous 3",
-    response:
-      "Create a clear incident log. Compare expected vs actual timestamps, export raw logs, and isolate the module throwing errors before a hotfix.",
-  },
+/** Sample volunteers (replace with real data) */
+const VOLUNTEERS = [
+  { id: "v1", name: "Anonymous 1", response: "Reconciled POS vs bank settlement; adjusted for timezone offsets; re-ran batches with detailed logging." },
+  { id: "v2", name: "Anonymous 2", response: "Checked firmware and network stability; added stabilizer; verified breaker ratings at peak load." },
+  { id: "v3", name: "Anonymous 3", response: "Created incident log; compared timestamps; exported raw logs; isolated module before hotfix." },
+  { id: "v4", name: "Anonymous 4", response: "Enabled audit trails; rebuilt index; validated merchant fee mappings and cutoff windows." },
 ];
 
-// Threshold target (edit as needed)
-const THRESHOLD = 7;
-
 export default function App() {
-  const [ratings, setRatings] = useState(
-    Object.fromEntries(ENTRIES.map((e) => [e.id, 0]))
-  );
   const [winnerId, setWinnerId] = useState(null);
+  const [ratings, setRatings] = useState(
+    Object.fromEntries(VOLUNTEERS.map(v => [v.id, 0]))
+  );
 
-  // simple double-tap detector
-  const lastTapRef = useRef({});
+  // volunteers counter
+  const threshold = 7;
+  const count = VOLUNTEERS.length;
+
+  const data = useMemo(() => VOLUNTEERS, []);
+  const listRef = useRef(null);
+
+  const handleRate = (id, n) => {
+    setRatings(prev => {
+      const curr = prev[id] || 0;
+      // tap same star again -> decrease (n-1), else set to n
+      const next = (n === curr) ? n - 1 : n;
+      return { ...prev, [id]: Math.max(0, Math.min(5, next)) };
+    });
+  };
 
   const handleDoubleTap = (id) => {
-    const now = Date.now();
-    const last = lastTapRef.current[id] || 0;
-    if (now - last < 300) setWinnerId(id);
-    lastTapRef.current[id] = now;
+    setWinnerId(prev => (prev === id ? null : id));
   };
 
-  const setRating = (id, val) => {
-    setRatings((r) => ({ ...r, [id]: val }));
-  };
+  const renderItem = ({ item }) => (
+    <VolunteerCard
+      item={item}
+      rating={ratings[item.id] || 0}
+      isWinner={item.id === winnerId}
+      onRate={(n) => handleRate(item.id, n)}
+      onDoubleTap={() => handleDoubleTap(item.id)}
+    />
+  );
 
-  const publish = () => {
+  const onPublish = () => {
     if (!winnerId) {
-      Alert.alert("Pick a winner", "Double tap an entry to select the winner.");
+      Alert.alert("Pick a winner", "Double tap a response to select a winner.");
       return;
     }
-    const w = ENTRIES.find((e) => e.id === winnerId);
-    Alert.alert("Published", `Winner: ${w ? w.name : "Unknown"}`);
+    const winner = VOLUNTEERS.find(v => v.id === winnerId);
+    Alert.alert("Published", `Winner: ${winner?.name || "Unknown"}`);
   };
-
-  const participated = ENTRIES.length;
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={BLACK} />
 
-      {/* Top bar */}
+      {/* Top bar WITH chat bubble + exclamation */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.backBox} activeOpacity={0.8}>
           <Ionicons name="chevron-back" size={24} color={WHITE} />
         </TouchableOpacity>
 
         <View style={styles.topCenter}>
           <Text style={styles.topTitle}>Helps</Text>
           <View style={styles.chatIconWrap}>
-            <Ionicons name="chatbox-outline" size={18} color={WHITE} />
+            <Ionicons name="chatbox-outline" size={20} color={WHITE} />
             <Text style={styles.exMark}>!</Text>
           </View>
           <Text style={styles.topTitle}>Review</Text>
@@ -96,85 +94,136 @@ export default function App() {
       </View>
       <View style={styles.topAccent} />
 
-      {/* Volunteer counter chip (top-right, under top bar) */}
-      <View style={styles.counterRow}>
-        <View style={{ flex: 1 }} />
-        <View style={styles.counterChip}>
-          <Ionicons name="people-outline" size={14} color={BLACK} />
-          <Text style={styles.counterText}>
-            {participated}/{THRESHOLD}
-          </Text>
-        </View>
+      {/* Volunteers counter (top-right, under bar) */}
+      <View style={styles.counterWrap}>
+        <Text style={styles.counterText}>{count}/{threshold}</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
-        {/* Instruction row */}
-        <View style={styles.instructionRow}>
-          <Text style={styles.instructionText}>
-            Double tap and Publish to pick a winner
-          </Text>
-          <Text style={styles.instructionStar}>🌟</Text>
-        </View>
+      {/* Tip */}
+      <View style={styles.tip}>
+        <Text style={styles.tipText}>
+          Double tap a response and press Publish to pick a winner <Text>🌟</Text>
+        </Text>
+      </View>
 
-        {/* Entries */}
-        {ENTRIES.map((e) => {
-          const isWinner = winnerId === e.id;
-          const rate = ratings[e.id] || 0;
-          return (
-            <TouchableOpacity
-              key={e.id}
-              activeOpacity={0.9}
-              onPress={() => handleDoubleTap(e.id)}
-              style={[
-                styles.card,
-                isWinner && { borderColor: YELLOW, shadowOpacity: 0.12 },
-              ]}
-            >
-              {/* Name row */}
-              <View style={styles.nameRow}>
-                <View style={styles.avatar}>
-                  <View style={styles.avatarHead} />
-                  <View style={styles.avatarBody} />
-                </View>
-                <Text style={styles.nameText}>{e.name}</Text>
-                <Ionicons name="chatbubble-ellipses-outline" size={18} color={BLACK} />
-              </View>
+      {/* Scrollable list */}
+      <FlatList
+        ref={listRef}
+        data={data}
+        keyExtractor={(i) => i.id}
+        renderItem={renderItem}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        showsVerticalScrollIndicator={false}
+      />
 
-              {/* Stars */}
-              <View style={styles.starsRow}>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <TouchableOpacity key={n} onPress={() => setRating(e.id, n)}>
-                    <Ionicons
-                      name={n <= rate ? "star" : "star-outline"}
-                      size={20}
-                      color={n <= rate ? YELLOW : BLACK}
-                      style={{ marginRight: 6 }}
-                    />
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Response box */}
-              <View style={styles.responseBox}>
-                <Text style={styles.responseText}>{e.response}</Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-
-        {/* Publish button */}
-        <TouchableOpacity style={styles.publishBtn} activeOpacity={0.9} onPress={publish}>
+      {/* Publish */}
+      <View style={styles.publishWrap}>
+        <TouchableOpacity
+          style={[styles.publishBtn, { opacity: winnerId ? 1 : 0.5 }]}
+          onPress={onPublish}
+          disabled={!winnerId}
+          activeOpacity={0.9}
+        >
           <Text style={styles.publishText}>Publish</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
 
-/* ---------------- Styles ---------------- */
+/* ---------- Volunteer Card ---------- */
+function VolunteerCard({ item, rating, isWinner, onRate, onDoubleTap }) {
+  // double-tap detector (per-card)
+  const lastTapRef = useRef(0);
+  const onPress = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      onDoubleTap();
+    }
+    lastTapRef.current = now;
+  };
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.card,
+        isWinner && { borderColor: YELLOW, backgroundColor: "#FFFDF2" },
+      ]}
+    >
+      <View style={styles.cardHeader}>
+        <View style={styles.avatar}>
+          <View style={styles.avatarHead} />
+          <View style={styles.avatarBody} />
+        </View>
+        <Text style={styles.name}>{item.name}</Text>
+        <Ionicons name="document-text-outline" size={16} color={BLACK} />
+      </View>
+
+      {/* Stars (interactive) + Sticker icon on the RIGHT */}
+      <View style={styles.starRow}>
+        {Array.from({ length: 5 }).map((_, i) => {
+          const n = i + 1;
+          const filled = n <= rating;
+          return (
+            <TouchableOpacity
+              key={i}
+              onPress={() => onRate(n)}
+              activeOpacity={0.7}
+              style={{ marginRight: 3 }}
+            >
+              <Ionicons
+                name={filled ? "star" : "star-outline"}
+                size={20}
+                color={YELLOW}
+              />
+            </TouchableOpacity>
+          );
+        })}
+
+        {/* WhatsApp-like Sticker icon (to the right of stars) */}
+        <MaterialCommunityIcons
+          name="sticker-emoji"
+          size={20}
+          color="#4CAF50"
+          style={{ marginLeft: 10 }}
+        />
+      </View>
+
+      {/* Response text */}
+      <View style={styles.responseBox}>
+        <Text style={styles.responseText}>{item.response}</Text>
+      </View>
+
+      {/* Action row: Save + Share icons */}
+      <View style={styles.actionsRow}>
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => Alert.alert("Saved", "Answer saved.")}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="bookmark-outline" size={18} color={BLACK} />
+          <Text style={styles.actionText}>Save</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => Alert.alert("Share", "Open share sheet.")}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="share-social-outline" size={18} color={BLACK} />
+          <Text style={styles.actionText}>Share</Text>
+        </TouchableOpacity>
+      </View>
+    </Pressable>
+  );
+}
+
+/* ----------------- Styles ----------------- */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: WHITE },
 
+  /* Top Bar */
   topBar: {
     backgroundColor: BLACK,
     height: 88,
@@ -185,27 +234,23 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     justifyContent: "space-between",
   },
-  backBtn: { width: 40, height: 36, justifyContent: "center" },
+  backBox: { width: 40, height: 36, justifyContent: "center" },
 
-  topCenter: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topCenter: { flexDirection: "row", alignItems: "center", gap: 8 },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
 
+  // chatbox with "!" overlay
   chatIconWrap: {
     position: "relative",
-    width: 20,
-    height: 18,
+    width: 22,
+    height: 20,
     alignItems: "center",
     justifyContent: "center",
-    marginHorizontal: 4,
   },
   exMark: {
     position: "absolute",
     top: -2,
-    left: 7,
+    left: 8,
     color: WHITE,
     fontWeight: "900",
     fontSize: 12,
@@ -213,114 +258,93 @@ const styles = StyleSheet.create({
 
   topAccent: { height: 3, backgroundColor: YELLOW },
 
-  /* Volunteer counter row under the top bar */
-  counterRow: {
-    flexDirection: "row",
-    alignItems: "center",
+  /* counter */
+  counterWrap: {
+    alignItems: "flex-end",
     paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 4,
+    paddingTop: 6,
+    paddingBottom: 2,
   },
-  counterChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 2,
-    borderColor: BLACK,
-    backgroundColor: WHITE,
-    borderRadius: 12,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  counterText: { fontWeight: "900", color: BLACK, fontSize: 12 },
+  counterText: { color: BLACK, fontWeight: "800" },
 
-  instructionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  instructionText: { fontSize: 14, fontWeight: "800", color: BLACK },
-  instructionStar: { fontSize: 18 },
+  /* tip */
+  tip: { paddingHorizontal: 12, paddingVertical: 8 },
+  tipText: { color: "#444", fontSize: 13 },
 
+  /* card */
   card: {
     marginHorizontal: 12,
-    marginBottom: 12,
+    marginVertical: 8,
     borderWidth: 2,
     borderColor: BLACK,
-    borderRadius: 14,
+    borderRadius: 10,
+    padding: 10,
     backgroundColor: WHITE,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
   },
-
-  nameRow: {
+  cardHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 8,
   },
   avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 2,
-    borderColor: BLACK,
-    backgroundColor: WHITE,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
+    width: 34, height: 34, borderRadius: 17,
+    borderWidth: 2, borderColor: BLACK,
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: WHITE, marginRight: 8,
   },
   avatarHead: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    borderWidth: 2,
-    borderColor: BLACK,
-    backgroundColor: WHITE,
-    marginBottom: 1,
+    width: 9, height: 9, borderRadius: 4.5,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE, marginBottom: 1,
   },
   avatarBody: {
-    width: 15,
-    height: 7,
-    borderRadius: 5,
-    borderWidth: 2,
-    borderColor: BLACK,
-    backgroundColor: WHITE,
+    width: 14, height: 7, borderRadius: 5,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
   },
-  nameText: { flex: 1, marginLeft: 8, fontWeight: "800", color: BLACK },
+  name: { flex: 1, marginLeft: 8, color: BLACK, fontSize: 16, fontWeight: "800" },
 
-  starsRow: {
+  /* stars + sticker */
+  starRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+
+  /* response */
+  responseBox: {
+    borderWidth: 1,
+    borderColor: "#E5E5E5",
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: "#FAFAFA",
+  },
+  responseText: { color: "#333", fontSize: 13 },
+
+  /* actions */
+  actionsRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    gap: 12,
+    marginTop: 10,
   },
-
-  responseBox: {
+  actionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     borderWidth: 2,
     borderColor: BLACK,
-    borderRadius: 12,
-    padding: 10,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     backgroundColor: WHITE,
   },
-  responseText: { color: BLACK, lineHeight: 20 },
+  actionText: { color: BLACK, fontWeight: "800", fontSize: 12 },
 
+  /* publish */
+  publishWrap: { paddingHorizontal: 12, paddingVertical: 10 },
   publishBtn: {
-    alignSelf: "flex-start",
-    marginLeft: 12,
-    marginTop: 6,
-    backgroundColor: YELLOW,
-    borderColor: YELLOW,
-    borderWidth: 2,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: BLACK,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  publishText: { fontWeight: "900", color: BLACK },
+  publishText: { color: WHITE, fontWeight: "900", fontSize: 16 },
 });
+
