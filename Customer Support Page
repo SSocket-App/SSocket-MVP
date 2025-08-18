@@ -1,0 +1,250 @@
+// CustomerSupportPage.js
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  TextInput,
+  KeyboardAvoidingView,
+  ScrollView,
+  Alert,
+  Linking,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+
+const SUPPORT_EMAIL = "support@ssocket.app"; // change if needed
+const MAX_MESSAGE = 2000; // reasonable mail body cap
+
+export default function CustomerSupportPage() {
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+
+  const sendEmail = async () => {
+    const s = subject.trim();
+    const m = message.trim();
+
+    if (!s) {
+      Alert.alert("Missing subject", "Please add a subject.");
+      return;
+    }
+    if (!m) {
+      Alert.alert("Missing message", "Please write your message.");
+      return;
+    }
+
+    const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+      s
+    )}&body=${encodeURIComponent(m)}`;
+
+    const canOpen = await Linking.canOpenURL(mailto);
+    if (!canOpen) {
+      Alert.alert(
+        "No mail app found",
+        `Please email us at ${SUPPORT_EMAIL} from your mail app.`
+      );
+      return;
+    }
+    Linking.openURL(mailto);
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+
+        <Text style={styles.topTitle}>Customer Support</Text>
+
+        <TouchableOpacity
+          style={[styles.iconBox, { alignItems: "flex-end" }]}
+          activeOpacity={0.7}
+          onPress={() =>
+            Alert.alert(
+              "Contact",
+              `Email: ${SUPPORT_EMAIL}\nWe typically respond within 24–48 hours.`
+            )
+          }
+        >
+          <Ionicons name="information-circle-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.topAccent} />
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 24 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Header card */}
+          <View style={styles.headerCard}>
+            <Text style={styles.headerTitle}>Need help?</Text>
+            <Text style={styles.headerSub}>
+              Send us an email and we’ll get back to you.
+            </Text>
+
+            <View style={styles.mailBadge}>
+              <Ionicons name="mail-outline" size={16} color={BLACK} />
+              <Text style={styles.mailBadgeText}>{SUPPORT_EMAIL}</Text>
+            </View>
+          </View>
+
+          {/* Subject */}
+          <View style={styles.fieldBlock}>
+            <Text style={styles.label}>Subject</Text>
+            <TextInput
+              value={subject}
+              onChangeText={setSubject}
+              placeholder="e.g., Issue with POS reconciliation"
+              placeholderTextColor="#888"
+              style={styles.input}
+              maxLength={120}
+              returnKeyType="next"
+            />
+          </View>
+
+          {/* Message */}
+          <View style={styles.fieldBlock}>
+            <Text style={styles.label}>Message</Text>
+            <View style={styles.textAreaWrap}>
+              <TextInput
+                value={message}
+                onChangeText={setMessage}
+                placeholder="Describe your issue or question in detail..."
+                placeholderTextColor="#888"
+                style={styles.textArea}
+                multiline
+                textAlignVertical="top"
+                maxLength={MAX_MESSAGE}
+              />
+              <Text style={styles.counter}>
+                {message.length}/{MAX_MESSAGE}
+              </Text>
+            </View>
+          </View>
+
+          {/* Send */}
+          <View style={styles.actionWrap}>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={[
+                styles.sendBtn,
+                !(subject.trim() && message.trim()) && { opacity: 0.5 },
+              ]}
+              onPress={sendEmail}
+              disabled={!(subject.trim() && message.trim())}
+            >
+              <Ionicons name="send" size={18} color={WHITE} />
+              <Text style={styles.sendText}>Send Email</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+/* --------------- Styles --------------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  headerCard: {
+    marginTop: 12,
+    marginHorizontal: 14,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: WHITE,
+    borderWidth: 1,
+    borderColor: "#EDEDED",
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  headerTitle: { fontSize: 18, fontWeight: "900", color: BLACK, marginBottom: 6 },
+  headerSub: { color: "#555" },
+
+  mailBadge: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: YELLOW,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  mailBadgeText: { marginLeft: 6, fontWeight: "900", color: BLACK, fontSize: 12 },
+
+  fieldBlock: { marginTop: 14, paddingHorizontal: 16 },
+  label: { fontWeight: "900", color: BLACK, marginBottom: 8 },
+
+  input: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: WHITE,
+    color: BLACK,
+    fontSize: 15,
+  },
+
+  textAreaWrap: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    padding: 10,
+  },
+  textArea: {
+    minHeight: 140,
+    color: BLACK,
+    fontSize: 15,
+  },
+  counter: { alignSelf: "flex-end", color: "#777", fontSize: 11, marginTop: 6 },
+
+  actionWrap: { paddingHorizontal: 16, marginTop: 18, marginBottom: 8 },
+  sendBtn: {
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: BLACK,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  sendText: { color: WHITE, fontWeight: "900", fontSize: 16 },
+});
