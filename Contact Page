@@ -35,6 +35,11 @@ export default function App() {
       {/* Same tall header length as before */}
       <View style={styles.topBar}>
         <Text style={styles.topBarTitle}>Contacts</Text>
+
+        {/* 🔍 Search icon on the right (doesn't change the centered title) */}
+        <TouchableOpacity activeOpacity={0.7} style={styles.searchBtn}>
+          <Ionicons name="search-outline" size={24} color={WHITE} />
+        </TouchableOpacity>
       </View>
       <View style={styles.topAccent} />
 
@@ -105,6 +110,15 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
   },
   topBarTitle: { color: WHITE, fontSize: 26, fontWeight: "900" },
+
+  // 🔍 Positioned absolutely so title stays centered and untouched
+  searchBtn: {
+    position: "absolute",
+    right: 16,
+    bottom: 14,
+    padding: 4,
+  },
+
   topAccent: { height: 3, backgroundColor: YELLOW },
 
   listContent: { paddingVertical: 8, paddingBottom: 86 },
@@ -196,3 +210,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
 });
+
