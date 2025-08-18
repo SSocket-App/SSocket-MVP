@@ -1,0 +1,301 @@
+// InterestsPage.js
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  StatusBar,
+  Platform,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+/** Palette */
+const BG = "#ffffff";
+const TEXT = "#111111";
+const MUTED = "#6b7280";
+const CARD = "#ffffff";
+const BDR = "#e5e7eb";
+const BLACK = "#000000";
+const YELLOW = "#FFD233";
+
+/** 1) Raw labels exactly from your signup screen */
+const CATEGORY_LABELS = {
+  hospitality: {
+    title: "Hospitality & Domestic",
+    items: [
+      "Waiter / Waitress",
+      "Bartender / Bar Staff",
+      "Hotel Front Desk",
+      "Housekeeping (Hotel)",
+      "Househelp / Domestic Worker",
+      "Kitchen Assistant",
+      "Event Staff / Usher",
+      "Catering / Cook",
+      "Laundry Attendant",
+      "Nanny / Childcare",
+      "Spa Therapist / Masseuse",
+    ],
+  },
+  cleaning: {
+    title: "Cleaning & Facility",
+    items: [
+      "Cleaner / Janitor",
+      "Security Guard",
+      "Facility Maintenance",
+      "Office Assistant",
+      "Caretaker / Building Manager",
+    ],
+  },
+  manufacturing: {
+    title: "Manufacturing & Warehouse",
+    items: [
+      "Factory Worker",
+      "Warehouse / Inventory Clerk",
+      "Machine Operator",
+      "Quality Control Inspector",
+      "Packing & Sorting Staff",
+    ],
+  },
+  trades: {
+    title: "Trades & Skilled Labour",
+    items: [
+      "Electrician (incl. Solar)",
+      "Plumber",
+      "Welder / Fabricator",
+      "Mason / Bricklayer",
+      "Carpenter",
+      "Mechanic (Auto / Generator / Bike)",
+      "Painter & Decorator",
+      "Tailor / Fashion Designer",
+      "Shoe Maker / Cobbler",
+      "Hair Stylist",
+      "Barber",
+    ],
+  },
+  transport: {
+    title: "Transport & Delivery",
+    items: [
+      "Driver (Private / Bus / Truck)",
+      "Dispatch Rider",
+      "Logistics / Courier",
+      "Boat Operator",
+    ],
+  },
+  retail: {
+    title: "Retail & Sales",
+    items: [
+      "Shopkeeper",
+      "Market Trader",
+      "Sales Promoter",
+      "Supermarket Cashier",
+      "Merchandiser",
+    ],
+  },
+  office: {
+    title: "Office & Professional",
+    items: [
+      "Customer Service / Call Centre",
+      "Data Entry / Admin Clerk",
+      "Accountant / Bookkeeper",
+      "HR / Staff Management",
+      "Marketing / Growth",
+      "Project Manager",
+      "Receptionist",
+      "Procurement Officer",
+      "Secretary",
+    ],
+  },
+  techcreative: {
+    title: "Technology & Creative",
+    items: [
+      "Graphic Designer",
+      "Video Editor",
+      "Photographer",
+      "Social Media Manager",
+      "Web Developer",
+      "Mobile App Developer",
+      "IT Support",
+      "Content Writer",
+      "SEO Specialist",
+      "Animator",
+    ],
+  },
+  education: {
+    title: "Education & Training",
+    items: [
+      "Teacher (Primary / Secondary)",
+      "Lecturer / University",
+      "Tutor (Private Lessons)",
+      "Vocational Skills Trainer",
+      "Language Instructor",
+    ],
+  },
+  healthcare: {
+    title: "Healthcare",
+    items: [
+      "Nurse",
+      "Doctor",
+      "Laboratory Technician",
+      "Pharmacist",
+      "Caregiver / Health Assistant",
+    ],
+  },
+  agriculture: {
+    title: "Agriculture & Farming",
+    items: [
+      "Crop Farmer",
+      "Poultry Farmer",
+      "Fish Farmer",
+      "Farm Labourer",
+      "Agro-Processing Worker",
+    ],
+  },
+  repairs: {
+    title: "Maintenance & Repairs",
+    items: [
+      "Building Maintenance",
+      "AC / Refrigerator Repair",
+      "Electronics Repair",
+      "Mobile Phone Repair",
+      "Generator Repair",
+    ],
+  },
+  engineering: {
+    title: "Engineering & Technical",
+    items: [
+      "Civil Engineer",
+      "Mechanical Engineer",
+      "Electrical Engineer",
+      "Structural Engineer",
+      "Chemical Engineer",
+      "Industrial Engineer",
+      "Agricultural Engineer",
+      "Environmental Engineer",
+      "Petroleum Engineer",
+      "Mining Engineer",
+      "Water / Sanitation Engineer",
+    ],
+  },
+};
+
+export default function InterestsPage() {
+  StatusBar.setBarStyle("light-content");
+
+  const [openGroups, setOpenGroups] = useState({});
+
+  const toggleGroup = (key) => {
+    setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={"#fff"} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Interests</Text>
+        <TouchableOpacity style={[styles.iconBox, { alignItems: "flex-end" }]} activeOpacity={0.7}>
+          <Ionicons name="search" size={20} color={"#fff"} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.topAccent} />
+
+      <View style={styles.headerWrap}>
+        <Text style={styles.h1}>What this user loves to solve</Text>
+        <Text style={styles.sub}>Tap a category to expand and view occupations.</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {Object.entries(CATEGORY_LABELS).map(([key, val]) => {
+          const isOpen = !!openGroups[key];
+          return (
+            <View key={key} style={styles.groupCard}>
+              <TouchableOpacity
+                onPress={() => toggleGroup(key)}
+                activeOpacity={0.9}
+                style={styles.groupHeader}
+              >
+                <Text style={styles.groupTitle}>{val.title}</Text>
+                <Ionicons
+                  name={isOpen ? "chevron-up" : "chevron-down"}
+                  size={18}
+                  color={TEXT}
+                />
+              </TouchableOpacity>
+
+              {isOpen ? (
+                <View style={styles.itemsWrap}>
+                  {val.items.map((label, idx) => (
+                    <View key={label} style={[styles.itemCard, idx !== 0 && { marginTop: 8 }]}>
+                      <Text style={styles.itemTitle}>{label}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          );
+        })}
+        <View style={{ height: 20 }} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* -------------------- Styles -------------------- */
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: BG },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: "#fff", fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  headerWrap: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 4 },
+  h1: { fontSize: 18, fontWeight: "800", color: TEXT },
+  sub: { marginTop: 4, fontSize: 13, color: MUTED },
+
+  scroll: { paddingHorizontal: 18, paddingBottom: 20 },
+
+  groupCard: {
+    backgroundColor: CARD,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: BDR,
+    marginTop: 12,
+    overflow: "hidden",
+  },
+  groupHeader: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fafafa",
+  },
+  groupTitle: { fontSize: 16, fontWeight: "800", color: TEXT },
+
+  itemsWrap: { paddingHorizontal: 10, paddingBottom: 10 },
+
+  itemCard: {
+    borderWidth: 1,
+    borderColor: BDR,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  itemTitle: { fontSize: 14, fontWeight: "700", color: TEXT },
+});
