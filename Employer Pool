@@ -42,7 +42,8 @@ export default function App() {
         ))}
         <View style={styles.banner}>
           <Text style={styles.bannerText}>Compete & Win Jobs</Text>
-          <Ionicons name="sparkles-outline" size={22} color={BLACK} />
+          {/* 🌟 instead of vector icon */}
+          <Text style={{ fontSize: 20 }}>🌟</Text>
         </View>
       </View>
     ),
@@ -53,9 +54,12 @@ export default function App() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={BLACK} />
 
-      {/* Top Bar (same length/style) */}
+      {/* Top Bar with search icon */}
       <View style={styles.topBar}>
         <Text style={styles.topBarTitle}>Employer Pool</Text>
+        <TouchableOpacity style={styles.searchBtn}>
+          <Ionicons name="search-outline" size={24} color={WHITE} />
+        </TouchableOpacity>
       </View>
       <View style={styles.topAccent} />
 
@@ -167,8 +171,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-end",
     paddingBottom: 14,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
   },
   topBarTitle: { color: WHITE, fontSize: 26, fontWeight: "900" },
+  searchBtn: { padding: 6 },
+
   topAccent: { height: 3, backgroundColor: YELLOW },
 
   feedContent: { paddingBottom: 100 },
@@ -256,7 +265,6 @@ const styles = StyleSheet.create({
     borderBottomColor: "#EFEFEF",
   },
 
-  // NEW: poster profile row for each job
   jobHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -321,3 +329,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
 });
+
