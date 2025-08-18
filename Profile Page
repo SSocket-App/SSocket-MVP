@@ -1,0 +1,307 @@
+// App.js
+import React from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+export default function App() {
+  const progress = 75; // % inside the rank bar
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <Text style={styles.topBarTitle}>Profile</Text>
+      </View>
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+        {/* Header block */}
+        <View style={styles.headerCard}>
+          {/* Avatar */}
+          <View style={styles.avatarBig}>
+            <View style={styles.avatarHead} />
+            <View style={styles.avatarBody} />
+          </View>
+
+          {/* Name + Rank */}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.name}>John Doe</Text>
+            <Text style={styles.rankLine}>Level 5</Text>
+          </View>
+
+          {/* Quick actions */}
+          <View style={styles.quickActions}>
+            <Ionicons name="share-social-outline" size={22} color={BLACK} />
+            <Ionicons name="chatbubble-ellipses-outline" size={22} color={BLACK} />
+            <Ionicons name="settings-outline" size={22} color={BLACK} />
+          </View>
+        </View>
+
+        {/* Progress + Stats + Profile Edit */}
+        <View style={styles.progressRow}>
+          <View style={styles.progressOuter}>
+            <View style={[styles.progressInner, { width: `${progress}%` }]}>
+              <Text style={styles.progressText}>{progress}%</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity activeOpacity={0.85} style={styles.statsBtn}>
+            <Text style={styles.statsText}>Stats</Text>
+          </TouchableOpacity>
+
+          {/* Profile edit button */}
+          <TouchableOpacity activeOpacity={0.85} style={styles.profileBtn}>
+            <Ionicons name="person-outline" size={16} color={BLACK} />
+            <Ionicons name="pencil" size={14} color={BLACK} style={{ marginLeft: 3 }} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Actual user info */}
+        <View style={styles.infoSection}>
+          <Text style={styles.infoText}>📍 Lagos, Nigeria</Text>
+          <Text style={styles.infoText}>💬 Passionate about building the future of work</Text>
+        </View>
+
+        {/* Helps + Mini Contract row */}
+        <View style={styles.rowButtons}>
+          <Pill title="Helps" filled />
+          <Pill title="Mini Contract" filled />
+        </View>
+
+        {/* Buttons */}
+        <ActionButton title="Interest" />
+        <ActionButton title="Posts" />
+        <ActionButton title="T & C" />
+
+        <BigButton title="Customer Support" />
+        <BigButton title="Privacy Policy" />
+      </ScrollView>
+
+      {/* Bottom Nav */}
+      <View style={styles.bottomBar}>
+        <Ionicons name="home-outline" size={28} color={YELLOW} />
+        <Ionicons name="briefcase-outline" size={28} color={YELLOW} />
+        <Ionicons name="people-outline" size={28} color={YELLOW} />
+        <Ionicons name="notifications-outline" size={28} color={YELLOW} />
+        <Ionicons name="person-outline" size={28} color={YELLOW} />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+/* ---------- Small UI pieces ---------- */
+function Pill({ title, filled }) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      style={[styles.pill, filled && styles.pillFilled]}
+    >
+      <Text style={[styles.pillText, filled && { color: BLACK }]}>{title}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function ActionButton({ title }) {
+  return (
+    <TouchableOpacity activeOpacity={0.9} style={styles.actionBtn}>
+      <Text style={styles.actionBtnText}>{title}</Text>
+      <Ionicons name="chevron-forward" size={18} color={BLACK} />
+    </TouchableOpacity>
+  );
+}
+
+function BigButton({ title }) {
+  return (
+    <TouchableOpacity activeOpacity={0.9} style={styles.bigBtn}>
+      <Text style={styles.bigBtnText}>{title}</Text>
+    </TouchableOpacity>
+  );
+}
+
+/* ---------- Styles ---------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+  },
+  topBarTitle: { color: WHITE, fontSize: 26, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  headerCard: {
+    marginTop: 12,
+    marginHorizontal: 14,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: WHITE,
+    borderWidth: 1,
+    borderColor: "#EDEDED",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+
+  avatarBig: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarHead: {
+    width: 14, height: 14, borderRadius: 7,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE, marginBottom: 2,
+  },
+  avatarBody: {
+    width: 26, height: 12, borderRadius: 7,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+  },
+  name: { fontSize: 20, fontWeight: "800", color: BLACK },
+  rankLine: { fontSize: 13, color: "#666", marginTop: 2 },
+  quickActions: { flexDirection: "row", alignItems: "center", gap: 12 },
+
+  progressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  progressOuter: {
+    flex: 1,
+    height: 18,
+    backgroundColor: "#F2F2F2",
+    borderRadius: 10,
+    overflow: "hidden",
+    borderWidth: 1.5,
+    borderColor: "#DCDCDC",
+  },
+  progressInner: {
+    height: "100%",
+    backgroundColor: YELLOW,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  progressText: { fontSize: 11, fontWeight: "800", color: BLACK },
+
+  statsBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  statsText: { fontWeight: "800", color: BLACK },
+
+  profileBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 46,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+
+  infoSection: { paddingHorizontal: 16, paddingTop: 12, marginBottom: 10 },
+  infoText: { fontSize: 14, color: "#333", marginBottom: 4 },
+
+  rowButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 10,
+    paddingHorizontal: 16,
+  },
+  pill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  pillFilled: { backgroundColor: YELLOW, borderColor: YELLOW },
+  pillText: { fontWeight: "800", color: BLACK },
+
+  actionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginBottom: 10,
+    marginHorizontal: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  actionBtnText: { fontWeight: "800", color: BLACK, fontSize: 15 },
+
+  bigBtn: {
+    marginTop: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginHorizontal: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  bigBtnText: { fontWeight: "800", color: BLACK, fontSize: 16 },
+
+  bottomBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 64,
+    backgroundColor: BLACK,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingHorizontal: 12,
+  },
+});
