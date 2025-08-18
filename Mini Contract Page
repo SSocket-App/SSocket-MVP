@@ -1,0 +1,161 @@
+// MiniContractPage.js
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+
+export default function MiniContractPage() {
+  const [title, setTitle] = useState("");
+  const [role, setRole] = useState("");
+  const [nature, setNature] = useState("");
+  const [extra, setExtra] = useState("");
+  const [count, setCount] = useState("");
+  const [duration, setDuration] = useState("");
+  const [location, setLocation] = useState("");
+  const [pay, setPay] = useState("");
+
+  const handlePost = () => {
+    if (!title || !role || !nature || !count || !pay) {
+      Alert.alert("Error", "Please fill all required fields (Title, Role, Nature, People, Pay).");
+      return;
+    }
+    Alert.alert(
+      "Mini Contract Created",
+      `Title: ${title}\nRole: ${role}\nNature: ${nature}\nExtra: ${extra}\nPeople: ${count}\nDuration: ${duration}\nLocation: ${location}\nPay: ${pay}`
+    );
+  };
+
+  const handlePreview = () => {
+    Alert.alert(
+      "Preview Contract",
+      `📌 ${title}\n👷 Role: ${role}\n🛠 Nature: ${nature}\n📝 Notes: ${extra}\n👥 Needed: ${count}\n⏳ Duration: ${duration}\n📍 Location: ${location}\n💰 Pay: ${pay}`
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Mini Contract</Text>
+        <View style={styles.iconBox} />
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Preview Button */}
+      <View style={styles.previewWrap}>
+        <TouchableOpacity style={styles.previewBtn} onPress={handlePreview} activeOpacity={0.8}>
+          <Ionicons name="eye-outline" size={20} color={BLACK} />
+          <Text style={styles.previewText}>Preview</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* KeyboardAvoidingView fixes the overlap issue */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 80}
+      >
+        <ScrollView contentContainerStyle={styles.form}>
+          <Field label="Job Title" placeholder="e.g. Build my house" value={title} onChangeText={setTitle} />
+          <Field label="Role" placeholder="e.g. Bricklayer" value={role} onChangeText={setRole} />
+          <Field label="Nature of Job" placeholder="e.g. Building foundation walls" value={nature} onChangeText={setNature} />
+          <Field label="Extra Notes / Details" placeholder="Optional extra info" value={extra} onChangeText={setExtra} multiline />
+          <Field label="Number of People Needed" placeholder="e.g. 4" value={count} onChangeText={setCount} keyboardType="numeric" />
+          <Field label="Duration" placeholder="e.g. 2 weeks" value={duration} onChangeText={setDuration} />
+          <Field label="Location" placeholder="e.g. Lagos, Nigeria" value={location} onChangeText={setLocation} />
+          <Field label="Amount of Pay" placeholder="e.g. ₦50,000" value={pay} onChangeText={setPay} keyboardType="numeric" />
+
+          <TouchableOpacity style={styles.postBtn} onPress={handlePost} activeOpacity={0.85}>
+            <Ionicons name="briefcase-outline" size={20} color={BLACK} />
+            <Text style={styles.postText}>Post Contract</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+/* Reusable field */
+function Field({ label, ...props }) {
+  return (
+    <View style={styles.fieldWrap}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput style={styles.fieldInput} {...props} placeholderTextColor="#777" />
+    </View>
+  );
+}
+
+/* Styles */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight || 0 : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  previewWrap: { alignItems: "flex-end", marginTop: 8, marginRight: 16 },
+  previewBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: YELLOW,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  previewText: { marginLeft: 4, fontWeight: "700", color: BLACK },
+
+  form: { padding: 16, paddingBottom: 40 },
+
+  fieldWrap: { marginBottom: 16 },
+  fieldLabel: { color: BLACK, fontWeight: "700", marginBottom: 6 },
+  fieldInput: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 15,
+    backgroundColor: WHITE,
+    color: BLACK,
+  },
+
+  postBtn: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: YELLOW,
+    paddingVertical: 14,
+    borderRadius: 10,
+    marginTop: 10,
+  },
+  postText: { marginLeft: 6, fontWeight: "900", fontSize: 16, color: BLACK },
+});
