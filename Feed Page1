@@ -18,12 +18,11 @@ const YELLOW = "#FFD54A";
 const BLACK = "#000";
 const WHITE = "#FFF";
 
-/* -------- Sample Data -------- */
 const HELPS = [
-  { id: "new", title: "Request\na help?", icon: "help-buoy-outline", newTile: true },
-  { id: "1", title: "Accounting\nPOS not balancing", icon: "calculator-outline", ratio: "2/7" },
-  { id: "2", title: "Marketing\nSEO malfunctioning", icon: "megaphone-outline", ratio: "5/10" },
-  { id: "3", title: "Coding\nBug", icon: "bug-outline", ratio: "1/6" },
+  { id: "new", title: "Request a help?", tag: "", icon: "help-buoy-outline", newTile: true },
+  { id: "1", title: "POS not balancing", tag: "accounting", icon: "calculator-outline", ratio: "2/7" },
+  { id: "2", title: "SEO malfunctioning", tag: "marketing", icon: "megaphone-outline", ratio: "5/10" },
+  { id: "3", title: "Bug", tag: "coding", icon: "bug-outline", ratio: "1/6" },
 ];
 
 const POSTS = [
@@ -36,29 +35,21 @@ const POSTS = [
 ];
 
 export default function App() {
-  const progress = 45; // percent value for rank bar
+  const progress = 45;
 
   const HelpsHeader = () => (
     <View style={styles.helpsWrap}>
       <Text style={styles.helpsTitle}>Helps</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.helpsScroller}
-      >
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.helpsScroller}>
         {HELPS.map((h) => (
           <View key={h.id} style={[styles.helpCard, h.newTile && styles.helpNewCard]}>
             <Ionicons name={h.icon} size={18} color={BLACK} style={{ marginBottom: 6 }} />
-
-            {/* Profile avatar inside help box */}
             <View style={styles.helpAvatar}>
               <View style={styles.helpAvatarHead} />
               <View style={styles.helpAvatarBody} />
             </View>
-
-            <Text style={styles.helpText} numberOfLines={2}>
-              {h.title}
-            </Text>
+            <Text style={styles.helpText}>{h.title}</Text>
+            {h.tag ? <Text style={styles.helpTag}>#{h.tag}</Text> : null}
             {h.ratio ? <Text style={styles.helpRatio}>{h.ratio}</Text> : null}
           </View>
         ))}
@@ -70,15 +61,13 @@ export default function App() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={BLACK} />
 
-      {/* TOP BAR */}
+      {/* Sleek Top Bar */}
       <View style={styles.topBar}>
-        {/* Left: Profile + Rank */}
         <View style={styles.profileRankWrap}>
           <View style={styles.avatarLarge}>
             <View style={styles.avatarHead} />
             <View style={styles.avatarBody} />
           </View>
-
           <View style={styles.rankWrap}>
             <Text style={styles.rankText}>Rank: Level 5</Text>
             <View style={styles.rankBarOuter}>
@@ -88,20 +77,16 @@ export default function App() {
             </View>
           </View>
         </View>
-
-        {/* Center: Title */}
         <Text style={styles.topTitle}>SSocket</Text>
-
-        {/* Right: chat + search */}
         <View style={styles.topRight}>
-          <Ionicons name="chatbubble-outline" size={24} color={WHITE} />
-          <View style={{ width: 18 }} />
-          <Ionicons name="search-outline" size={24} color={WHITE} />
+          <Ionicons name="chatbubble-outline" size={22} color={WHITE} />
+          <View style={{ width: 16 }} />
+          <Ionicons name="search-outline" size={22} color={WHITE} />
         </View>
       </View>
       <View style={styles.topAccent} />
 
-      {/* Share box (unchanged) */}
+      {/* Post Box */}
       <View style={styles.shareRow}>
         <Text style={styles.shareText}>Talk about your ideas</Text>
         <View style={styles.shareIconBox}>
@@ -109,7 +94,7 @@ export default function App() {
         </View>
       </View>
 
-      {/* FEED with Helps as header (so it scrolls away like Stories) */}
+      {/* Feed */}
       <FlatList
         data={POSTS}
         keyExtractor={(i) => i.id}
@@ -119,19 +104,18 @@ export default function App() {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Bottom Nav */}
+      {/* Bottom Navigation */}
       <View style={styles.bottomBar}>
-        <Ionicons name="home-outline" size={28} color={YELLOW} />
-        <Ionicons name="briefcase-outline" size={28} color={YELLOW} />
-        <Ionicons name="people-outline" size={28} color={YELLOW} />
-        <Ionicons name="notifications-outline" size={28} color={YELLOW} />
-        <Ionicons name="person-outline" size={28} color={YELLOW} />
+        <Ionicons name="home-outline" size={26} color={YELLOW} />
+        <Ionicons name="briefcase-outline" size={26} color={YELLOW} />
+        <Ionicons name="people-outline" size={26} color={YELLOW} />
+        <Ionicons name="notifications-outline" size={26} color={YELLOW} />
+        <Ionicons name="person-outline" size={26} color={YELLOW} />
       </View>
     </SafeAreaView>
   );
 }
 
-/* -------- Components -------- */
 function PostCard({ item }) {
   return (
     <View style={styles.post}>
@@ -145,12 +129,8 @@ function PostCard({ item }) {
           <Text style={styles.postRank}>{item.rank}</Text>
         </View>
       </View>
-
       <Text style={styles.postCaption}>{item.caption}</Text>
-
-      {/* Optional Image */}
       {item.image && <Image source={{ uri: item.image }} style={styles.postImage} />}
-
       <View style={styles.actionsRow}>
         <TouchableOpacity style={styles.actionBox}>
           <Ionicons name="thumbs-up-outline" size={20} color={BLACK} />
@@ -166,59 +146,48 @@ function PostCard({ item }) {
   );
 }
 
-/* -------- Styles -------- */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: WHITE },
 
   topBar: {
     backgroundColor: BLACK,
-    height: 148,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 16,
+    height: 132, // reduced by ~0.5cm
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 14,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    elevation: 6, // slight shadow for sleek look
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
   },
   topAccent: { height: 3, backgroundColor: YELLOW },
 
   profileRankWrap: { flexDirection: "row", alignItems: "center", flex: 1 },
   avatarLarge: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    borderWidth: 2,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
     borderColor: WHITE,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
     backgroundColor: BLACK,
   },
-  avatarHead: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 2,
-    borderColor: WHITE,
-    backgroundColor: BLACK,
-    marginBottom: 2,
-  },
-  avatarBody: {
-    width: 22,
-    height: 10,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: WHITE,
-    backgroundColor: BLACK,
-  },
+  avatarHead: { width: 12, height: 12, borderRadius: 6, borderWidth: 1.5, borderColor: WHITE, backgroundColor: BLACK, marginBottom: 2 },
+  avatarBody: { width: 20, height: 9, borderRadius: 5, borderWidth: 1.5, borderColor: WHITE, backgroundColor: BLACK },
+
   rankWrap: { flexDirection: "column", flex: 1 },
-  rankText: { color: WHITE, fontSize: 14, fontWeight: "600", marginBottom: 6 },
+  rankText: { color: WHITE, fontSize: 13, fontWeight: "600", marginBottom: 5 },
   rankBarOuter: {
-    width: 120,
+    width: 118,
     height: 16,
     backgroundColor: "#444",
     borderRadius: 8,
     overflow: "hidden",
-    justifyContent: "center",
   },
   rankBarInner: {
     height: "100%",
@@ -228,20 +197,14 @@ const styles = StyleSheet.create({
   },
   rankPercent: { fontSize: 10, fontWeight: "700", color: BLACK },
 
-  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900", flex: 1, textAlign: "center" },
+  topTitle: { color: WHITE, fontSize: 21, fontWeight: "900", flex: 1, textAlign: "center", letterSpacing: 0.5 },
   topRight: { flexDirection: "row", alignItems: "center" },
 
-  shareRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
+  shareRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, paddingVertical: 10 },
   shareText: {
     flex: 1,
     backgroundColor: "#F4F4F4",
-    color: "#777",
+    color: "#666",
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 18,
@@ -251,101 +214,56 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 8,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: BLACK,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: WHITE,
   },
 
-  // Helps (unchanged look; now scrolls away with feed)
   helpsWrap: { paddingBottom: 2 },
-  helpsTitle: { fontSize: 14, fontWeight: "800", color: BLACK, paddingHorizontal: 12, marginBottom: 2 },
+  helpsTitle: { fontSize: 14, fontWeight: "700", color: BLACK, paddingHorizontal: 12, marginBottom: 2 },
   helpsScroller: { paddingHorizontal: 8 },
   helpCard: {
     width: 140,
     marginHorizontal: 6,
     paddingVertical: 8,
     paddingHorizontal: 10,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: BLACK,
     borderRadius: 10,
     backgroundColor: WHITE,
     alignItems: "center",
   },
   helpNewCard: { backgroundColor: YELLOW },
-  helpText: { color: BLACK, fontWeight: "700", marginBottom: 4, textAlign: "center" },
-  helpRatio: { color: BLACK, fontWeight: "800" },
+  helpText: { color: BLACK, fontWeight: "700", marginBottom: 2, textAlign: "center" },
+  helpTag: { color: "#666", fontSize: 12, fontWeight: "400", marginBottom: 4, textAlign: "center" },
+  helpRatio: { color: BLACK, fontWeight: "700" },
   helpAvatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: BLACK,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 4,
     backgroundColor: WHITE,
   },
-  helpAvatarHead: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: BLACK,
-    backgroundColor: WHITE,
-    marginBottom: 1,
-  },
-  helpAvatarBody: {
-    width: 14,
-    height: 6,
-    borderRadius: 3,
-    borderWidth: 1,
-    borderColor: BLACK,
-    backgroundColor: WHITE,
-  },
+  helpAvatarHead: { width: 8, height: 8, borderRadius: 4, borderWidth: 1, borderColor: BLACK, backgroundColor: WHITE, marginBottom: 1 },
+  helpAvatarBody: { width: 14, height: 6, borderRadius: 3, borderWidth: 1, borderColor: BLACK, backgroundColor: WHITE },
 
   post: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#EFEFEF", marginBottom: 6 },
   postHeader: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, paddingVertical: 10 },
-  avatarSmall: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: BLACK,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarSmallHead: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    borderWidth: 2,
-    borderColor: BLACK,
-    backgroundColor: WHITE,
-    marginBottom: 1,
-  },
-  avatarSmallBody: {
-    width: 16,
-    height: 8,
-    borderRadius: 5,
-    borderWidth: 2,
-    borderColor: BLACK,
-    backgroundColor: WHITE,
-  },
-  postName: { fontWeight: "800", color: BLACK, fontSize: 16, marginBottom: 2 },
+  avatarSmall: { width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, borderColor: BLACK, alignItems: "center", justifyContent: "center" },
+  avatarSmallHead: { width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: BLACK, backgroundColor: WHITE, marginBottom: 1 },
+  avatarSmallBody: { width: 16, height: 8, borderRadius: 5, borderWidth: 1.5, borderColor: BLACK, backgroundColor: WHITE },
+  postName: { fontWeight: "800", color: BLACK, fontSize: 15 },
   postRank: { color: "#666", fontSize: 12 },
   postCaption: { paddingHorizontal: 12, paddingBottom: 10, color: BLACK, fontSize: 15 },
   postImage: { width: "100%", height: 200, resizeMode: "cover", marginBottom: 10 },
 
-  actionsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderColor: "#EFEFEF",
-  },
+  actionsRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-around", paddingVertical: 10, borderTopWidth: 1, borderColor: "#EFEFEF" },
   actionBox: { flex: 1, alignItems: "center", paddingVertical: 6 },
 
   bottomBar: {
@@ -353,7 +271,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 64,
+    height: 62,
     backgroundColor: BLACK,
     flexDirection: "row",
     alignItems: "center",
@@ -361,4 +279,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
 });
+
 
