@@ -1,0 +1,152 @@
+// TermsConditionsPage.js
+import React from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+
+export default function TermsConditionsPage() {
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Terms & Conditions</Text>
+        <View style={styles.iconBox} />
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Content */}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.sectionTitle}>1. Acceptance of Terms</Text>
+        <Text style={styles.paragraph}>
+          By using SSocket, you agree to be bound by these Terms &
+          Conditions. If you do not agree, please discontinue using the
+          platform immediately.
+        </Text>
+
+        <Text style={styles.sectionTitle}>2. User Responsibilities</Text>
+        <Text style={styles.paragraph}>
+          - You are responsible for any content you share on SSocket.{"\n"}
+          - You agree not to post harmful, offensive, or misleading content.{"\n"}
+          - You will respect other users and comply with applicable laws.
+        </Text>
+
+        <Text style={styles.sectionTitle}>3. Platform Usage</Text>
+        <Text style={styles.paragraph}>
+          SSocket provides tools to connect
+          employers and employees. We reserve the right to suspend or
+          terminate accounts that misuse the platform.
+        </Text>
+
+        <Text style={styles.sectionTitle}>4. Intellectual Property</Text>
+        <Text style={styles.paragraph}>
+          All content, branding, and technology on SSocket belong to the
+          company. You may not copy, redistribute, or exploit them without
+          permission.
+        </Text>
+
+        <Text style={styles.sectionTitle}>5. Limitation of Liability</Text>
+        <Text style={styles.paragraph}>
+          SSocket is not liable for any direct or indirect damages resulting
+          from use of the platform. Users interact at their own discretion
+          and risk.
+        </Text>
+
+        <Text style={styles.sectionTitle}>6. Changes to Terms</Text>
+        <Text style={styles.paragraph}>
+          We may update these Terms & Conditions occasionally. Continued use
+          of SSocket after updates means you accept the revised terms.
+        </Text>
+
+        <Text style={styles.sectionTitle}>7. Governing Law</Text>
+        <Text style={styles.paragraph}>
+          These Terms are governed by the laws of Nigeria. Any disputes shall
+          be handled in Nigerian courts.
+        </Text>
+
+        <Text style={styles.sectionTitle}>8. Contact Us</Text>
+        <Text style={styles.paragraph}>
+          If you have questions about these Terms & Conditions, contact us:
+        </Text>
+        <View style={styles.contactBadge}>
+          <Ionicons name="mail-outline" size={16} color={BLACK} />
+          <Text style={styles.contactText}>support@ssocket.app</Text>
+        </View>
+
+        <Text style={styles.footerNote}>
+          Last updated: August 18, 2025
+        </Text>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ---------------- STYLES ---------------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  scrollContent: { padding: 16, paddingBottom: 30 },
+
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: BLACK,
+    marginTop: 20,
+    marginBottom: 6,
+  },
+  paragraph: { fontSize: 14, lineHeight: 20, color: "#333" },
+
+  contactBadge: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: YELLOW,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  contactText: { marginLeft: 6, fontWeight: "900", color: BLACK, fontSize: 12 },
+
+  footerNote: {
+    marginTop: 30,
+    fontSize: 12,
+    color: "#888",
+    textAlign: "center",
+  },
+});
