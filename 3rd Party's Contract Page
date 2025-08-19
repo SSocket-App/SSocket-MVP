@@ -1,0 +1,174 @@
+// ContractPage.js
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  FlatList,
+  Platform,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+/* Contractors = people this user hired */
+const CONTRACTORS = [
+  {
+    id: "k1",
+    title: "Roof Installation (3 workers)",
+    counterparty: "👤 Contractor: Peter Obi",
+    pay: "₦200,000",
+    status: "Completed",
+    date: "Aug 05, 2025",
+  },
+  {
+    id: "k2",
+    title: "Mobile App Backend Setup",
+    counterparty: "👤 Contractor: Jane Smith",
+    pay: "₦300,000",
+    status: "In Review",
+    date: "Aug 10, 2025",
+  },
+];
+
+/* Contractees = employers who hired this user */
+const CONTRACTEES = [
+  {
+    id: "e1",
+    title: "Bricklaying (house foundation)",
+    counterparty: "🏢 Contractee: Hotel Grand",
+    pay: "₦50,000",
+    status: "Completed",
+    date: "Aug 12, 2025",
+  },
+  {
+    id: "e2",
+    title: "UI Design for SSocket",
+    counterparty: "🏢 Contractee: SSocket Labs",
+    pay: "₦120,000",
+    status: "Ongoing",
+    date: "Aug 15, 2025",
+  },
+];
+
+export default function ContractPage() {
+  // default to Contractees (employers who hired this user)
+  const [activeTab, setActiveTab] = useState("contractees");
+  const data = activeTab === "contractors" ? CONTRACTORS : CONTRACTEES;
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Contracts</Text>
+        <View style={styles.iconBox} />
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Two-option "dropdown" (tabs) */}
+      <View style={styles.tabRow}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "contractees" && styles.tabActive]}
+          onPress={() => setActiveTab("contractees")}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.tabText, activeTab === "contractees" && styles.tabTextActive]}>
+            Contractees
+          </Text>
+          <Text style={styles.tabHint}>Employers who hired this user</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "contractors" && styles.tabActive]}
+          onPress={() => setActiveTab("contractors")}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.tabText, activeTab === "contractors" && styles.tabTextActive]}>
+            Contractors
+          </Text>
+          <Text style={styles.tabHint}>People this user hired</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* List */}
+      <FlatList
+        data={data}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={styles.sep} />}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <Text style={styles.title}>{item.title}</Text>
+            <Text style={styles.counterparty}>{item.counterparty}</Text>
+            <Text style={styles.rowText}>💰 {item.pay}</Text>
+            <Text style={styles.rowText}>📅 {item.date}</Text>
+            <Text style={styles.status}>Status: {item.status}</Text>
+          </View>
+        )}
+      />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  tabRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 10,
+    paddingHorizontal: 16,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderBottomWidth: 2,
+    borderColor: "transparent",
+    alignItems: "center",
+  },
+  tabActive: { borderColor: BLACK },
+  tabText: { fontSize: 16, fontWeight: "700", color: "#666" },
+  tabTextActive: { color: BLACK, fontWeight: "900" },
+  tabHint: { fontSize: 11, color: "#888", marginTop: 2 },
+
+  sep: { height: 1, backgroundColor: "#F0F0F0", marginHorizontal: 16 },
+
+  card: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  title: { fontSize: 16, fontWeight: "900", marginBottom: 6, color: BLACK },
+  counterparty: { fontSize: 13, fontWeight: "700", color: "#444", marginBottom: 6 },
+  rowText: { fontSize: 14, color: "#444", marginBottom: 4 },
+  status: { fontSize: 13, fontWeight: "800", color: "#666", marginTop: 4 },
+});
