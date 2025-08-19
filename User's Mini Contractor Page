@@ -1,6 +1,4 @@
-// MiniContractorDropdown.js — Create | Review with feedback dropdown on green button
-// Paste into App.js (Expo). No extra dependencies.
-
+// MiniContractorPage.js — Create Contract + Contractors (Active/Queue) with Feedback system
 import React, { useState } from "react";
 import {
   SafeAreaView,
@@ -9,10 +7,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  FlatList,
+  ScrollView,
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -24,6 +24,7 @@ const BDR = "#E5E7EB";
 const GREEN = "#22C55E";
 const RED = "#EF4444";
 
+/* ---------- Stickers (tags) ---------- */
 const TAG_OPTIONS = [
   "Reliable",
   "Fast",
@@ -35,10 +36,69 @@ const TAG_OPTIONS = [
   "Needs Guidance",
 ];
 
-export default function App() {
-  const [open, setOpen] = useState("create");
+/* ---------- DATA (Contractors side) ---------- */
+/* Active contracts (show exact pay; some Ongoing, some Ended) */
+const INITIAL_ACTIVE = [
+  {
+    id: "k1",
+    title: "Roof Installation (3 workers)",
+    counterparty: "👤 Contractor: Peter Obi",
+    contractPay: "₦250,000",
+    status: "ended", // ended -> feedback allowed (green)
+    startDate: "2025-08-01",
+    endDate: "2025-08-05",
+    location: "Onitsha, Nigeria",
+  },
+  {
+    id: "k2",
+    title: "Mobile App Backend Setup",
+    counterparty: "👤 Contractor: Jane Smith",
+    contractPay: "₦320,000",
+    status: "ongoing", // ongoing -> locked (red + padlock)
+    startDate: "2025-08-06",
+    endDate: "2025-08-20",
+    location: "Remote",
+  },
+  {
+    id: "k3",
+    title: "Lobby Tiling",
+    counterparty: "👤 Contractor: Uche Mark",
+    contractPay: "₦200,000",
+    status: "ongoing",
+    startDate: "2025-08-10",
+    endDate: "2025-08-18",
+    location: "Ikeja, Lagos",
+  },
+];
 
-  // ---- Create Contract form state ----
+/* Queued contracts grouped by posted contract */
+const CONTRACTORS_QUEUE_GROUPED = [
+  {
+    contractId: "qC1",
+    title: "House Painting (Duplex)",
+    applicants: [
+      { id: "a1", name: "Chinedu Okeke", role: "Painter", expectedPay: "₦150,000 – ₦220,000", appliedAgo: "2h" },
+      { id: "a2", name: "Blessing Yaro", role: "Painter", expectedPay: "₦160,000 – ₦230,000", appliedAgo: "6h" },
+    ],
+  },
+  {
+    contractId: "qC2",
+    title: "E-commerce API Integration",
+    applicants: [
+      { id: "a3", name: "Adaobi N.", role: "Backend Dev", expectedPay: "₦280,000 – ₦380,000", appliedAgo: "1h" },
+      { id: "a4", name: "Samuel Eze", role: "Backend Dev", expectedPay: "₦250,000 – ₦350,000", appliedAgo: "3h" },
+      { id: "a5", name: "Ibrahim Musa", role: "Fullstack", expectedPay: "₦300,000 – ₦420,000", appliedAgo: "1d" },
+    ],
+  },
+];
+
+export default function MiniContractorPage() {
+  // Tabs: create | contractors
+  const [activeTab, setActiveTab] = useState("create");
+  // Contractors sub-tabs: active | queue
+  const [contractorView, setContractorView] = useState("active");
+
+  /* ---------- Create Contract form state ---------- */
   const [form, setForm] = useState({
     title: "",
     roles: "",
@@ -51,73 +111,77 @@ export default function App() {
   });
   const setF = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
-  // ---- Review Contracts demo data ----
-  const [contracts, setContracts] = useState([
-    {
-      id: "c1",
-      title: "House Construction",
-      contractor: "James Okoro",
-      roles: "Bricklayer",
-      startDate: "2025-08-20",
-      endDate: "2025-08-30",
-      location: "Lagos, Nigeria",
-      contractPay: "₦120,000",
-      status: "ended", // green → opens feedback dropdown
-    },
-    {
-      id: "c2",
-      title: "Office Painting",
-      contractor: "Adaeze Bello",
-      roles: "Painter",
-      startDate: "2025-09-02",
-      endDate: "2025-09-05",
-      location: "Abuja, Nigeria",
-      contractPay: "₦80,000",
-      status: "ongoing", // red → locked + padlock
-    },
-  ]);
+  /* ---------- Active list + Feedback state ---------- */
+  const [activeContracts, setActiveContracts] = useState(INITIAL_ACTIVE);
 
   // per-contract feedback dropdown open/close
   const [openFeedback, setOpenFeedback] = useState({}); // { [id]: boolean }
 
-  // simple local drafts per contract id
+  // one-time submit guard (simulate “only once”)
+  const [submittedFeedback, setSubmittedFeedback] = useState({}); // { [id]: true }
+
+  // local drafts per contract id
   const [drafts, setDrafts] = useState(() =>
     Object.fromEntries(
-      contracts.map((c) => [c.id, { rating: 0, tags: [], review: "" }])
+      INITIAL_ACTIVE.map((c) => [c.id, { rating: 0, tags: [], review: "" }])
     )
   );
 
   const toggleFeedback = (id, canOpen) => {
     if (!canOpen) return;
+    // if already submitted — don't open again
+    if (submittedFeedback[id]) return;
     setOpenFeedback((p) => ({ ...p, [id]: !p[id] }));
   };
 
   const updateDraft = (id, patch) =>
     setDrafts((p) => ({ ...p, [id]: { ...p[id], ...patch } }));
 
-  const toggleTag = (id, tag, disabled) => {
+  const toggleTag = (id, t, disabled) => {
     if (disabled) return;
     const prev = drafts[id] || { rating: 0, tags: [], review: "" };
     const next = new Set(prev.tags);
-    next.has(tag) ? next.delete(tag) : next.add(tag);
+    next.has(t) ? next.delete(t) : next.add(t);
     updateDraft(id, { tags: Array.from(next) });
   };
 
   const submitFeedback = (id) => {
-    // one-time UI placeholder (hook to backend later)
+    // Mark one-time submit
+    setSubmittedFeedback((p) => ({ ...p, [id]: true }));
     setOpenFeedback((p) => ({ ...p, [id]: false }));
+    Alert.alert("Feedback submitted", "Thanks! Feedback can only be submitted once.");
   };
 
-  const renderReviewCard = (c) => {
+  const onCreateContract = () => {
+    const { title, roles, nature, startDate, endDate, location, contractPay } = form;
+    if (!title || !roles || !nature || !startDate || !endDate || !location || !contractPay) {
+      Alert.alert("Missing info", "Please fill all required fields.");
+      return;
+    }
+    Alert.alert("Contract Created", `${title}\n${roles}\n${location}\n${contractPay}\n${startDate} - ${endDate}`);
+    setForm({
+      title: "",
+      roles: "",
+      nature: "",
+      details: "",
+      startDate: "",
+      endDate: "",
+      location: "",
+      contractPay: "",
+    });
+  };
+
+  /* ---------- RENDERERS ---------- */
+  const renderActiveCard = ({ item: c }) => {
     const isEnded = c.status === "ended";
     const isOpen = !!openFeedback[c.id];
+    const isSubmitted = !!submittedFeedback[c.id];
     const draft = drafts[c.id] || { rating: 0, tags: [], review: "" };
 
     return (
-      <View key={c.id} style={styles.card}>
+      <View style={styles.card}>
         <Text style={styles.title}>{c.title}</Text>
-        <Text style={styles.field}>Contractor: {c.contractor}</Text>
-        <Text style={styles.field}>Roles: {c.roles}</Text>
+        <Text style={styles.counterparty}>{c.counterparty}</Text>
 
         <View style={styles.row}>
           <Field label="Start" value={c.startDate} />
@@ -125,27 +189,40 @@ export default function App() {
         </View>
         <View style={styles.row}>
           <Field label="Location" value={c.location} />
+          {/* EXACT pay (no range) on your own contracts */}
           <Field label="Contract Pay" value={c.contractPay} />
         </View>
 
         {/* Status + Give Feedback */}
         <View style={styles.statusRow}>
-          <Text style={[styles.statusTxt, { color: isEnded ? GREEN : RED }]}>
-            {isEnded ? "Ended" : "Ongoing"}
-          </Text>
+          <View style={styles.leftStatus}>
+            <Text style={[styles.statusTxt, { color: isEnded ? GREEN : RED }]}>
+              {isEnded ? "Ended" : "Ongoing"}
+            </Text>
+            <View
+              style={[
+                styles.badge,
+                isEnded ? styles.badgeGreen : styles.badgeRed,
+              ]}
+            >
+              <Text style={styles.badgeText}>
+                {isEnded ? "ENDED" : "ONGOING"}
+              </Text>
+            </View>
+          </View>
 
           <TouchableOpacity
-            activeOpacity={isEnded ? 0.9 : 1}
-            disabled={!isEnded}
-            onPress={() => toggleFeedback(c.id, isEnded)}
+            activeOpacity={isEnded && !isSubmitted ? 0.9 : 1}
+            disabled={!isEnded || isSubmitted}
+            onPress={() => toggleFeedback(c.id, isEnded && !isSubmitted)}
             style={[
               styles.fbBtn,
-              { backgroundColor: isEnded ? GREEN : RED },
-              !isEnded && { opacity: 0.9 },
+              { backgroundColor: isEnded && !isSubmitted ? GREEN : RED },
+              (!isEnded || isSubmitted) && { opacity: 0.9 },
             ]}
           >
             <View style={styles.btnContent}>
-              {!isEnded && (
+              {(!isEnded || isSubmitted) && (
                 <Ionicons
                   name="lock-closed"
                   size={16}
@@ -154,7 +231,7 @@ export default function App() {
                 />
               )}
               <Text style={styles.fbBtnText}>Give Feedback</Text>
-              {isEnded && (
+              {isEnded && !isSubmitted && (
                 <Ionicons
                   name={isOpen ? "chevron-up" : "chevron-down"}
                   size={16}
@@ -166,8 +243,8 @@ export default function App() {
           </TouchableOpacity>
         </View>
 
-        {/* Feedback dropdown — same pattern as contractee side */}
-        {isEnded && isOpen && (
+        {/* Feedback dropdown (ended & not yet submitted) */}
+        {isEnded && isOpen && !isSubmitted && (
           <View style={styles.feedbackWrap}>
             <Text style={styles.formLabel}>Rating</Text>
             <StarsPicker
@@ -192,9 +269,7 @@ export default function App() {
                       active && styles.tagChipActive,
                     ]}
                   >
-                    <Text
-                      style={[styles.tagText, active && styles.tagTextActive]}
-                    >
+                    <Text style={[styles.tagText, active && styles.tagTextActive]}>
                       {t}
                     </Text>
                   </TouchableOpacity>
@@ -236,152 +311,232 @@ export default function App() {
     );
   };
 
+  const renderQueueGroup = ({ item: group }) => (
+    <View style={styles.card}>
+      <Text style={styles.title}>{group.title}</Text>
+      <Text style={[styles.counterparty, { marginBottom: 10 }]}>Applicants Queue</Text>
+
+      {group.applicants.map((a) => (
+        <View key={a.id} style={styles.applicantRow}>
+          <View style={styles.avatar}>
+            <View style={styles.avatarHead} />
+            <View style={styles.avatarBody} />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <Text style={styles.applicantName}>{a.name}</Text>
+            <Text style={styles.applicantMeta}>
+              {a.role}  •  {a.expectedPay}  •  ⏱ {a.appliedAgo} ago
+            </Text>
+          </View>
+
+          <TouchableOpacity style={styles.pickButton}>
+            <Text style={styles.pickText}>Pick</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+
+      {group.applicants.length === 0 && (
+        <Text style={styles.emptyText}>No applicants yet.</Text>
+      )}
+    </View>
+  );
+
+  /* ---------- UI ---------- */
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={BLACK} />
 
       {/* Top Bar */}
       <View style={styles.topBar}>
-        <Text style={styles.topBarTitle}>Mini Contractor</Text>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Mini Contractor</Text>
+        <View style={styles.iconBox} />
       </View>
       <View style={styles.topAccent} />
 
-      {/* Dropdown Headers */}
-      <View style={styles.dropHeaders}>
-        <DropHeader
-          title="Create Contract"
-          active={open === "create"}
-          onPress={() => setOpen("create")}
-        />
-        <DropHeader
-          title="Review Contracts"
-          active={open === "review"}
-          onPress={() => setOpen("review")}
-        />
+      {/* Tabs */}
+      <View style={styles.tabRow}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "create" && styles.tabActive]}
+          onPress={() => setActiveTab("create")}
+        >
+          <Text style={[styles.tabText, activeTab === "create" && styles.tabTextActive]}>
+            Create Contract
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "contractors" && styles.tabActive]}
+          onPress={() => setActiveTab("contractors")}
+        >
+          <Text style={[styles.tabText, activeTab === "contractors" && styles.tabTextActive]}>
+            Contractors
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Bodies */}
-      {open === "create" ? (
+      {/* CONTENT */}
+      {activeTab === "create" ? (
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <ScrollView
-            contentContainerStyle={{ padding: 14, paddingBottom: 120 }}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Contract Details</Text>
+          <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+            <View style={styles.formCard}>
+              <FormRow label="Job Title">
+                <TextInput
+                  placeholder="e.g., Roof Installation"
+                  placeholderTextColor="#999"
+                  value={form.title}
+                  onChangeText={(t) => setF("title", t)}
+                  style={styles.input}
+                />
+              </FormRow>
 
-              <LabeledInput
-                label="Job Title"
-                value={form.title}
-                onChangeText={(t) => setF("title", t)}
-                placeholder="e.g., Bricklaying for 3-bedroom"
-              />
-              <LabeledInput
-                label="Roles"
-                value={form.roles}
-                onChangeText={(t) => setF("roles", t)}
-                placeholder="e.g., Bricklayer"
-              />
-              <LabeledInput
-                label="Nature of Job"
-                value={form.nature}
-                onChangeText={(t) => setF("nature", t)}
-                placeholder="e.g., Block setting & DPC"
-              />
-              <LabeledInput
-                label="Extra Notes / Details"
-                value={form.details}
-                onChangeText={(t) => setF("details", t)}
-                placeholder="Any extra instructions…"
-                multiline
-              />
+              <FormRow label="Roles">
+                <TextInput
+                  placeholder="e.g., Mason, Painter, Supervisor"
+                  placeholderTextColor="#999"
+                  value={form.roles}
+                  onChangeText={(t) => setF("roles", t)}
+                  style={styles.input}
+                />
+              </FormRow>
+
+              <FormRow label="Nature of Job">
+                <TextInput
+                  placeholder="e.g., Onsite / Weekend / Night shift"
+                  placeholderTextColor="#999"
+                  value={form.nature}
+                  onChangeText={(t) => setF("nature", t)}
+                  style={styles.input}
+                />
+              </FormRow>
+
+              <FormRow label="Extra Notes / Details">
+                <TextInput
+                  placeholder="Any extra instructions…"
+                  placeholderTextColor="#999"
+                  value={form.details}
+                  onChangeText={(t) => setF("details", t)}
+                  style={[styles.input, { height: 90, textAlignVertical: "top" }]}
+                  multiline
+                />
+              </FormRow>
 
               <View style={styles.row}>
-                <HalfInput
-                  label="Start Date"
-                  value={form.startDate}
-                  onChangeText={(t) => setF("startDate", t)}
-                  placeholder="YYYY-MM-DD"
-                />
-                <HalfInput
-                  label="End Date"
-                  value={form.endDate}
-                  onChangeText={(t) => setF("endDate", t)}
-                  placeholder="YYYY-MM-DD"
-                />
+                <Half label="Start Date">
+                  <TextInput
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor="#999"
+                    value={form.startDate}
+                    onChangeText={(t) => setF("startDate", t)}
+                    style={styles.input}
+                  />
+                </Half>
+                <Half label="End Date">
+                  <TextInput
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor="#999"
+                    value={form.endDate}
+                    onChangeText={(t) => setF("endDate", t)}
+                    style={styles.input}
+                  />
+                </Half>
               </View>
 
-              <LabeledInput
-                label="Location"
-                value={form.location}
-                onChangeText={(t) => setF("location", t)}
-                placeholder="e.g., Lagos, Nigeria"
-              />
-              <LabeledInput
-                label="Contract Pay"
-                value={form.contractPay}
-                onChangeText={(t) => setF("contractPay", t)}
-                placeholder="e.g., ₦120,000"
-                keyboardType="numeric"
-              />
+              <FormRow label="Location">
+                <TextInput
+                  placeholder="e.g., Lagos, Nigeria"
+                  placeholderTextColor="#999"
+                  value={form.location}
+                  onChangeText={(t) => setF("location", t)}
+                  style={styles.input}
+                />
+              </FormRow>
 
-              <TouchableOpacity activeOpacity={0.9} style={styles.postBtn}>
-                <Text style={styles.postBtnText}>Post Contract</Text>
+              <FormRow label="Contract Pay">
+                <TextInput
+                  placeholder="e.g., ₦300,000"
+                  placeholderTextColor="#999"
+                  value={form.contractPay}
+                  onChangeText={(t) => setF("contractPay", t)}
+                  style={styles.input}
+                  keyboardType="numeric"
+                />
+              </FormRow>
+
+              <TouchableOpacity activeOpacity={0.9} style={styles.submitBtn} onPress={onCreateContract}>
+                <Text style={styles.submitText}>Create Contract</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: 120 }}>
-          {contracts.map(renderReviewCard)}
-        </ScrollView>
+        <>
+          {/* Contractors sub-tabs */}
+          <View style={styles.subTabRow}>
+            <TouchableOpacity
+              style={[styles.subTab, contractorView === "active" && styles.subTabActive]}
+              onPress={() => setContractorView("active")}
+            >
+              <Text style={[styles.subTabText, contractorView === "active" && styles.subTabTextActive]}>
+                Active Contracts
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.subTab, contractorView === "queue" && styles.subTabActive]}
+              onPress={() => setContractorView("queue")}
+            >
+              <Text style={[styles.subTabText, contractorView === "queue" && styles.subTabTextActive]}>
+                Queued Contracts
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {contractorView === "active" ? (
+            <FlatList
+              data={activeContracts}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={{ paddingBottom: 20 }}
+              showsVerticalScrollIndicator={false}
+              ItemSeparatorComponent={() => <View style={styles.sep} />}
+              renderItem={renderActiveCard}
+            />
+          ) : (
+            <FlatList
+              data={CONTRACTORS_QUEUE_GROUPED}
+              keyExtractor={(group) => group.contractId}
+              contentContainerStyle={{ paddingBottom: 20 }}
+              showsVerticalScrollIndicator={false}
+              ItemSeparatorComponent={() => <View style={styles.sep} />}
+              renderItem={renderQueueGroup}
+            />
+          )}
+        </>
       )}
     </SafeAreaView>
   );
 }
 
-/* ---------- Small components ---------- */
-function DropHeader({ title, active, onPress }) {
+/* ---------- Small UI ---------- */
+function FormRow({ label, children }) {
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.9}
-      style={[styles.dropHeader, active && styles.dropHeaderActive]}
-    >
-      <Text style={[styles.dropHeaderText, active && styles.dropHeaderTextActive]}>
-        {title}
-      </Text>
-      <Ionicons
-        name={active ? "chevron-up" : "chevron-down"}
-        size={18}
-        color={BLACK}
-      />
-    </TouchableOpacity>
-  );
-}
-
-function LabeledInput({ label, multiline, ...rest }) {
-  return (
-    <View style={{ marginBottom: 12 }}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        {...rest}
-        style={[styles.input, multiline && styles.inputMultiline]}
-        multiline={!!multiline}
-        textAlignVertical={multiline ? "top" : "auto"}
-      />
+    <View style={styles.formRow}>
+      <Text style={styles.formLabel}>{label}</Text>
+      {children}
     </View>
   );
 }
 
-function HalfInput({ label, ...rest }) {
+function Half({ label, children }) {
   return (
     <View style={{ flex: 1 }}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput {...rest} style={styles.input} />
+      <Text style={styles.formLabel}>{label}</Text>
+      {children}
     </View>
   );
 }
@@ -395,7 +550,6 @@ function Field({ label, value }) {
   );
 }
 
-/* Stars */
 function StarsPicker({ value, onChange, disabled }) {
   return (
     <View style={{ flexDirection: "row" }}>
@@ -423,71 +577,104 @@ const styles = StyleSheet.create({
 
   topBar: {
     backgroundColor: BLACK,
-    height: 70,
-    alignItems: "center",
-    justifyContent: "flex-end",
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
     paddingBottom: 12,
-  },
-  topBarTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
-  topAccent: { height: 3, backgroundColor: YELLOW },
-
-  dropHeaders: {
     flexDirection: "row",
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingTop: 10,
-  },
-  dropHeader: {
-    flex: 1,
-    borderWidth: 2,
-    borderColor: BLACK,
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: WHITE,
-    flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     justifyContent: "space-between",
   },
-  dropHeaderActive: { backgroundColor: YELLOW, borderColor: YELLOW },
-  dropHeaderText: { color: BLACK, fontWeight: "900" },
-  dropHeaderTextActive: { color: BLACK },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
 
-  card: {
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: WHITE,
-    borderWidth: 1.5,
-    borderColor: BDR,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-    marginBottom: 14,
+  tabRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 10,
+    paddingHorizontal: 16,
   },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderBottomWidth: 2,
+    borderColor: "transparent",
+    alignItems: "center",
+  },
+  tabActive: { borderColor: BLACK },
+  tabText: { fontSize: 16, fontWeight: "700", color: "#666" },
+  tabTextActive: { color: BLACK, fontWeight: "900" },
 
-  sectionTitle: { fontSize: 14, fontWeight: "900", color: BLACK, marginBottom: 10 },
-
-  row: { flexDirection: "row", gap: 10, marginTop: 6 },
-
-  title: { fontSize: 17, fontWeight: "800", color: BLACK, marginBottom: 6 },
-  field: { fontSize: 14, color: "#222", marginBottom: 4 },
-
-  fieldLabel: { fontSize: 12, color: MUTED, marginBottom: 4, fontWeight: "700" },
-  fieldValue: { fontSize: 14, color: "#222" },
-
+  /* Create Contract */
+  formCard: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  formRow: { marginBottom: 12 },
+  formLabel: { fontSize: 13, fontWeight: "800", color: BLACK, marginBottom: 6 },
   input: {
+    height: 44,
     borderWidth: 2,
     borderColor: BLACK,
     borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
     backgroundColor: WHITE,
     color: BLACK,
   },
-  inputMultiline: { minHeight: 90 },
+  submitBtn: {
+    marginTop: 8,
+    backgroundColor: YELLOW,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  submitText: { fontWeight: "900", color: BLACK, fontSize: 15 },
 
+  /* Contractors sub-tabs */
+  subTabRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginVertical: 10,
+    paddingHorizontal: 16,
+  },
+  subTab: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: "#EEE",
+  },
+  subTabActive: { backgroundColor: YELLOW },
+  subTabText: { fontSize: 14, fontWeight: "700", color: "#555" },
+  subTabTextActive: { color: BLACK },
+
+  sep: { height: 1, backgroundColor: "#F0F0F0", marginHorizontal: 16 },
+
+  /* Cards */
+  card: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  title: { fontSize: 16, fontWeight: "900", marginBottom: 6, color: BLACK },
+  counterparty: { fontSize: 13, fontWeight: "700", color: "#444", marginBottom: 6 },
+
+  row: { flexDirection: "row", gap: 10, marginTop: 4, marginBottom: 6 },
+  fieldLabel: { fontSize: 12, color: MUTED, marginBottom: 4, fontWeight: "700" },
+  fieldValue: { fontSize: 14, color: "#222" },
+
+  leftStatus: { flexDirection: "row", alignItems: "center", gap: 8 },
   statusRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -495,6 +682,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   statusTxt: { fontWeight: "900" },
+  badge: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    backgroundColor: WHITE,
+  },
+  badgeRed: { backgroundColor: "#FFD4D4" },
+  badgeGreen: { backgroundColor: "#CFF2C9" },
+  badgeText: { fontSize: 11, fontWeight: "900", color: BLACK },
 
   fbBtn: {
     borderRadius: 10,
@@ -512,7 +710,7 @@ const styles = StyleSheet.create({
     borderColor: "#E5E5E5",
     backgroundColor: "#FAFAFA",
   },
-  formLabel: { fontWeight: "800", color: BLACK, marginBottom: 6 },
+  formLabel2: { fontWeight: "800", color: BLACK, marginBottom: 6 },
 
   tagsWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
   tagChip: {
@@ -553,14 +751,39 @@ const styles = StyleSheet.create({
   },
   submitBtnText: { fontWeight: "900", color: BLACK },
 
-  postBtn: {
-    marginTop: 8,
+  /* Queue rows */
+  applicantRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderColor: "#F1F1F1",
+  },
+  avatar: {
+    width: 40, height: 40, borderRadius: 20,
+    borderWidth: 2, borderColor: BLACK,
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: WHITE,
+  },
+  avatarHead: {
+    width: 10, height: 10, borderRadius: 5,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE, marginBottom: 2,
+  },
+  avatarBody: {
+    width: 18, height: 8, borderRadius: 5,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+  },
+  applicantName: { fontWeight: "900", color: BLACK, fontSize: 14 },
+  applicantMeta: { color: "#555", fontSize: 12, marginTop: 2 },
+
+  pickButton: {
     backgroundColor: YELLOW,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
     borderWidth: 2,
     borderColor: BLACK,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center",
   },
-  postBtnText: { fontWeight: "900", color: BLACK },
+  pickText: { fontWeight: "900", color: BLACK },
 });
