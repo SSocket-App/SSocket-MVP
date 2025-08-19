@@ -1,0 +1,566 @@
+// MiniContractorDropdown.js — Create | Review with feedback dropdown on green button
+// Paste into App.js (Expo). No extra dependencies.
+
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+const MUTED = "#6B7280";
+const BDR = "#E5E7EB";
+const GREEN = "#22C55E";
+const RED = "#EF4444";
+
+const TAG_OPTIONS = [
+  "Reliable",
+  "Fast",
+  "Thorough",
+  "Creative",
+  "Safety-Focused",
+  "Communicative",
+  "Team Player",
+  "Needs Guidance",
+];
+
+export default function App() {
+  const [open, setOpen] = useState("create");
+
+  // ---- Create Contract form state ----
+  const [form, setForm] = useState({
+    title: "",
+    roles: "",
+    nature: "",
+    details: "",
+    startDate: "",
+    endDate: "",
+    location: "",
+    contractPay: "",
+  });
+  const setF = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  // ---- Review Contracts demo data ----
+  const [contracts, setContracts] = useState([
+    {
+      id: "c1",
+      title: "House Construction",
+      contractor: "James Okoro",
+      roles: "Bricklayer",
+      startDate: "2025-08-20",
+      endDate: "2025-08-30",
+      location: "Lagos, Nigeria",
+      contractPay: "₦120,000",
+      status: "ended", // green → opens feedback dropdown
+    },
+    {
+      id: "c2",
+      title: "Office Painting",
+      contractor: "Adaeze Bello",
+      roles: "Painter",
+      startDate: "2025-09-02",
+      endDate: "2025-09-05",
+      location: "Abuja, Nigeria",
+      contractPay: "₦80,000",
+      status: "ongoing", // red → locked + padlock
+    },
+  ]);
+
+  // per-contract feedback dropdown open/close
+  const [openFeedback, setOpenFeedback] = useState({}); // { [id]: boolean }
+
+  // simple local drafts per contract id
+  const [drafts, setDrafts] = useState(() =>
+    Object.fromEntries(
+      contracts.map((c) => [c.id, { rating: 0, tags: [], review: "" }])
+    )
+  );
+
+  const toggleFeedback = (id, canOpen) => {
+    if (!canOpen) return;
+    setOpenFeedback((p) => ({ ...p, [id]: !p[id] }));
+  };
+
+  const updateDraft = (id, patch) =>
+    setDrafts((p) => ({ ...p, [id]: { ...p[id], ...patch } }));
+
+  const toggleTag = (id, tag, disabled) => {
+    if (disabled) return;
+    const prev = drafts[id] || { rating: 0, tags: [], review: "" };
+    const next = new Set(prev.tags);
+    next.has(tag) ? next.delete(tag) : next.add(tag);
+    updateDraft(id, { tags: Array.from(next) });
+  };
+
+  const submitFeedback = (id) => {
+    // one-time UI placeholder (hook to backend later)
+    setOpenFeedback((p) => ({ ...p, [id]: false }));
+  };
+
+  const renderReviewCard = (c) => {
+    const isEnded = c.status === "ended";
+    const isOpen = !!openFeedback[c.id];
+    const draft = drafts[c.id] || { rating: 0, tags: [], review: "" };
+
+    return (
+      <View key={c.id} style={styles.card}>
+        <Text style={styles.title}>{c.title}</Text>
+        <Text style={styles.field}>Contractor: {c.contractor}</Text>
+        <Text style={styles.field}>Roles: {c.roles}</Text>
+
+        <View style={styles.row}>
+          <Field label="Start" value={c.startDate} />
+          <Field label="End" value={c.endDate} />
+        </View>
+        <View style={styles.row}>
+          <Field label="Location" value={c.location} />
+          <Field label="Contract Pay" value={c.contractPay} />
+        </View>
+
+        {/* Status + Give Feedback */}
+        <View style={styles.statusRow}>
+          <Text style={[styles.statusTxt, { color: isEnded ? GREEN : RED }]}>
+            {isEnded ? "Ended" : "Ongoing"}
+          </Text>
+
+          <TouchableOpacity
+            activeOpacity={isEnded ? 0.9 : 1}
+            disabled={!isEnded}
+            onPress={() => toggleFeedback(c.id, isEnded)}
+            style={[
+              styles.fbBtn,
+              { backgroundColor: isEnded ? GREEN : RED },
+              !isEnded && { opacity: 0.9 },
+            ]}
+          >
+            <View style={styles.btnContent}>
+              {!isEnded && (
+                <Ionicons
+                  name="lock-closed"
+                  size={16}
+                  color={WHITE}
+                  style={{ marginRight: 6 }}
+                />
+              )}
+              <Text style={styles.fbBtnText}>Give Feedback</Text>
+              {isEnded && (
+                <Ionicons
+                  name={isOpen ? "chevron-up" : "chevron-down"}
+                  size={16}
+                  color={WHITE}
+                  style={{ marginLeft: 6 }}
+                />
+              )}
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Feedback dropdown — same pattern as contractee side */}
+        {isEnded && isOpen && (
+          <View style={styles.feedbackWrap}>
+            <Text style={styles.formLabel}>Rating</Text>
+            <StarsPicker
+              value={draft.rating}
+              onChange={(v) => updateDraft(c.id, { rating: v })}
+              disabled={false}
+            />
+
+            <Text style={[styles.formLabel, { marginTop: 12 }]}>
+              Tags (stickers)
+            </Text>
+            <View style={styles.tagsWrap}>
+              {TAG_OPTIONS.map((t) => {
+                const active = draft.tags.includes(t);
+                return (
+                  <TouchableOpacity
+                    key={t}
+                    onPress={() => toggleTag(c.id, t, false)}
+                    activeOpacity={0.85}
+                    style={[
+                      styles.tagChip,
+                      active && styles.tagChipActive,
+                    ]}
+                  >
+                    <Text
+                      style={[styles.tagText, active && styles.tagTextActive]}
+                    >
+                      {t}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.formLabel, { marginTop: 12 }]}>
+              Review (private to system)
+            </Text>
+            <TextInput
+              placeholder="Write a short review…"
+              placeholderTextColor="#9AA0A6"
+              value={draft.review}
+              onChangeText={(txt) => updateDraft(c.id, { review: txt })}
+              style={[styles.input, styles.inputMultiline]}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+            <Text style={styles.privateNote}>
+              🔒 Reviews are private and only visible to the system.
+            </Text>
+
+            <Text style={styles.warning}>
+              ⚠️ Feedback can only be submitted once.
+            </Text>
+
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => submitFeedback(c.id)}
+              style={styles.submitBtn}
+            >
+              <Text style={styles.submitBtnText}>Submit</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <Text style={styles.topBarTitle}>Mini Contractor</Text>
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Dropdown Headers */}
+      <View style={styles.dropHeaders}>
+        <DropHeader
+          title="Create Contract"
+          active={open === "create"}
+          onPress={() => setOpen("create")}
+        />
+        <DropHeader
+          title="Review Contracts"
+          active={open === "review"}
+          onPress={() => setOpen("review")}
+        />
+      </View>
+
+      {/* Bodies */}
+      {open === "create" ? (
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <ScrollView
+            contentContainerStyle={{ padding: 14, paddingBottom: 120 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Contract Details</Text>
+
+              <LabeledInput
+                label="Job Title"
+                value={form.title}
+                onChangeText={(t) => setF("title", t)}
+                placeholder="e.g., Bricklaying for 3-bedroom"
+              />
+              <LabeledInput
+                label="Roles"
+                value={form.roles}
+                onChangeText={(t) => setF("roles", t)}
+                placeholder="e.g., Bricklayer"
+              />
+              <LabeledInput
+                label="Nature of Job"
+                value={form.nature}
+                onChangeText={(t) => setF("nature", t)}
+                placeholder="e.g., Block setting & DPC"
+              />
+              <LabeledInput
+                label="Extra Notes / Details"
+                value={form.details}
+                onChangeText={(t) => setF("details", t)}
+                placeholder="Any extra instructions…"
+                multiline
+              />
+
+              <View style={styles.row}>
+                <HalfInput
+                  label="Start Date"
+                  value={form.startDate}
+                  onChangeText={(t) => setF("startDate", t)}
+                  placeholder="YYYY-MM-DD"
+                />
+                <HalfInput
+                  label="End Date"
+                  value={form.endDate}
+                  onChangeText={(t) => setF("endDate", t)}
+                  placeholder="YYYY-MM-DD"
+                />
+              </View>
+
+              <LabeledInput
+                label="Location"
+                value={form.location}
+                onChangeText={(t) => setF("location", t)}
+                placeholder="e.g., Lagos, Nigeria"
+              />
+              <LabeledInput
+                label="Contract Pay"
+                value={form.contractPay}
+                onChangeText={(t) => setF("contractPay", t)}
+                placeholder="e.g., ₦120,000"
+                keyboardType="numeric"
+              />
+
+              <TouchableOpacity activeOpacity={0.9} style={styles.postBtn}>
+                <Text style={styles.postBtnText}>Post Contract</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      ) : (
+        <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: 120 }}>
+          {contracts.map(renderReviewCard)}
+        </ScrollView>
+      )}
+    </SafeAreaView>
+  );
+}
+
+/* ---------- Small components ---------- */
+function DropHeader({ title, active, onPress }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.9}
+      style={[styles.dropHeader, active && styles.dropHeaderActive]}
+    >
+      <Text style={[styles.dropHeaderText, active && styles.dropHeaderTextActive]}>
+        {title}
+      </Text>
+      <Ionicons
+        name={active ? "chevron-up" : "chevron-down"}
+        size={18}
+        color={BLACK}
+      />
+    </TouchableOpacity>
+  );
+}
+
+function LabeledInput({ label, multiline, ...rest }) {
+  return (
+    <View style={{ marginBottom: 12 }}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        {...rest}
+        style={[styles.input, multiline && styles.inputMultiline]}
+        multiline={!!multiline}
+        textAlignVertical={multiline ? "top" : "auto"}
+      />
+    </View>
+  );
+}
+
+function HalfInput({ label, ...rest }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput {...rest} style={styles.input} />
+    </View>
+  );
+}
+
+function Field({ label, value }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={styles.fieldValue}>{value}</Text>
+    </View>
+  );
+}
+
+/* Stars */
+function StarsPicker({ value, onChange, disabled }) {
+  return (
+    <View style={{ flexDirection: "row" }}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <TouchableOpacity
+          key={i}
+          disabled={disabled}
+          onPress={() => !disabled && onChange(i)}
+          activeOpacity={disabled ? 1 : 0.7}
+        >
+          <Ionicons
+            name={i <= value ? "star" : "star-outline"}
+            size={24}
+            color={disabled ? "#CCC" : YELLOW}
+          />
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
+/* ---------- Styles ---------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 70,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 12,
+  },
+  topBarTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  dropHeaders: {
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+  },
+  dropHeader: {
+    flex: 1,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: WHITE,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  dropHeaderActive: { backgroundColor: YELLOW, borderColor: YELLOW },
+  dropHeaderText: { color: BLACK, fontWeight: "900" },
+  dropHeaderTextActive: { color: BLACK },
+
+  card: {
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: WHITE,
+    borderWidth: 1.5,
+    borderColor: BDR,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+    marginBottom: 14,
+  },
+
+  sectionTitle: { fontSize: 14, fontWeight: "900", color: BLACK, marginBottom: 10 },
+
+  row: { flexDirection: "row", gap: 10, marginTop: 6 },
+
+  title: { fontSize: 17, fontWeight: "800", color: BLACK, marginBottom: 6 },
+  field: { fontSize: 14, color: "#222", marginBottom: 4 },
+
+  fieldLabel: { fontSize: 12, color: MUTED, marginBottom: 4, fontWeight: "700" },
+  fieldValue: { fontSize: 14, color: "#222" },
+
+  input: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    backgroundColor: WHITE,
+    color: BLACK,
+  },
+  inputMultiline: { minHeight: 90 },
+
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+  statusTxt: { fontWeight: "900" },
+
+  fbBtn: {
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  btnContent: { flexDirection: "row", alignItems: "center" },
+  fbBtnText: { color: WHITE, fontWeight: "900" },
+
+  feedbackWrap: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#E5E5E5",
+    backgroundColor: "#FAFAFA",
+  },
+  formLabel: { fontWeight: "800", color: BLACK, marginBottom: 6 },
+
+  tagsWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
+  tagChip: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: WHITE,
+  },
+  tagChipActive: { backgroundColor: YELLOW, borderColor: YELLOW },
+  tagText: { fontSize: 12, fontWeight: "800", color: BLACK },
+  tagTextActive: { color: BLACK },
+
+  privateNote: {
+    marginTop: 6,
+    fontSize: 12,
+    color: MUTED,
+    fontStyle: "italic",
+  },
+
+  warning: {
+    marginTop: 10,
+    fontSize: 12,
+    color: "#B91C1C",
+    fontWeight: "700",
+    textAlign: "center",
+  },
+
+  submitBtn: {
+    marginTop: 12,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: YELLOW,
+  },
+  submitBtnText: { fontWeight: "900", color: BLACK },
+
+  postBtn: {
+    marginTop: 8,
+    backgroundColor: YELLOW,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  postBtnText: { fontWeight: "900", color: BLACK },
+});
