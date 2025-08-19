@@ -16,6 +16,19 @@ const YELLOW = "#FFD54A";
 const BLACK = "#000";
 const WHITE = "#FFF";
 
+/* Helper: Format pay into range */
+function formatPayRange(pay) {
+  const num = parseInt(pay.replace(/[^0-9]/g, "")); // strip ₦ and commas
+  const lower = num.toLocaleString();
+  const upper = (num + 100000).toLocaleString();
+  return `Contract Value Worth: ₦${lower} – ₦${upper}`;
+}
+
+/* Helper: Format date with "-" */
+function formatDate(dateStr) {
+  return dateStr.replace(/, /g, "-").replace(/ /g, "-"); // "Aug 01, 2025" -> "Aug-01-2025"
+}
+
 /* Contractors = people this user hired */
 const CONTRACTORS = [
   {
@@ -24,7 +37,8 @@ const CONTRACTORS = [
     counterparty: "👤 Contractor: Peter Obi",
     pay: "₦200,000",
     status: "Completed",
-    date: "Aug 05, 2025",
+    startDate: "Aug 01, 2025",
+    endDate: "Aug 05, 2025",
   },
   {
     id: "k2",
@@ -32,7 +46,8 @@ const CONTRACTORS = [
     counterparty: "👤 Contractor: Jane Smith",
     pay: "₦300,000",
     status: "In Review",
-    date: "Aug 10, 2025",
+    startDate: "Aug 06, 2025",
+    endDate: "Aug 10, 2025",
   },
 ];
 
@@ -44,7 +59,8 @@ const CONTRACTEES = [
     counterparty: "🏢 Contractee: Hotel Grand",
     pay: "₦50,000",
     status: "Completed",
-    date: "Aug 12, 2025",
+    startDate: "Aug 09, 2025",
+    endDate: "Aug 12, 2025",
   },
   {
     id: "e2",
@@ -52,12 +68,12 @@ const CONTRACTEES = [
     counterparty: "🏢 Contractee: SSocket Labs",
     pay: "₦120,000",
     status: "Ongoing",
-    date: "Aug 15, 2025",
+    startDate: "Aug 13, 2025",
+    endDate: "Aug 15, 2025",
   },
 ];
 
 export default function ContractPage() {
-  // default to Contractees (employers who hired this user)
   const [activeTab, setActiveTab] = useState("contractees");
   const data = activeTab === "contractors" ? CONTRACTORS : CONTRACTEES;
 
@@ -75,14 +91,16 @@ export default function ContractPage() {
       </View>
       <View style={styles.topAccent} />
 
-      {/* Two-option "dropdown" (tabs) */}
+      {/* Tabs */}
       <View style={styles.tabRow}>
         <TouchableOpacity
           style={[styles.tab, activeTab === "contractees" && styles.tabActive]}
           onPress={() => setActiveTab("contractees")}
           activeOpacity={0.8}
         >
-          <Text style={[styles.tabText, activeTab === "contractees" && styles.tabTextActive]}>
+          <Text
+            style={[styles.tabText, activeTab === "contractees" && styles.tabTextActive]}
+          >
             Contractees
           </Text>
           <Text style={styles.tabHint}>Employers who hired this user</Text>
@@ -93,7 +111,9 @@ export default function ContractPage() {
           onPress={() => setActiveTab("contractors")}
           activeOpacity={0.8}
         >
-          <Text style={[styles.tabText, activeTab === "contractors" && styles.tabTextActive]}>
+          <Text
+            style={[styles.tabText, activeTab === "contractors" && styles.tabTextActive]}
+          >
             Contractors
           </Text>
           <Text style={styles.tabHint}>People this user hired</Text>
@@ -111,8 +131,10 @@ export default function ContractPage() {
           <View style={styles.card}>
             <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.counterparty}>{item.counterparty}</Text>
-            <Text style={styles.rowText}>💰 {item.pay}</Text>
-            <Text style={styles.rowText}>📅 {item.date}</Text>
+            <Text style={styles.rowText}>{formatPayRange(item.pay)}</Text>
+            <Text style={styles.rowText}>
+              📅 {formatDate(item.startDate)} → {formatDate(item.endDate)}
+            </Text>
             <Text style={styles.status}>Status: {item.status}</Text>
           </View>
         )}
