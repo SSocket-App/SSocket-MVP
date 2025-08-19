@@ -1,4 +1,4 @@
-// ContractPage.js
+// ContractPage.js — same UI + small public-visibility note + Employers hint on Contractors→Mega
 import React, { useState } from "react";
 import {
   SafeAreaView,
@@ -17,6 +17,7 @@ const WHITE = "#FFF";
 
 export default function ContractPage() {
   const [activeTab, setActiveTab] = useState("contractees"); // contractees | contractors
+  const [showMegaHint, setShowMegaHint] = useState(false);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -32,7 +33,7 @@ export default function ContractPage() {
       <View style={styles.tabRow}>
         <TouchableOpacity
           style={[styles.tab, activeTab === "contractees" && styles.tabActive]}
-          onPress={() => setActiveTab("contractees")}
+          onPress={() => { setActiveTab("contractees"); setShowMegaHint(false); }}
         >
           <Text style={[styles.tabText, activeTab === "contractees" && styles.tabTextActive]}>
             Contractees
@@ -41,13 +42,16 @@ export default function ContractPage() {
 
         <TouchableOpacity
           style={[styles.tab, activeTab === "contractors" && styles.tabActive]}
-          onPress={() => setActiveTab("contractors")}
+          onPress={() => { setActiveTab("contractors"); setShowMegaHint(false); }}
         >
           <Text style={[styles.tabText, activeTab === "contractors" && styles.tabTextActive]}>
             Contractors
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Small public-visibility note */}
+      <Text style={styles.publicNote}>Contract activity here is public.</Text>
 
       {/* Short Description */}
       <Text style={styles.description}>
@@ -68,12 +72,25 @@ export default function ContractPage() {
         </View>
 
         <View style={styles.optionCard}>
-          <TouchableOpacity style={styles.optionButton}>
+          <TouchableOpacity
+            style={styles.optionButton}
+            onPress={() => {
+              if (activeTab === "contractors") setShowMegaHint(true);
+            }}
+          >
             <Text style={styles.optionText}>Mega Contract</Text>
           </TouchableOpacity>
           <Text style={styles.optionSubText}>
             Larger and long-term projects that require detailed agreements.
           </Text>
+
+          {/* Employers account hint (only when Contractors → Mega) */}
+          {activeTab === "contractors" && showMegaHint && (
+            <Text style={styles.hintText}>
+              Open an <Text style={{ fontWeight: "900" }}>Employers</Text> account to use this
+              function (for big businesses & transfer-style workflows).
+            </Text>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -113,6 +130,15 @@ const styles = StyleSheet.create({
   tabText: { fontWeight: "800", color: BLACK },
   tabTextActive: { color: BLACK },
 
+  publicNote: {
+    textAlign: "center",
+    color: "#777",
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: -4,
+    marginBottom: 6,
+  },
+
   description: {
     textAlign: "center",
     color: "#555",
@@ -143,4 +169,12 @@ const styles = StyleSheet.create({
   },
   optionText: { fontSize: 16, fontWeight: "800", color: BLACK },
   optionSubText: { fontSize: 13, color: "#555", textAlign: "center" },
+
+  hintText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#555",
+    fontStyle: "italic",
+    textAlign: "center",
+  },
 });
