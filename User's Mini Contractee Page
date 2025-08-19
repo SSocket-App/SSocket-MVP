@@ -1,0 +1,156 @@
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+const contracts = [
+  {
+    id: "1",
+    title: "House Construction",
+    role: "Bricklayer",
+    nature: "Manual labor",
+    notes: "Build the walls for a 3-bedroom house",
+    startDate: "2025-08-20",
+    endDate: "2025-08-30",
+    location: "Lagos, Nigeria",
+    contractPay: "₦120,000",
+    ratingByContractee: 3,
+    stickerByContractee: "💪 Hardworking",
+    reviewByContractee: "Very committed and punctual worker.",
+  },
+  {
+    id: "2",
+    title: "Office Painting",
+    role: "Painter",
+    nature: "Interior finishing",
+    notes: "Paint 4 office rooms and 1 reception",
+    startDate: "2025-09-02",
+    endDate: "2025-09-05",
+    location: "Abuja, Nigeria",
+    contractPay: "₦80,000",
+    ratingByContractee: 5,
+    stickerByContractee: "🎨 Creative",
+    reviewByContractee: "Great attention to detail and neat work.",
+  },
+];
+
+export default function MiniContracteePage() {
+  const [data] = useState(contracts);
+
+  const renderStars = (rating) => {
+    return (
+      <View style={{ flexDirection: "row" }}>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Ionicons
+            key={i}
+            name={i <= rating ? "star" : "star-outline"}
+            size={18}
+            color={YELLOW}
+          />
+        ))}
+      </View>
+    );
+  };
+
+  const renderContract = ({ item }) => (
+    <View style={styles.card}>
+      <Text style={styles.title}>{item.title}</Text>
+      <Text style={styles.field}>Role: {item.role}</Text>
+      <Text style={styles.field}>Nature: {item.nature}</Text>
+      <Text style={styles.field}>Details: {item.notes}</Text>
+      <Text style={styles.field}>Start: {item.startDate}</Text>
+      <Text style={styles.field}>End: {item.endDate}</Text>
+      <Text style={styles.field}>Location: {item.location}</Text>
+      <Text style={styles.field}>Contract Pay: {item.contractPay}</Text>
+
+      {/* Static star rating */}
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+        <Text style={styles.field}>Rating: </Text>
+        {renderStars(item.ratingByContractee)}
+      </View>
+
+      {/* Sticker */}
+      <View style={styles.stickerPill}>
+        <Text style={styles.stickerText}>{item.stickerByContractee}</Text>
+      </View>
+
+      {/* Review */}
+      <Text style={styles.review}>"{item.reviewByContractee}"</Text>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <Text style={styles.topBarTitle}>Mini Contractee</Text>
+      </View>
+      <View style={styles.topAccent} />
+
+      <FlatList
+        data={data}
+        keyExtractor={(item) => item.id}
+        renderItem={renderContract}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      />
+    </SafeAreaView>
+  );
+}
+
+/* ---------- Styles ---------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 70,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 12,
+  },
+  topBarTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  card: {
+    margin: 14,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: WHITE,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  title: { fontSize: 17, fontWeight: "800", color: BLACK, marginBottom: 6 },
+  field: { fontSize: 14, color: "#333", marginBottom: 4 },
+
+  stickerPill: {
+    borderBottomWidth: 1,
+    borderColor: "#aaa",
+    paddingVertical: 2,
+    marginBottom: 6,
+  },
+  stickerText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#444",
+    fontStyle: "italic",
+  },
+
+  review: { fontSize: 13, fontStyle: "italic", color: "#555" },
+});
