@@ -1,0 +1,296 @@
+// App.js
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+/* -------------------- Sample Data -------------------- */
+const TRACKED_BUSINESSES = [
+  { name: "Acme Corp", rank: "Tier A", profileField: "Fintech" },
+  { name: "BrightLabs", rank: "Tier B", profileField: "HealthTech" },
+  { name: "Nova Foods", rank: "Tier C", profileField: "FMCG" },
+];
+
+const TRACKED_CONTACTS = [
+  { name: "Jane Smith", rank: "Level 7" },
+  { name: "Peter Obi", rank: "Level 2" },
+  { name: "Rachel Kim", rank: "Level 8" },
+];
+
+/* -------------------- Track List Screen -------------------- */
+export default function App() {
+  const [tab, setTab] = useState("businesses"); // "businesses" | "contacts"
+  const data = tab === "businesses" ? TRACKED_BUSINESSES : TRACKED_CONTACTS;
+
+  const goBack = () => {
+    Alert.alert("Go Back", "This will navigate to the previous page.");
+  };
+
+  const untrack = (item) => {
+    Alert.alert("Untrack", `Stopped tracking ${item.name}`);
+  };
+
+  const viewStats = (item) => {
+    Alert.alert("Stats", `Open stats for ${item.name}`);
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity activeOpacity={0.8} style={styles.backBtn} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topBarTitle}>Track List</Text>
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Tabs */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tabBtn, tab === "businesses" ? styles.tabBtnActive : styles.tabBtnIdle]}
+          onPress={() => setTab("businesses")}
+          activeOpacity={0.85}
+        >
+          <Ionicons
+            name="briefcase-outline"
+            size={16}
+            color={tab === "businesses" ? BLACK : YELLOW}
+          />
+          <Text style={[styles.tabText, { color: tab === "businesses" ? BLACK : YELLOW }]}>
+            Tracked Businesses
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tabBtn, tab === "contacts" ? styles.tabBtnActive : styles.tabBtnIdle]}
+          onPress={() => setTab("contacts")}
+          activeOpacity={0.85}
+        >
+          <Ionicons
+            name="people-outline"
+            size={16}
+            color={tab === "contacts" ? BLACK : YELLOW}
+          />
+          <Text style={[styles.tabText, { color: tab === "contacts" ? BLACK : YELLOW }]}>
+            Tracked Contacts
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* List */}
+      <FlatList
+        contentContainerStyle={styles.listContent}
+        data={data}
+        keyExtractor={(item, idx) => `${tab}-${idx}`}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyText}>
+              {tab === "businesses"
+                ? "You are not tracking any business yet."
+                : "You are not tracking any contact yet."}
+            </Text>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <View style={styles.row}>
+            {/* Avatar */}
+            <View style={styles.avatar}>
+              <View style={styles.avatarHead} />
+              <View style={styles.avatarBody} />
+            </View>
+
+            {/* Middle: name, rank (+ profileField only for businesses) */}
+            <View style={styles.middle}>
+              <Text style={styles.name} numberOfLines={1}>
+                {item.name}
+              </Text>
+
+              <View style={styles.metaRow}>
+                {/* Rank badge */}
+                <View style={styles.badgeYellow}>
+                  <Text style={styles.badgeYellowText}>{item.rank}</Text>
+                </View>
+
+                {/* Profile field ONLY if it's a business */}
+                {"profileField" in item && (
+                  <View style={styles.badgeOutline}>
+                    <Text style={styles.badgeOutlineText}>{item.profileField}</Text>
+                  </View>
+                )}
+
+                {/* Untrack pill */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={styles.untrackPill}
+                  onPress={() => untrack(item)}
+                >
+                  <Text style={styles.untrackText}>Untrack</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Stats button */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.statsBtn}
+              onPress={() => viewStats(item)}
+            >
+              <Text style={styles.statsText}>Stats</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      />
+    </SafeAreaView>
+  );
+}
+
+/* -------------------- Styles -------------------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top bar */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+  },
+  topBarTitle: { color: WHITE, fontSize: 26, fontWeight: "900" },
+  backBtn: {
+    position: "absolute",
+    left: 16,
+    bottom: 14,
+    padding: 6,
+  },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Tabs */
+  tabBar: {
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: WHITE,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EFEFEF",
+  },
+  tabBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 2,
+  },
+  tabBtnActive: { backgroundColor: YELLOW, borderColor: YELLOW },
+  tabBtnIdle: { backgroundColor: WHITE, borderColor: YELLOW },
+  tabText: { fontSize: 13, fontWeight: "800" },
+
+  /* List */
+  listContent: { paddingVertical: 8, paddingBottom: 16 },
+
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EFEFEF",
+    gap: 12,
+  },
+
+  /* Avatar */
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarHead: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    marginBottom: 1,
+  },
+  avatarBody: {
+    width: 22,
+    height: 10,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+
+  /* Middle */
+  middle: { flex: 1 },
+  name: { color: BLACK, fontSize: 18, fontWeight: "700", marginBottom: 6 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
+
+  // Rank badge
+  badgeYellow: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: YELLOW,
+  },
+  badgeYellowText: { color: BLACK, fontSize: 12, fontWeight: "700" },
+
+  // Profile field badge
+  badgeOutline: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  badgeOutlineText: { color: BLACK, fontSize: 12, fontWeight: "700" },
+
+  // Untrack
+  untrackPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: YELLOW,
+    backgroundColor: WHITE,
+  },
+  untrackText: { color: BLACK, fontSize: 13, fontWeight: "800" },
+
+  // Stats
+  statsBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  statsText: { color: BLACK, fontSize: 14, fontWeight: "800" },
+});
