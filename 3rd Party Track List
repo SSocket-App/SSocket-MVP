@@ -1,0 +1,279 @@
+// ThirdPartyTrackList.js
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  FlatList,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+/** The profile whose tracking list we're viewing */
+const VIEWED_USER = {
+  name: "John Doe",
+  level: "Level 5",
+};
+
+/** Sample data they are tracking */
+const THEIR_TRACKED_BUSINESSES = [
+  { id: "b1", name: "Acme Corp", rank: "Tier A", profileField: "Fintech" },
+  { id: "b2", name: "BrightLabs", rank: "Tier B", profileField: "HealthTech" },
+  { id: "b3", name: "Nova Foods", rank: "Tier C", profileField: "FMCG" },
+];
+
+const THEIR_TRACKED_CONTACTS = [
+  { id: "c1", name: "Jane Smith", rank: "Level 7" },
+  { id: "c2", name: "Peter Obi", rank: "Level 2" },
+  { id: "c3", name: "Rachel Kim", rank: "Level 8" },
+];
+
+export default function ThirdPartyTrackList() {
+  // "businesses" | "contacts"
+  const [tab, setTab] = useState("businesses");
+  const data = tab === "businesses" ? THEIR_TRACKED_BUSINESSES : THEIR_TRACKED_CONTACTS;
+
+  const goBack = () => Alert.alert("Back", "Hook this into navigation later.");
+  const trackItem = (item) => Alert.alert("Track", `You are now tracking ${item.name}.`);
+  const viewStats = (item) => Alert.alert("Stats", `Show stats for ${item.name}.`);
+
+  const renderItem = ({ item }) => (
+    <View style={styles.row}>
+      {/* Avatar */}
+      <View style={styles.avatar}>
+        <View style={styles.avatarHead} />
+        <View style={styles.avatarBody} />
+      </View>
+
+      {/* Middle */}
+      <View style={styles.middle}>
+        <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+        <View style={styles.metaRow}>
+          <View style={styles.badgeYellow}>
+            <Text style={styles.badgeYellowText}>{item.rank}</Text>
+          </View>
+
+          {/* Businesses only: profile field */}
+          {"profileField" in item && (
+            <View style={styles.badgeOutline}>
+              <Text style={styles.badgeOutlineText}>{item.profileField}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Actions */}
+      <View style={styles.actionsCol}>
+        <TouchableOpacity activeOpacity={0.85} style={styles.trackPill} onPress={() => trackItem(item)}>
+          <Text style={styles.trackText}>Track</Text>
+        </TouchableOpacity>
+        <TouchableOpacity activeOpacity={0.85} style={styles.statsBtn} onPress={() => viewStats(item)}>
+          <Text style={styles.statsText}>Stats</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.8} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>{VIEWED_USER.name}'s Track List</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Viewed user summary */}
+      <View style={styles.headerCard}>
+        <View style={styles.avatarBig}>
+          <View style={styles.avatarHead} />
+          <View style={styles.avatarBody} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerName}>{VIEWED_USER.name}</Text>
+          <Text style={styles.headerSub}>{VIEWED_USER.level}</Text>
+        </View>
+      </View>
+
+      {/* Tabs */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tabBtn, tab === "businesses" ? styles.tabActive : styles.tabIdle]}
+          onPress={() => setTab("businesses")}
+          activeOpacity={0.9}
+        >
+          <Ionicons name="briefcase-outline" size={16} color={tab === "businesses" ? BLACK : YELLOW} />
+          <Text style={[styles.tabText, { color: tab === "businesses" ? BLACK : YELLOW }]}>
+            Tracked Businesses
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tabBtn, tab === "contacts" ? styles.tabActive : styles.tabIdle]}
+          onPress={() => setTab("contacts")}
+          activeOpacity={0.9}
+        >
+          <Ionicons name="people-outline" size={16} color={tab === "contacts" ? BLACK : YELLOW} />
+          <Text style={[styles.tabText, { color: tab === "contacts" ? BLACK : YELLOW }]}>
+            Tracked Contacts
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* List */}
+      <FlatList
+        data={data}
+        keyExtractor={(i) => i.id}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        ItemSeparatorComponent={() => <View style={styles.sep} />}
+        renderItem={renderItem}
+        showsVerticalScrollIndicator={false}
+        style={{ paddingHorizontal: 12, marginTop: 8 }}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyText}>
+              {tab === "businesses"
+                ? "This user isn't tracking any businesses."
+                : "This user isn't tracking any contacts."}
+            </Text>
+          </View>
+        }
+      />
+    </SafeAreaView>
+  );
+}
+
+/* -------------------- Styles -------------------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+    position: "relative",
+  },
+  backBtn: { position: "absolute", left: 16, bottom: 14, padding: 6 },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Viewed user header */
+  headerCard: {
+    marginTop: 12,
+    marginHorizontal: 14,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: WHITE,
+    borderWidth: 1,
+    borderColor: "#EDEDED",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  avatarBig: {
+    width: 56, height: 56, borderRadius: 28,
+    borderWidth: 2, borderColor: BLACK, alignItems: "center", justifyContent: "center",
+  },
+  avatarHead: {
+    width: 12, height: 12, borderRadius: 6,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE, marginBottom: 2,
+  },
+  avatarBody: {
+    width: 22, height: 10, borderRadius: 6,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+  },
+  headerName: { fontSize: 18, fontWeight: "900", color: BLACK },
+  headerSub: { fontSize: 12, color: "#666", marginTop: 2 },
+
+  /* Tabs */
+  tabBar: {
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: WHITE,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EFEFEF",
+    marginTop: 6,
+  },
+  tabBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 2,
+  },
+  tabActive: { backgroundColor: YELLOW, borderColor: YELLOW },
+  tabIdle: { backgroundColor: WHITE, borderColor: YELLOW },
+  tabText: { fontSize: 13, fontWeight: "900" },
+
+  /* Row */
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    gap: 12,
+  },
+  sep: { height: 10 },
+
+  avatar: {
+    width: 46, height: 46, borderRadius: 23,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+    alignItems: "center", justifyContent: "center",
+  },
+
+  middle: { flex: 1 },
+  name: { color: BLACK, fontSize: 16, fontWeight: "900" },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" },
+
+  badgeYellow: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: YELLOW,
+  },
+  badgeYellowText: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  badgeOutline: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+  },
+  badgeOutlineText: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  actionsCol: { gap: 8 },
+  trackPill: {
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, borderWidth: 2,
+    borderColor: YELLOW, backgroundColor: WHITE, alignItems: "center",
+  },
+  trackText: { color: BLACK, fontSize: 12, fontWeight: "900" },
+
+  statsBtn: {
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 2,
+    borderColor: BLACK, backgroundColor: WHITE, alignItems: "center",
+  },
+  statsText: { color: BLACK, fontSize: 12, fontWeight: "900" },
+});
