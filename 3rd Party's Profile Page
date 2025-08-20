@@ -1,5 +1,5 @@
-// OtherUserProfilePage.js
-import React from "react";
+// OtherUserProfilePage.js 
+import React, { useState } from "react";
 import {
   SafeAreaView,
   StatusBar,
@@ -9,6 +9,7 @@ import {
   Platform,
   TouchableOpacity,
   FlatList,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -29,6 +30,24 @@ const POSTS = [
   { id: "p3", caption: "Rain delay yesterday; recovered schedule with an early start.", timestamp: "2025-08-15T09:10:00Z" },
 ];
 
+/* Updated HELPS feed with hashtags instead of plain categories */
+const HELPS = [
+  {
+    id: "h1",
+    title: "How to optimize block staging for 3-man crew?",
+    tags: ["ConstructionWorkflow", "Management"],
+    timestamp: "2025-08-16T08:40:00Z",
+    summary: "Looking for faster staging patterns. Current cycle time ~9min per row.",
+  },
+  {
+    id: "h2",
+    title: "Prevent mortar cracking in midday heat",
+    tags: ["Materials", "Engineering"],
+    timestamp: "2025-08-13T13:15:00Z",
+    summary: "Best mix ratios / shades? Seeking tips that hold up under sun.",
+  },
+];
+
 function formatDateTime(iso) {
   const d = new Date(iso);
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -43,13 +62,25 @@ function formatDateTime(iso) {
 }
 
 export default function OtherUserProfilePage() {
+  const [view, setView] = useState("posts");
+
+  const goBack = () => {
+    Alert.alert("Back", "Hook this into navigation later.");
+  };
+
+  const toggleHelps = () => {
+    setView((v) => (v === "posts" ? "helps" : "posts"));
+  };
+
+  const listData = view === "posts" ? POSTS : HELPS;
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={BLACK} />
 
       {/* Top Bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBox} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.7} onPress={goBack}>
           <Ionicons name="chevron-back" size={24} color={WHITE} />
         </TouchableOpacity>
         <Text style={styles.topTitle}>Profile</Text>
@@ -84,45 +115,74 @@ export default function OtherUserProfilePage() {
       <View style={styles.actionsRow}>
         <ProfileButton icon="pulse-outline" text="Track" />
         <ProfileButton icon="stats-chart-outline" text="Stats" />
-        <ProfileButton icon="bulb-outline" text="Interest" />
+        <ProfileButton
+          icon={view === "posts" ? "help-buoy-outline" : "reader-outline"}
+          text={view === "posts" ? "Help" : "Posts"}
+          onPress={toggleHelps}
+        />
       </View>
 
       {/* Divider title */}
-      <Text style={styles.sectionTitle}>Recent Posts</Text>
+      <Text style={styles.sectionTitle}>{view === "posts" ? "Recent Posts" : "Help Posts"}</Text>
 
-      {/* Posts */}
+      {/* Feed list */}
       <FlatList
-        data={POSTS}
+        data={listData}
         keyExtractor={(i) => i.id}
         contentContainerStyle={{ paddingBottom: 18 }}
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
-        renderItem={({ item }) => (
-          <View style={styles.post}>
-            <View style={styles.postHeader}>
-              <View style={styles.avatarSmall}>
-                <View style={styles.avatarSmallHead} />
-                <View style={styles.avatarSmallBody} />
+        renderItem={({ item }) =>
+          view === "posts" ? (
+            <View style={styles.post}>
+              <View style={styles.postHeader}>
+                <View style={styles.avatarSmall}>
+                  <View style={styles.avatarSmallHead} />
+                  <View style={styles.avatarSmallBody} />
+                </View>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={styles.postName} numberOfLines={1}>{USER.name}</Text>
+                  <Text style={styles.postRank} numberOfLines={1}>{USER.level}</Text>
+                </View>
+                <Text style={styles.postTime}>{formatDateTime(item.timestamp)}</Text>
               </View>
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={styles.postName} numberOfLines={1}>{USER.name}</Text>
-                <Text style={styles.postRank} numberOfLines={1}>{USER.level}</Text>
-              </View>
-              <Text style={styles.postTime}>{formatDateTime(item.timestamp)}</Text>
+              <Text style={styles.postCaption}>{item.caption}</Text>
             </View>
-            <Text style={styles.postCaption}>{item.caption}</Text>
-          </View>
-        )}
+          ) : (
+            <View style={styles.post}>
+              <View style={styles.postHeader}>
+                <View style={styles.avatarSmall}>
+                  <View style={styles.avatarSmallHead} />
+                  <View style={styles.avatarSmallBody} />
+                </View>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={styles.postName} numberOfLines={1}>{USER.name}</Text>
+                  <Text style={styles.postRank} numberOfLines={1}>{USER.level}</Text>
+                </View>
+                <Text style={styles.postTime}>{formatDateTime(item.timestamp)}</Text>
+              </View>
+              <Text style={styles.helpTitle}>{item.title}</Text>
+              {/* Show hashtags */}
+              <View style={styles.tagsRow}>
+                {item.tags.map((tag) => (
+                  <Text key={tag} style={styles.helpTag}>#{tag}</Text>
+                ))}
+              </View>
+              <Text style={styles.helpSummary}>{item.summary}</Text>
+            </View>
+          )
+        }
       />
     </SafeAreaView>
   );
 }
 
 /* Reusable button */
-function ProfileButton({ icon, text, dark }) {
+function ProfileButton({ icon, text, dark, onPress }) {
   return (
     <TouchableOpacity
       activeOpacity={0.9}
+      onPress={onPress}
       style={[styles.button, dark ? styles.buttonDark : styles.buttonLight]}
     >
       <Ionicons
@@ -229,7 +289,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
 
-  /* Post */
+  /* Post / Help cards */
   sep: { height: 1, backgroundColor: "#F0F0F0", marginHorizontal: 12 },
   post: {
     marginHorizontal: 12,
@@ -263,5 +323,12 @@ const styles = StyleSheet.create({
   postName: { fontWeight: "900", color: BLACK, fontSize: 15 },
   postRank: { color: "#666", fontSize: 12, marginTop: 2 },
   postTime: { color: "#777", fontSize: 12 },
+
   postCaption: { color: BLACK, fontSize: 15, paddingHorizontal: 12, paddingBottom: 8 },
+
+  /* Help-specific text */
+  helpTitle: { color: BLACK, fontWeight: "900", fontSize: 15, paddingHorizontal: 12 },
+  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, paddingHorizontal: 12, marginTop: 4 },
+  helpTag: { color: "#444", fontSize: 12, fontWeight: "700" },
+  helpSummary: { color: BLACK, fontSize: 14, paddingHorizontal: 12, paddingTop: 6, paddingBottom: 8 },
 });
