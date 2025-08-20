@@ -30,7 +30,6 @@ const POSTS = [
   { id: "p3", caption: "Rain delay yesterday; recovered schedule with an early start.", timestamp: "2025-08-15T09:10:00Z" },
 ];
 
-/* Updated HELPS feed with hashtags instead of plain categories */
 const HELPS = [
   {
     id: "h1",
@@ -66,6 +65,10 @@ export default function OtherUserProfilePage() {
 
   const goBack = () => {
     Alert.alert("Back", "Hook this into navigation later.");
+  };
+
+  const openTrackList = () => {
+    Alert.alert("Track List", "Navigate to Track List page later.");
   };
 
   const toggleHelps = () => {
@@ -105,6 +108,14 @@ export default function OtherUserProfilePage() {
       <View style={styles.infoSection}>
         <Text style={styles.infoText}>{USER.location}</Text>
         <Text style={styles.infoText}>💬 {USER.about}</Text>
+      </View>
+
+      {/* Track List Button */}
+      <View style={{ paddingHorizontal: 16, marginTop: 6 }}>
+        <TouchableOpacity style={styles.trackListBtn} onPress={openTrackList} activeOpacity={0.8}>
+          <Ionicons name="list-outline" size={18} color={BLACK} />
+          <Text style={styles.trackListText}>Track List</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Actions row */}
@@ -162,7 +173,6 @@ export default function OtherUserProfilePage() {
                 <Text style={styles.postTime}>{formatDateTime(item.timestamp)}</Text>
               </View>
               <Text style={styles.helpTitle}>{item.title}</Text>
-              {/* Show hashtags */}
               <View style={styles.tagsRow}>
                 {item.tags.map((tag) => (
                   <Text key={tag} style={styles.helpTag}>#{tag}</Text>
@@ -185,11 +195,7 @@ function ProfileButton({ icon, text, dark, onPress }) {
       onPress={onPress}
       style={[styles.button, dark ? styles.buttonDark : styles.buttonLight]}
     >
-      <Ionicons
-        name={icon}
-        size={18}
-        color={dark ? WHITE : BLACK}
-      />
+      <Ionicons name={icon} size={18} color={dark ? WHITE : BLACK} />
       <Text style={[styles.buttonText, dark ? { color: WHITE } : { color: BLACK }]}>{text}</Text>
     </TouchableOpacity>
   );
@@ -232,14 +238,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   avatarBig: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2,
-    borderColor: BLACK,
+    width: 64, height: 64, borderRadius: 32,
+    borderWidth: 2, borderColor: BLACK,
     backgroundColor: WHITE,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center", justifyContent: "center",
     marginRight: 6,
   },
   avatarHead: {
@@ -255,6 +257,20 @@ const styles = StyleSheet.create({
 
   infoSection: { paddingHorizontal: 16, paddingTop: 12, marginBottom: 6 },
   infoText: { fontSize: 14, color: "#333", marginBottom: 4 },
+
+  /* Track List button */
+  trackListBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: YELLOW,
+    borderRadius: 8,
+    paddingVertical: 10,
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: BLACK,
+  },
+  trackListText: { fontWeight: "900", fontSize: 15, color: BLACK },
 
   /* Buttons */
   actionsRow: {
