@@ -1,0 +1,204 @@
+// VolunteerScreen.js — “Volunteer a Solution” page (no bottom nav)
+// Paste into App.js (Expo) or import into your navigator. No extra deps needed.
+
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  ScrollView,
+  TextInput,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+const MUTED = "#6B7280";
+const BDR = "#E5E7EB";
+
+export default function VolunteerScreen() {
+  const help = {
+    title: "POS not balancing",
+    category: "Accounting",
+    description:
+      "Daily POS summary and cash count are mismatched. Need a reliable reconciliation approach.",
+    filled: 3,
+    total: 7,
+  };
+
+  const remaining = useMemo(() => Math.max(help.total - help.filled, 0), [help]);
+
+  const [solution, setSolution] = useState("");
+
+  const submit = () => {
+    if (!solution.trim()) {
+      Alert.alert("Add your idea", "Please type your solution before submitting.");
+      return;
+    }
+    Alert.alert("Submitted", "Thanks! Your solution was sent anonymously.");
+    setSolution("");
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+
+        <View style={styles.titleRow}>
+          <Text style={styles.topTitle}>Volunteer</Text>
+          {/* replaced 👍 with ☝️ */}
+          <Text style={{ marginLeft: 6, fontSize: 20 }}>☝️</Text>
+        </View>
+
+        <View style={styles.iconBox} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      >
+        <ScrollView
+          contentContainerStyle={{ padding: 14, paddingBottom: 28 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Help Details Card */}
+          <View style={styles.card}>
+            <Row label="Title" value={help.title} />
+            <Row label="Category" value={help.category} />
+            <View style={{ marginTop: 10 }}>
+              <Text style={styles.fieldLabel}>Description</Text>
+              <Text style={styles.desc}>{help.description}</Text>
+            </View>
+
+            <View style={styles.slotsRow}>
+              <Text style={styles.slotsText}>
+                Slots: {help.filled}/{help.total}{" "}
+                <Text style={styles.remain}>(remaining {remaining})</Text>
+              </Text>
+            </View>
+          </View>
+
+          {/* Solution Input */}
+          <Text style={[styles.fieldLabel, { marginTop: 12 }]}>
+            Your Solution (anonymous)
+          </Text>
+          <TextInput
+            value={solution}
+            onChangeText={setSolution}
+            placeholder="Type your solution here…"
+            placeholderTextColor="#9AA0A6"
+            style={[styles.input, styles.inputMulti]}
+            multiline
+            numberOfLines={6}
+            textAlignVertical="top"
+          />
+
+          {/* Submit Button */}
+          <TouchableOpacity
+            onPress={submit}
+            activeOpacity={0.9}
+            style={[styles.submitBtn, !solution.trim() && { opacity: 0.6 }]}
+          >
+            <Text style={styles.submitText}>Volunteer a Solution</Text>
+          </TouchableOpacity>
+
+          {/* Note */}
+          <Text style={styles.note}>
+            Other volunteers and their answers are hidden for authenticity and
+            to prevent bias during review.
+          </Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+/* ---- Small piece ---- */
+function Row({ label, value }) {
+  return (
+    <View style={{ marginTop: 10 }}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={styles.value}>{value}</Text>
+    </View>
+  );
+}
+
+/* ---- Styles ---- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  titleRow: { flexDirection: "row", alignItems: "center" },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  card: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: WHITE,
+  },
+
+  fieldLabel: { fontSize: 12, color: MUTED, fontWeight: "800", marginBottom: 4 },
+  value: { fontSize: 15, color: BLACK, fontWeight: "800" },
+  desc: { fontSize: 14, color: "#222", lineHeight: 20 },
+
+  slotsRow: { marginTop: 12, paddingTop: 8, borderTopWidth: 1, borderTopColor: BDR },
+  slotsText: { fontSize: 14, color: BLACK, fontWeight: "800" },
+  remain: { color: "#555", fontWeight: "700" },
+
+  input: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    color: BLACK,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 6,
+  },
+  inputMulti: { minHeight: 130 },
+
+  submitBtn: {
+    marginTop: 12,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: YELLOW,
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  submitText: { fontWeight: "900", color: BLACK },
+
+  note: {
+    marginTop: 10,
+    color: MUTED,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+});
