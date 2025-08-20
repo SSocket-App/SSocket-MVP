@@ -1,4 +1,4 @@
-// App.js
+// App.js 
 import React from "react";
 import {
   SafeAreaView,
@@ -61,6 +61,9 @@ export default function App() {
           <Ionicons name="list-outline" size={18} color={BLACK} />
           <Text style={styles.trackUnderText}>Track List</Text>
         </TouchableOpacity>
+
+        {/* Suggested contacts label */}
+        <Text style={styles.suggestedText}>Suggested contacts to track</Text>
       </View>
 
       {/* Contact list */}
@@ -131,7 +134,6 @@ const styles = StyleSheet.create({
   },
   topBarTitle: { color: WHITE, fontSize: 26, fontWeight: "900" },
 
-  // Go Back button
   backBtn: {
     position: "absolute",
     left: 16,
@@ -148,7 +150,6 @@ const styles = StyleSheet.create({
 
   topAccent: { height: 3, backgroundColor: YELLOW },
 
-  /* Track List button under top bar */
   subHeaderRow: {
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -167,11 +168,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    marginBottom: 6,
   },
   trackUnderText: {
     color: BLACK,
     fontSize: 14,
     fontWeight: "800",
+  },
+  suggestedText: {
+    color: BLACK,
+    fontSize: 14,
+    fontWeight: "600",
   },
 
   listContent: { paddingVertical: 8, paddingBottom: 86 },
