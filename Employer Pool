@@ -1,5 +1,5 @@
-// App.js
-import React, { useMemo } from "react";
+// EmployerPool.js
+import React, { useState } from "react";
 import {
   SafeAreaView,
   StatusBar,
@@ -9,6 +9,7 @@ import {
   Platform,
   TouchableOpacity,
   FlatList,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -16,154 +17,172 @@ const YELLOW = "#FFD54A";
 const BLACK = "#000";
 const WHITE = "#FFF";
 
-/* --------- Sample Data --------- */
+/* -------------------- Sample Data -------------------- */
 const EMPLOYERS = [
-  { name: "Hotel Grand", more: false },
-  { name: "Tech Square Ltd", more: false },
-  { name: "Blue Ocean Co.", more: true },
+  { id: "e1", name: "Acme Corp", rank: "Tier A" },
+  { id: "e2", name: "BrightLabs", rank: "Tier B" },
+  { id: "e3", name: "Nova Foods", rank: "Tier C" },
+  { id: "e4", name: "DigiSpace", rank: "Tier B" },
 ];
 
-// Jobs now include poster profile/name
-const JOBS = [
-  { poster: "Hotel Grand", title: "Hotel Accountant", applicants: "7/13" },
-  { poster: "City Cleaners", title: "Company Janitor", applicants: "3/8" },
-  { poster: "Sunrise Hotels", title: "Front Desk Officer", applicants: "12/20" },
-  { poster: "Ocean View", title: "Kitchen Assistant", applicants: "9/15" },
-  { poster: "Fortress Guards", title: "Security Personnel", applicants: "5/10" },
-  { poster: "Fresh Laundry Co.", title: "Laundry Supervisor", applicants: "4/9" },
+const MEGA_CONTRACTS = [
+  { id: "m1", title: "Warehouse Build-Out", employer: "Acme Corp", budget: "₦85M", status: "Active", deadline: "Nov 12, 2025" },
+  { id: "m2", title: "Nationwide Rollout", employer: "BrightLabs", budget: "₦120M", status: "Planning", deadline: "Jan 28, 2026" },
 ];
 
-export default function App() {
-  const ListHeader = useMemo(
-    () => (
-      <View>
-        {EMPLOYERS.map((e, idx) => (
-          <EmployerRow key={idx} name={e.name} showMore={e.more} />
-        ))}
-        <View style={styles.banner}>
-          <Text style={styles.bannerText}>Compete & Win Jobs</Text>
-          {/* 🌟 instead of vector icon */}
-          <Text style={{ fontSize: 20 }}>🌟</Text>
-        </View>
+const MINI_CONTRACTS = [
+  { id: "s1", title: "Landing Page Revamp", employer: "DigiSpace", progress: 72, due: "Aug 26" },
+  { id: "s2", title: "POS Bug Fix", employer: "Nova Foods", progress: 40, due: "Sep 01" },
+  { id: "s3", title: "Logo Refresh", employer: "Acme Corp", progress: 100, due: "Done" },
+];
+
+export default function EmployerPool() {
+  const [mode, setMode] = useState("mega"); // "mega" | "mini"
+
+  const openTrackList = () => Alert.alert("Track List", "Open your tracked businesses & contacts.");
+
+  const renderEmployer = ({ item }) => (
+    <View style={styles.empChip}>
+      <Text style={styles.empName} numberOfLines={1}>{item.name}</Text>
+      <Text style={styles.empRank}>{item.rank}</Text>
+    </View>
+  );
+
+  const renderMega = ({ item }) => (
+    <View style={styles.megaCard}>
+      <View style={styles.megaHeader}>
+        <Text style={styles.megaTitle} numberOfLines={1}>{item.title}</Text>
+        <StatusPill text={item.status} />
       </View>
-    ),
-    []
+      <View style={styles.megaMetaRow}>
+        <MetaBadge label="Employer" value={item.employer} />
+        <MetaBadge label="Budget" value={item.budget} />
+        <MetaBadge label="Deadline" value={item.deadline} />
+      </View>
+      <View style={styles.megaActions}>
+        <ActionBtn text="Open" onPress={() => Alert.alert("Open", item.title)} />
+        <ActionBtn text="Stats" outlined onPress={() => Alert.alert("Stats", item.title)} />
+      </View>
+    </View>
+  );
+
+  const renderMini = ({ item }) => (
+    <View style={styles.miniRow}>
+      <View style={styles.miniLeft}>
+        <Text style={styles.miniTitle} numberOfLines={1}>{item.title}</Text>
+        <Text style={styles.miniSub}>{item.employer}</Text>
+      </View>
+      <View style={styles.miniRight}>
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: `${Math.max(0, Math.min(100, item.progress))}%` }]} />
+        </View>
+        <Text style={styles.miniDue}>Due: {item.due}</Text>
+      </View>
+    </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={BLACK} />
 
-      {/* Top Bar with search icon */}
+      {/* Top Bar */}
       <View style={styles.topBar}>
-        <Text style={styles.topBarTitle}>Employer Pool</Text>
-        <TouchableOpacity style={styles.searchBtn}>
-          <Ionicons name="search-outline" size={24} color={WHITE} />
-        </TouchableOpacity>
+        <Text style={styles.topTitle}>Employer Pool</Text>
       </View>
       <View style={styles.topAccent} />
 
-      {/* SCROLLABLE JOB FEED */}
+      {/* Under top bar: Track list button (left only) */}
+      <View style={styles.trackRow}>
+        <TouchableOpacity style={styles.trackListBtn} activeOpacity={0.9} onPress={openTrackList}>
+          <Ionicons name="list-outline" size={16} color={BLACK} />
+          <Text style={styles.trackBtnText}>Track List</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Suggested Businesses Section */}
+      <Text style={styles.sectionTitle}>Suggested Businesses to Track</Text>
       <FlatList
-        data={JOBS}
-        keyExtractor={(item, i) => String(i)}
-        ListHeaderComponent={ListHeader}
-        renderItem={({ item }) => <JobCard job={item} />}
-        contentContainerStyle={styles.feedContent}
-        showsVerticalScrollIndicator={false}
+        data={EMPLOYERS}
+        keyExtractor={(i) => i.id}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 6 }}
+        ItemSeparatorComponent={() => <View style={{ width: 10 }} />}
+        renderItem={renderEmployer}
       />
 
-      {/* Bottom Nav (unchanged) */}
-      <View style={styles.bottomBar}>
-        <Ionicons name="home-outline" size={28} color={YELLOW} />
-        <Ionicons name="briefcase-outline" size={28} color={YELLOW} />
-        <Ionicons name="people-outline" size={28} color={YELLOW} />
-        <Ionicons name="notifications-outline" size={28} color={YELLOW} />
-        <Ionicons name="person-outline" size={28} color={YELLOW} />
+      {/* Toggle: Mega vs Mini */}
+      <View style={styles.toggleRow}>
+        <TouchableOpacity
+          style={[styles.toggleBtn, mode === "mega" ? styles.toggleActive : styles.toggleIdle]}
+          activeOpacity={0.9}
+          onPress={() => setMode("mega")}
+        >
+          <Text style={[styles.toggleText, { color: mode === "mega" ? BLACK : YELLOW }]}>
+            Mega Contracts
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.toggleBtn, mode === "mini" ? styles.toggleActive : styles.toggleIdle]}
+          activeOpacity={0.9}
+          onPress={() => setMode("mini")}
+        >
+          <Text style={[styles.toggleText, { color: mode === "mini" ? BLACK : YELLOW }]}>
+            Mini Contracts
+          </Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Contracts List */}
+      <FlatList
+        data={mode === "mega" ? MEGA_CONTRACTS : MINI_CONTRACTS}
+        keyExtractor={(i) => i.id}
+        contentContainerStyle={{ paddingBottom: 18 }}
+        ItemSeparatorComponent={() => <View style={styles.sep} />}
+        renderItem={mode === "mega" ? renderMega : renderMini}
+        showsVerticalScrollIndicator={false}
+        style={{ paddingHorizontal: 12, marginTop: 6 }}
+      />
     </SafeAreaView>
   );
 }
 
-/* --------- Components --------- */
-
-function EmployerRow({ name, showMore }) {
+/* -------------------- Small UI Pieces -------------------- */
+function StatusPill({ text }) {
   return (
-    <View style={styles.row}>
-      <View style={styles.avatar}>
-        <View style={styles.avatarHead} />
-        <View style={styles.avatarBody} />
-      </View>
-
-      <View style={{ flex: 1 }}>
-        <Text style={styles.name} numberOfLines={1}>
-          {name}
-        </Text>
-        <View style={styles.metaRow}>
-          <TouchableOpacity activeOpacity={0.7} style={styles.trackPill}>
-            <Text style={styles.trackText}>Track</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <TouchableOpacity activeOpacity={0.7} style={styles.statsBtn}>
-          <Text style={styles.statsText}>Stats</Text>
-        </TouchableOpacity>
-        {showMore && (
-          <TouchableOpacity activeOpacity={0.7} style={styles.moreBtn}>
-            <Text style={styles.moreText}>More</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+    <View style={styles.statusPill}>
+      <Text style={styles.statusText}>{text}</Text>
     </View>
   );
 }
 
-function JobCard({ job }) {
+function MetaBadge({ label, value }) {
   return (
-    <View style={styles.jobCard}>
-      {/* NEW: profile + name for this job */}
-      <View style={styles.jobHeaderRow}>
-        <View style={styles.avatarSmall}>
-          <View style={styles.avatarSmallHead} />
-          <View style={styles.avatarSmallBody} />
-        </View>
-        <Text style={styles.jobPoster} numberOfLines={1}>
-          {job.poster}
-        </Text>
-      </View>
-
-      <Text style={styles.jobTitle}>{job.title}</Text>
-
-      {/* 3-column action row */}
-      <View style={styles.metricsRow}>
-        {/* 🌟 Competition Button */}
-        <TouchableOpacity style={styles.metricCell}>
-          <Text style={styles.metricEmoji}>🌟</Text>
-          <Text style={styles.metricText}>Compete</Text>
-        </TouchableOpacity>
-
-        {/* 📝 Role Details Button */}
-        <TouchableOpacity style={styles.metricCell}>
-          <Text style={styles.metricEmoji}>📝</Text>
-          <Text style={styles.metricText}>Details</Text>
-        </TouchableOpacity>
-
-        {/* 👤 Applicants */}
-        <View style={styles.metricCell}>
-          <Text style={styles.metricEmoji}>👤</Text>
-          <Text style={styles.metricText}>{job.applicants}</Text>
-        </View>
-      </View>
+    <View style={styles.metaBadge}>
+      <Text style={styles.metaLabel}>{label}</Text>
+      <Text style={styles.metaValue} numberOfLines={1}>{value}</Text>
     </View>
   );
 }
 
-/* --------- Styles --------- */
+function ActionBtn({ text, outlined, onPress }) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={onPress}
+      style={[styles.actionBtn, outlined ? styles.actionOutlined : styles.actionFilled]}
+    >
+      <Text style={[styles.actionText, outlined ? { color: BLACK } : { color: BLACK }]}>{text}</Text>
+    </TouchableOpacity>
+  );
+}
+
+/* -------------------- Styles -------------------- */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: WHITE },
 
+  /* Top bar */
   topBar: {
     backgroundColor: BLACK,
     height: 88,
@@ -171,162 +190,156 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-end",
     paddingBottom: 14,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
   },
-  topBarTitle: { color: WHITE, fontSize: 26, fontWeight: "900" },
-  searchBtn: { padding: 6 },
-
+  topTitle: { color: WHITE, fontSize: 26, fontWeight: "900" },
   topAccent: { height: 3, backgroundColor: YELLOW },
 
-  feedContent: { paddingBottom: 100 },
-
-  /* employer rows */
-  row: {
+  /* Buttons under top bar */
+  trackRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    justifyContent: "flex-start",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#EFEFEF",
-    gap: 12,
   },
-  avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+  trackListBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: YELLOW,
+    backgroundColor: YELLOW,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  trackBtnText: { color: BLACK, fontSize: 14, fontWeight: "900" },
+
+  /* Section title */
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: BLACK,
+    paddingHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 6,
+  },
+
+  /* Employers chips */
+  empChip: {
     borderWidth: 2,
     borderColor: BLACK,
     backgroundColor: WHITE,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarHead: {
-    width: 12, height: 12, borderRadius: 6,
-    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE, marginBottom: 1,
-  },
-  avatarBody: {
-    width: 22, height: 10, borderRadius: 6,
-    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
-  },
-  name: { color: BLACK, fontSize: 18, fontWeight: "700", marginBottom: 6 },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-
-  trackPill: {
+    borderRadius: 12,
+    paddingVertical: 10,
     paddingHorizontal: 12,
+    minWidth: 140,
+  },
+  empName: { color: BLACK, fontWeight: "900", fontSize: 14 },
+  empRank: { color: "#666", fontSize: 12, marginTop: 2 },
+
+  /* Toggle */
+  toggleRow: {
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+  },
+  toggleBtn: {
+    flex: 1,
+    borderRadius: 18,
+    borderWidth: 2,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  toggleActive: { backgroundColor: YELLOW, borderColor: YELLOW },
+  toggleIdle: { backgroundColor: WHITE, borderColor: YELLOW },
+  toggleText: { fontSize: 13, fontWeight: "900" },
+
+  /* Mega cards */
+  megaCard: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 8,
+  },
+  megaHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  megaTitle: { color: BLACK, fontWeight: "900", fontSize: 16, flex: 1, marginRight: 10 },
+  statusPill: {
+    paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: YELLOW,
     backgroundColor: WHITE,
   },
-  trackText: { color: BLACK, fontSize: 13, fontWeight: "700" },
+  statusText: { color: BLACK, fontWeight: "900", fontSize: 12 },
 
-  statsBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
+  megaMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 10,
+  },
+  metaBadge: {
     borderWidth: 2,
     borderColor: BLACK,
-    backgroundColor: WHITE,
-  },
-  statsText: { color: BLACK, fontSize: 14, fontWeight: "800" },
-
-  moreBtn: {
+    borderRadius: 10,
     paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: BLACK,
-    backgroundColor: WHITE,
+    paddingVertical: 6,
   },
-  moreText: { color: BLACK, fontSize: 13, fontWeight: "800" },
+  metaLabel: { fontSize: 10, color: "#666", fontWeight: "900" },
+  metaValue: { fontSize: 13, color: BLACK, fontWeight: "900", maxWidth: 140 },
 
-  /* banner */
-  banner: {
-    marginTop: 10,
-    marginBottom: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: "#EFEFEF",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  bannerText: { fontSize: 18, fontWeight: "800", color: BLACK },
-
-  /* job card */
-  jobCard: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EFEFEF",
-  },
-
-  jobHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingBottom: 6,
-  },
-  avatarSmall: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: BLACK,
-    backgroundColor: WHITE,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarSmallHead: {
-    width: 10, height: 10, borderRadius: 5,
-    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE, marginBottom: 1,
-  },
-  avatarSmallBody: {
-    width: 16, height: 8, borderRadius: 5,
-    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
-  },
-  jobPoster: { fontSize: 16, fontWeight: "700", color: BLACK },
-
-  jobTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: BLACK,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-
-  metricsRow: {
-    flexDirection: "row",
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: "#E6E6E6",
-  },
-  metricCell: {
+  megaActions: { flexDirection: "row", gap: 10 },
+  actionBtn: {
     flex: 1,
+    borderRadius: 10,
+    borderWidth: 2,
+    paddingVertical: 10,
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    borderRightWidth: 1,
-    borderColor: "#E6E6E6",
   },
-  metricEmoji: { fontSize: 20 },
-  metricText: { marginTop: 4, fontWeight: "700", color: BLACK },
+  actionFilled: { backgroundColor: YELLOW, borderColor: YELLOW },
+  actionOutlined: { backgroundColor: WHITE, borderColor: BLACK },
+  actionText: { fontWeight: "900", fontSize: 14 },
 
-  /* bottom nav (unchanged) */
-  bottomBar: {
-    position: "absolute",
-    left: 0, right: 0, bottom: 0,
-    height: 64,
-    backgroundColor: BLACK,
+  /* Mini rows */
+  miniRow: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 8,
+    backgroundColor: WHITE,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
-    paddingHorizontal: 12,
+    gap: 12,
   },
-});
+  miniLeft: { flex: 1 },
+  miniTitle: { color: BLACK, fontWeight: "900", fontSize: 15 },
+  miniSub: { color: "#666", fontSize: 12, marginTop: 2 },
 
+  miniRight: { width: 130 },
+  progressBar: {
+    height: 8,
+    borderRadius: 6,
+    backgroundColor: "#EFEFEF",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#DDD",
+  },
+  progressFill: { height: "100%", backgroundColor: YELLOW },
+  miniDue: { color: "#555", fontSize: 12, marginTop: 6, fontWeight: "700", textAlign: "right" },
+
+  /* Misc */
+  sep: { height: 8 },
+});
