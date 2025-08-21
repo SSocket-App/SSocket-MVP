@@ -1,0 +1,680 @@
+// App.js
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  Dimensions,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+/* ===== Brand ===== */
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+const TOP_BAR_HEIGHT = 88;
+const TOP_ACCENT = 3;
+
+/* ===== PRNG + Mock HELP data ===== */
+function prng(n) { const x = Math.sin(n) * 10000; return x - Math.floor(x); }
+
+function buildDaily(seed = 1, days = 90) {
+  const arr = [];
+  const now = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    const k = Number(`${d.getFullYear()}${d.getMonth()+1}${d.getDate()}`) * seed;
+    const helps = Math.max(0, Math.round(prng(k) * 4 + (d.getDay() % 2)));
+    const base = 3.6 + prng(k + 7) * 1.2;
+    const rating = helps ? Math.min(5, base + Math.min(0.5, helps * 0.06)) : 0;
+
+    const winBias = Math.max(0, (rating - 3.5) / 1.5);
+    const winRate = 0.25 + 0.5 * winBias * (0.8 + 0.4 * prng(k + 13));
+    const wins = Math.min(helps, Math.round(helps * winRate));
+
+    // Optionally attach real ratings per day:
+    // starCounts: {1: n, 2: n, 3: n, 4: n, 5: n}
+    // ratings: [5,4,5,3,...]
+
+    arr.push({
+      date: d,
+      label: `${d.getDate()}/${d.getMonth()+1}`,
+      helps,
+      rating: Number(rating.toFixed(2)),
+      wins,
+      attempts: helps,
+      // starCounts, ratings
+    });
+  }
+  return arr;
+}
+
+function buildActiveMap(ratio = 0.75) {
+  const len = 14, activeCount = Math.round(len * ratio);
+  const arr = Array(len).fill(false);
+  for (let i = 0; i < activeCount; i++) arr[i] = true;
+  for (let i = 0; i < len; i++) {
+    const j = Math.floor(prng((i + 1) * 999) * len);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+const NICHE_KEYS = ["All", "Mechanical", "Software", "Marketing", "Design"];
+const DATA = {
+  All: {
+    totalReviews: 86, avgRating: 4.7, wins: 18, attempts: 50, consistency: 0.78,
+    posTags: { Creative: 72, Clear: 65, Practical: 59, Fast: 61, Helpful: 53, Analytical: 48 },
+    improve: { "More Detail": 39, "Simpler Language": 24, "Real Example": 18, "Step-by-Step": 15, "Practical Solution": 12, "Clear Format": 10, "Accurate Information": 9 },
+    negFlags: { Unclear: 12, "Overly Brief": 9, Impractical: 7 },
+    categories: { Tech: 52, Design: 28, Marketing: 20 },
+    repeatSelectors: 6,
+    daily: buildDaily(1),
+    activeMap: buildActiveMap(0.78),
+  },
+  Mechanical: {
+    totalReviews: 31, avgRating: 4.6, wins: 9, attempts: 31, consistency: 0.74,
+    posTags: { Practical: 22, Analytical: 19, Clear: 16, Helpful: 14, Creative: 11, Fast: 10 },
+    improve: { "More Detail": 14, "Real Example": 9, "Step-by-Step": 8, "Accurate Information": 6, "Practical Solution": 5, "Clear Format": 4, "Simpler Language": 3 },
+    negFlags: { Unclear: 5, "Overly Brief": 4, Impractical: 3 },
+    categories: { Mechanical: 70, Manufacturing: 20, Maintenance: 10 },
+    repeatSelectors: 3,
+    daily: buildDaily(2),
+    activeMap: buildActiveMap(0.74),
+  },
+  Software: {
+    totalReviews: 28, avgRating: 4.8, wins: 10, attempts: 29, consistency: 0.81,
+    posTags: { Analytical: 20, Clear: 18, Practical: 15, Fast: 15, Helpful: 12, Creative: 10 },
+    improve: { "More Detail": 9, "Clear Format": 7, "Step-by-Step": 7, "Accurate Information": 5, "Real Example": 4, "Practical Solution": 4, "Simpler Language": 3 },
+    negFlags: { Unclear: 3, "Overly Brief": 3, Impractical: 2 },
+    categories: { Backend: 40, Frontend: 35, DevOps: 25 },
+    repeatSelectors: 2,
+    daily: buildDaily(3),
+    activeMap: buildActiveMap(0.81),
+  },
+  Marketing: {
+    totalReviews: 17, avgRating: 4.5, wins: 5, attempts: 19, consistency: 0.70,
+    posTags: { Creative: 16, Clear: 12, Practical: 10, Helpful: 9, Analytical: 8, Fast: 7 },
+    improve: { "More Detail": 6, "Real Example": 5, "Simpler Language": 4, "Practical Solution": 4, "Clear Format": 3, "Step-by-Step": 2, "Accurate Information": 2 },
+    negFlags: { Unclear: 2, "Overly Brief": 2, Impractical: 1 },
+    categories: { Content: 45, Growth: 35, Brand: 20 },
+    repeatSelectors: 1,
+    daily: buildDaily(4),
+    activeMap: buildActiveMap(0.7),
+  },
+  Design: {
+    totalReviews: 10, avgRating: 4.6, wins: 4, attempts: 13, consistency: 0.73,
+    posTags: { Creative: 12, Clear: 8, Practical: 7, Helpful: 6, Fast: 5, Analytical: 4 },
+    improve: { "More Detail": 4, "Clear Format": 3, "Real Example": 2, "Step-by-Step": 2, "Practical Solution": 2, "Simpler Language": 2, "Accurate Information": 1 },
+    categories: { UI: 55, UX: 30, Branding: 15 },
+    repeatSelectors: 1,
+    daily: buildDaily(5),
+    activeMap: buildActiveMap(0.73),
+  },
+};
+
+/* ===== Utils ===== */
+const sumVals = (obj) => Object.values(obj).reduce((a, b) => a + b, 0);
+const W = Dimensions.get("window").width;
+const pad2 = (n) => (n < 10 ? `0${n}` : `${n}`);
+const fmt = (dt) => `${pad2(dt.getDate())}/${pad2(dt.getMonth()+1)}/${dt.getFullYear()}`;
+
+/* === STAR DISTRIBUTION (realistic, interval-aware) === */
+function mergeCounts(acc, add) {
+  for (let s = 1; s <= 5; s++) acc[s] = (acc[s] || 0) + (add[s] || 0);
+  return acc;
+}
+function roundPreserve(total, floats, seedBase = 0) {
+  const floors = floats.map(Math.floor);
+  let rem = total - floors.reduce((a,b)=>a+b,0);
+  const order = floats.map((v,i)=>({i, r:v - floors[i]}))
+                      .sort((a,b)=> b.r - a.r || prng(seedBase + a.i) - prng(seedBase + b.i));
+  const out = floors.slice();
+  for (let j = 0; j < rem; j++) out[order[j].i]++;
+  return out;
+}
+function dayStarCountsRealistic(day, seed = 0) {
+  if (day.starCounts) {
+    const safe = {1:0,2:0,3:0,4:0,5:0, ...day.starCounts};
+    const sum = Object.values(safe).reduce((a,b)=>a+b,0);
+    if (sum !== (day.helps || sum)) return safe;
+    return safe;
+  }
+  if (Array.isArray(day.ratings)) {
+    const c = {1:0,2:0,3:0,4:0,5:0};
+    day.ratings.forEach(v => { if (v>=1 && v<=5) c[v]++; });
+    return c;
+  }
+  const h = Math.max(0, day.helps || 0);
+  if (!h) return {1:0,2:0,3:0,4:0,5:0};
+  const r = Math.max(1, Math.min(5, day.rating || 3.5));
+  const sigma = 1.0 - Math.min(0.6, Math.log10(Math.max(1, h)) * 0.25); // tighter with more data
+  const weights = [1,2,3,4,5].map((s, i) => {
+    const base = Math.exp(-Math.pow(s - r, 2) / (2 * sigma * sigma));
+    const jitter = 0.9 + 0.2 * prng(seed + i);
+    return base * jitter;
+  });
+  const sumW = weights.reduce((a,b)=>a+b,0) || 1;
+  const probs = weights.map(w => w / sumW);
+  const floats = probs.map(p => p * h);
+  const [c1,c2,c3,c4,c5] = roundPreserve(h, floats, seed);
+  return {1:c1,2:c2,3:c3,4:c4,5:c5};
+}
+function intervalStarDistribution(inRange) {
+  return inRange.reduce((acc, p, idx) => {
+    const counts = dayStarCountsRealistic(p, (p.date?.getTime?.() || idx) + idx);
+    return mergeCounts(acc, counts);
+  }, {1:0,2:0,3:0,4:0,5:0});
+}
+
+/* Interval-based strengths */
+function strengthsFromInterval(inRange, d) {
+  const base = {
+    Creative: d.posTags.Creative || 40,
+    Analytical: d.posTags.Analytical || 40,
+    Practical: d.posTags.Practical || 40,
+    Detailed: (d.posTags.Clear || 30) + (d.posTags.Fast || 0) * 0.2,
+    Helpful: d.posTags.Helpful || 35,
+    Insightful: (d.posTags.Clear || 25) + (d.posTags.Creative || 0) * 0.3,
+    Innovative: (d.posTags.Creative || 25) + (d.posTags.Analytical || 0) * 0.2,
+    Professional: (d.posTags.Clear || 25) + 20,
+  };
+  const keys = Object.keys(base);
+  const totalBase = keys.reduce((a,k)=>a+base[k],0) || 1;
+  const counts = Object.fromEntries(keys.map(k=>[k,0]));
+  let totalHelps = 0;
+
+  inRange.forEach((p, idx) => {
+    const h = p.helps || 0; totalHelps += h;
+    keys.forEach((k, i) => {
+      const jitter = 0.9 + 0.2 * prng(h + base[k] + i + idx);
+      counts[k] += (h * (base[k] / totalBase)) * jitter;
+    });
+  });
+
+  if (!totalHelps) return Object.fromEntries(keys.map(k=>[k,0]));
+  const pct = {};
+  keys.forEach(k => { pct[k] = Math.round((counts[k] / totalHelps) * 100); });
+  return pct;
+}
+
+/* Interval-based “what would make perfect” */
+function improveFromInterval(inRange, d) {
+  const base = {
+    "Undetailed explanation": (d.improve["More Detail"] || 0),
+    "Overcomplicated": (d.improve["Simpler Language"] || 0) + (d.improve["Clear Format"] || 0),
+    "Unconcreted illustration": (d.improve["Real Example"] || 0),
+    "Unclear solution": (d.negFlags.Unclear || 0),
+    "Not actionable": (d.improve["Practical Solution"] || 0),
+    "Messy explanation": (d.improve["Clear Format"] || 0) + (d.negFlags["Overly Brief"] || 0),
+    "Misleading fact": (d.improve["Accurate Information"] || 0),
+  };
+  const reasons = Object.keys(base);
+  const weightSum = reasons.reduce((a,k)=>a+base[k],0) || 1;
+
+  const counts = Object.fromEntries(reasons.map(k=>[k,0]));
+  let totalIssues = 0;
+
+  inRange.forEach((p, idx) => {
+    const dist = dayStarCountsRealistic(p, idx);
+    const notFive = (p.helps || 0) - (dist[5] || 0);
+    totalIssues += notFive;
+    reasons.forEach((k, i) => {
+      const jitter = 0.9 + 0.2 * prng(notFive + base[k] + i + idx);
+      counts[k] += (notFive * (base[k] / weightSum)) * jitter;
+    });
+  });
+
+  if (!totalIssues) return Object.fromEntries(reasons.map(k=>[k,0]));
+  const pct = {};
+  reasons.forEach(k => { pct[k] = Math.round((counts[k] / totalIssues) * 100); });
+  return pct;
+}
+
+/* ===== Reusable UI ===== */
+function TitleRow({ title, help }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={{ marginBottom: open ? 8 : 0 }}>
+      <View style={styles.titleRow}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <TouchableOpacity
+          onPress={() => setOpen((v) => !v)}
+          activeOpacity={0.85}
+          style={styles.infoBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text style={styles.infoTxt}>i</Text>
+        </TouchableOpacity>
+      </View>
+      {open && (
+        <View style={styles.helpBox}>
+          <Text style={styles.helpText}>{help}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+function Card({ children }) { return <View style={styles.card}>{children}</View>; }
+function Chip({ text, active, onPress }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.9}
+      style={[styles.chip, active && { backgroundColor: "#FFFDF2", borderColor: YELLOW }]}
+    >
+      <Text style={styles.chipTxt}>{text}</Text>
+    </TouchableOpacity>
+  );
+}
+function HBar({ label, pct, big = false }) {
+  return (
+    <View style={styles.hbarRow}>
+      <Text style={[styles.hbarLabel, big && { width: 180 }]} numberOfLines={1}>{label}</Text>
+      <View style={[styles.hbarTrack, big && { height: 20 }]}>
+        <View style={[styles.hbarFill, { width: `${Math.max(4, pct)}%` }]} />
+      </View>
+      <Text style={styles.hbarPct}>{pct}%</Text>
+    </View>
+  );
+}
+function ConsistencyStrip({ map14 = [] }) {
+  return (
+    <View style={styles.consRow}>
+      {map14.map((on, i) => (
+        <View key={i} style={[styles.consBox, on ? { backgroundColor: "#FFFDF2", borderColor: YELLOW } : null]} />
+      ))}
+    </View>
+  );
+}
+function StarMeter({ value = 0 }) {
+  const full = Math.floor(value);
+  const hasHalf = value - full >= 0.5;
+  const stars = Array(5).fill("star-outline").map((_, i) =>
+    i < full ? "star" : i === full && hasHalf ? "star-half" : "star-outline"
+  );
+  return (
+    <View style={styles.starRow}>
+      {stars.map((name, i) => (
+        <Ionicons key={i} name={name} size={16} color={BLACK} />
+      ))}
+      <Text style={styles.starVal}>{value.toFixed(1)}★</Text>
+    </View>
+  );
+}
+
+/* ===== Main Page ===== */
+export default function App() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [niche, setNiche] = useState("All");
+
+  // Simple navigation stub for the 3-dot menu:
+  const onNavigate = (dest) => {
+    setMenuOpen(false);
+    // swap with your navigator, e.g.: navigation.navigate(dest)
+    console.log("Navigate to:", dest);
+  };
+
+  const d = DATA[niche];
+  const all = d.daily;
+
+  // Date interval for all interval-driven sections
+  const [startIdx, setStartIdx] = useState(Math.max(0, all.length - 14));
+  const [endIdx, setEndIdx] = useState(all.length - 1);
+  const inRange = useMemo(() => all.slice(startIdx, endIdx + 1), [all, startIdx, endIdx]);
+
+  const shiftStart = (dir) => setStartIdx((s) => Math.min(endIdx, Math.max(0, s + dir)));
+  const shiftEnd   = (dir) => setEndIdx((e) => Math.max(startIdx, Math.min(all.length - 1, e + dir)));
+
+  // Interval totals
+  const interval = useMemo(() => {
+    const helps = inRange.reduce((a,b)=>a+b.helps,0);
+    const gainedStars = inRange.reduce((a,b)=>a + Math.round(b.rating * b.helps),0);
+    const possibleStars = inRange.reduce((a,b)=>a + b.helps*5,0);
+    const wins = inRange.reduce((a,b)=>a + b.wins,0);
+    const attempts = inRange.reduce((a,b)=>a + b.attempts,0);
+    const dist = intervalStarDistribution(inRange);
+    const activeDays = inRange.filter(p => p.helps > 0).length;
+    const totalDays = inRange.length;
+    const avgPerHelp = helps ? (gainedStars / helps) : 0;
+    return { helps, gainedStars, possibleStars, wins, attempts, dist, activeDays, totalDays, avgPerHelp };
+  }, [inRange]);
+
+  const strengths8 = useMemo(() => strengthsFromInterval(inRange, d), [inRange, d]);
+  const improve7   = useMemo(() => improveFromInterval(inRange, d), [inRange, d]);
+
+  const catTotal = sumVals(d.categories);
+  const catEntries = Object.entries(d.categories);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+
+        <View style={styles.headerCenter}>
+          <View style={styles.avatar}>
+            <View style={styles.avatarHead} />
+            <View style={styles.avatarBody} />
+          </View>
+          <View>
+            <Text style={styles.name}>John Doe</Text>
+            <Text style={styles.rank}>Level 5</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity style={styles.menuBtn} activeOpacity={0.7} onPress={() => setMenuOpen(v=>!v)}>
+          <Ionicons name="ellipsis-vertical" size={20} color={WHITE} />
+        </TouchableOpacity>
+
+        {menuOpen && (
+          <View style={styles.menuSheet}>
+            {/* NEW: Navigation items */}
+            <TouchableOpacity style={styles.menuItem} onPress={() => onNavigate("MiniJob")}>
+              <Ionicons name="briefcase-outline" size={16} color={BLACK} />
+              <Text style={styles.menuText}>Mini Job</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={() => onNavigate("MegaJob")}>
+              <Ionicons name="construct-outline" size={16} color={BLACK} />
+              <Text style={styles.menuText}>Mega Job</Text>
+            </TouchableOpacity>
+
+            {/* Existing items */}
+            <TouchableOpacity style={styles.menuItem} onPress={() => setMenuOpen(false)}>
+              <Ionicons name="person-outline" size={16} color={BLACK} />
+              <Text style={styles.menuText}>Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={() => setMenuOpen(false)}>
+              <Ionicons name="share-social-outline" size={16} color={BLACK} />
+              <Text style={styles.menuText}>Share</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 24 }}>
+        {/* Niche */}
+        <Card>
+          <TitleRow title="Niche" help="Pick a field. All numbers below use only HELP data for that field." />
+          <View style={styles.nicheRow}>
+            {NICHE_KEYS.map((k) => (
+              <Chip key={k} text={k} active={niche === k} onPress={() => { setNiche(k); setMenuOpen(false); }} />
+            ))}
+          </View>
+        </Card>
+
+        {/* SNAPSHOT (with date interval) */}
+        <Card>
+          <TitleRow
+            title="Snapshot"
+            help="Choose a date window to see how you did in that period."
+          />
+          <View style={styles.rangeRow}>
+            <Text style={styles.rangeLbl}>From</Text>
+            <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftStart(-1)}>
+              <Ionicons name="chevron-back" size={16} color={BLACK} />
+            </TouchableOpacity>
+            <Text style={styles.rangeVal}>{fmt(all[startIdx].date)}</Text>
+            <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftStart(1)}>
+              <Ionicons name="chevron-forward" size={16} color={BLACK} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.rangeRow}>
+            <Text style={styles.rangeLbl}>To</Text>
+            <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftEnd(-1)}>
+              <Ionicons name="chevron-back" size={16} color={BLACK} />
+            </TouchableOpacity>
+            <Text style={styles.rangeVal}>{fmt(all[endIdx].date)}</Text>
+            <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftEnd(1)}>
+              <Ionicons name="chevron-forward" size={16} color={BLACK} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Rating */}
+          <View style={styles.kpiBlock}>
+            <Text style={styles.kpiBlockTitle}>
+              Rating (how useful and valuable were solutions to the helpee)
+            </Text>
+            <StarMeter value={d.avgRating} />
+            <Text style={styles.kpiHint}>{d.totalReviews} reviews overall (interval stats below)</Text>
+            <Text style={[styles.kpiHint, { marginTop: 6 }]}>
+              Stars earned in this interval: <Text style={styles.bigStatInline}>{interval.gainedStars}</Text> / {interval.possibleStars}
+            </Text>
+          </View>
+
+          {/* Star Distribution (interval) */}
+          <View style={[styles.kpiBlock, { marginTop: 8 }]}>
+            <Text style={styles.kpiBlockTitle}>Star Distribution (this interval)</Text>
+            <Text style={styles.kidRow}>⭐⭐⭐⭐⭐  =  {interval.dist[5]} helps</Text>
+            <Text style={styles.kidRow}>⭐⭐⭐⭐    =  {interval.dist[4]} helps</Text>
+            <Text style={styles.kidRow}>⭐⭐⭐      =  {interval.dist[3]} helps</Text>
+            <Text style={styles.kidRow}>⭐⭐        =  {interval.dist[2]} helps</Text>
+            <Text style={styles.kidRow}>⭐          =  {interval.dist[1]} helps</Text>
+            <Text style={styles.kpiHint}>Counts use real ratings when available; otherwise they’re modeled per-day from average rating and helps.</Text>
+          </View>
+
+          {/* Win rate, Consistency */}
+          <View style={[styles.kpiBlock, { marginTop: 8 }]}>
+            <Text style={styles.kpiBlockTitle}>Win Rate (this interval)</Text>
+            <Text style={styles.bigStat}>
+              {interval.wins}/{interval.attempts} ({interval.attempts ? Math.round((interval.wins/interval.attempts)*100) : 0}%)
+            </Text>
+            <Text style={styles.kpiHint}>Chosen as the final solution / attempts.</Text>
+          </View>
+          <View style={[styles.kpiBlock, { marginTop: 8 }]}>
+            <Text style={styles.kpiBlockTitle}>Consistency (last 14 days)</Text>
+            <ConsistencyStrip map14={DATA[niche].activeMap} />
+            <Text style={styles.kpiHint}>{Math.round(DATA[niche].consistency*100)}% active days recently</Text>
+          </View>
+        </Card>
+
+        {/* Strengths */}
+        <Card>
+          <TitleRow
+            title="Strengths (in this interval)"
+            help="Big yellow bars show what people liked most about your answers."
+          />
+          <View style={{ marginTop: 6 }}>
+            {[
+              ["💡 Creative", strengths8.Creative],
+              ["🧠 Analytical", strengths8.Analytical],
+              ["🔧 Practical", strengths8.Practical],
+              ["📝 Detailed", strengths8.Detailed],
+              ["🤝 Helpful", strengths8.Helpful],
+              ["👀 Insightful", strengths8.Insightful],
+              ["🚀 Innovative", strengths8.Innovative],
+              ["🎓 Professional", strengths8.Professional],
+            ].map(([label, pct]) => (
+              <HBar key={label} label={label} pct={pct} big />
+            ))}
+          </View>
+        </Card>
+
+        {/* What would make perfect */}
+        <Card>
+          <TitleRow
+            title='“What would make this perfect” (in this interval)'
+            help="Bigger bar = bigger reason people didn’t give 5★."
+          />
+          <View style={{ marginTop: 6 }}>
+            {[
+              ["🪫 Undetailed explanation", improve7["Undetailed explanation"]],
+              ["🧩 Overcomplicated", improve7["Overcomplicated"]],
+              ["📦 Unconcreted illustration", improve7["Unconcreted illustration"]],
+              ["❓ Unclear solution", improve7["Unclear solution"]],
+              ["🚫 Not actionable", improve7["Not actionable"]],
+              ["🌀 Messy explanation", improve7["Messy explanation"]],
+              ["⚠️ Misleading fact", improve7["Misleading fact"]],
+            ].map(([label, pct]) => (
+              <HBar key={label} label={label} pct={pct} big />
+            ))}
+          </View>
+        </Card>
+
+        {/* Proof points */}
+        <Card>
+          <TitleRow
+            title="Proof Points (for employers)"
+            help="Straight-to-the-point outcomes for the selected period."
+          />
+          <View style={styles.kpiGrid2}>
+            <View style={styles.kpi}>
+              <Text style={styles.kpiLabel}>Helps completed</Text>
+              <Text style={styles.kpiValue}>{interval.helps}</Text>
+              <Text style={styles.kpiHint}>Total solved requests in this window</Text>
+            </View>
+            <View style={styles.kpi}>
+              <Text style={styles.kpiLabel}>Avg ★ per help</Text>
+              <Text style={styles.kpiValue}>{interval.avgPerHelp.toFixed(2)}</Text>
+              <Text style={styles.kpiHint}>Quality per answer, simple and clear</Text>
+            </View>
+            <View style={styles.kpi}>
+              <Text style={styles.kpiLabel}>On-duty days</Text>
+              <Text style={styles.kpiValue}>
+                {interval.activeDays}/{interval.totalDays}
+              </Text>
+              <Text style={styles.kpiHint}>Days you showed up and helped</Text>
+            </View>
+          </View>
+
+          <View style={{ marginTop: 10 }}>
+            <Text style={[styles.sectionHint, { marginBottom: 4 }]}>Common problem types you help with</Text>
+            {catEntries.map(([k, v]) => (
+              <HBar key={k} label={`• ${k}`} pct={Math.round((v / catTotal) * 100)} big />
+            ))}
+          </View>
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top bar */
+  topBar: {
+    backgroundColor: BLACK,
+    height: TOP_BAR_HEIGHT,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  topAccent: { height: TOP_ACCENT, backgroundColor: YELLOW },
+  backBtn: { width: 40, height: 36, justifyContent: "center" },
+  menuBtn: { width: 40, height: 36, justifyContent: "center", alignItems: "flex-end" },
+
+  headerCenter: { flexDirection: "row", alignItems: "center", gap: 10 },
+  avatar: {
+    width: 36, height: 36, borderRadius: 18,
+    borderWidth: 2, borderColor: WHITE,
+    alignItems: "center", justifyContent: "center", backgroundColor: BLACK,
+  },
+  avatarHead: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: WHITE, backgroundColor: BLACK, marginBottom: 1 },
+  avatarBody: { width: 16, height: 8, borderRadius: 5, borderWidth: 2, borderColor: WHITE, backgroundColor: BLACK },
+  name: { color: WHITE, fontWeight: "900", fontSize: 16, lineHeight: 16 },
+  rank: { color: "#DADADA", fontSize: 12, marginTop: 2 },
+
+  /* Menu */
+  menuSheet: {
+    position: "absolute", right: 10, top: Platform.select({ ios: 58, android: 58 }),
+    backgroundColor: WHITE, borderRadius: 10, borderWidth: 2, borderColor: BLACK,
+    width: 180, paddingVertical: 6, elevation: 4,
+    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
+  },
+  menuItem: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
+  menuText: { color: BLACK, fontWeight: "800" },
+
+  /* Cards */
+  card: {
+    backgroundColor: WHITE,
+    borderWidth: 2, borderColor: BLACK,
+    borderRadius: 14, padding: 12, marginBottom: 12,
+  },
+  titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  cardTitle: { fontSize: 14, fontWeight: "900", color: BLACK },
+  infoBtn: {
+    width: 22, height: 22, borderRadius: 11,
+    borderWidth: 2, borderColor: BLACK,
+    alignItems: "center", justifyContent: "center", backgroundColor: WHITE,
+  },
+  infoTxt: { color: BLACK, fontSize: 12, fontWeight: "900" },
+  helpBox: { marginTop: 8, borderWidth: 2, borderColor: BLACK, borderRadius: 10, padding: 8, backgroundColor: "#FFFDF2" },
+  helpText: { color: BLACK, fontSize: 12 },
+
+  /* Niche row */
+  nicheRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
+  chip: {
+    paddingVertical: 6, paddingHorizontal: 10,
+    borderRadius: 16, borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+  },
+  chipTxt: { color: BLACK, fontSize: 12, fontWeight: "900" },
+
+  /* Range */
+  rangeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+  rangeLbl: { width: 38, fontSize: 12, color: BLACK, fontWeight: "900" },
+  arrowBtn: {
+    width: 30, height: 28, borderRadius: 8, borderWidth: 2, borderColor: BLACK,
+    alignItems: "center", justifyContent: "center", backgroundColor: WHITE,
+  },
+  rangeVal: {
+    minWidth: 120, textAlign: "center",
+    borderWidth: 2, borderColor: BLACK, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8,
+    fontSize: 12, fontWeight: "900", color: BLACK, backgroundColor: "#FFFDF2",
+  },
+
+  /* KPI blocks */
+  kpiBlock: {
+    borderWidth: 2, borderColor: BLACK, borderRadius: 12, padding: 10,
+    backgroundColor: WHITE, marginTop: 8,
+  },
+  kpiBlockTitle: { fontSize: 12, color: BLACK, fontWeight: "900", marginBottom: 6 },
+  bigStat: { fontSize: 16, fontWeight: "900", color: BLACK },
+  bigStatInline: { fontSize: 16, fontWeight: "900", color: BLACK },
+
+  /* Consistency strip */
+  consRow: { flexDirection: "row", gap: 6, marginTop: 2 },
+  consBox: { width: 12, height: 12, borderRadius: 4, borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE },
+
+  /* Thick H bars */
+  hbarRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+  hbarLabel: { width: 140, fontSize: 12, color: BLACK },
+  hbarTrack: { flex: 1, height: 20, borderRadius: 10, backgroundColor: WHITE, borderWidth: 2, borderColor: BLACK, overflow: "hidden" },
+  hbarFill: { height: "100%", backgroundColor: YELLOW, borderRightWidth: 2, borderRightColor: BLACK },
+  hbarPct: { width: 48, textAlign: "right", fontSize: 12, color: BLACK, fontWeight: "900" },
+
+  /* Proof points grid */
+  kpiGrid2: { flexDirection: "row", gap: 8, marginTop: 8, flexWrap: "wrap" },
+  kpi: {
+    flexGrow: 1, minWidth: (W - 12 * 2 - 8) / 2 - 8,
+    backgroundColor: WHITE, borderWidth: 2, borderColor: BLACK, borderRadius: 12, padding: 10,
+  },
+  kpiLabel: { fontSize: 11, color: BLACK, opacity: 0.8 },
+  kpiValue: { fontSize: 20, fontWeight: "900", color: BLACK, marginTop: 2 },
+  kpiHint: { fontSize: 11, color: BLACK, opacity: 0.7, marginTop: 2 },
+
+  /* Star meter */
+  starRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  starVal: { marginLeft: 6, fontSize: 16, fontWeight: "900", color: BLACK },
+
+  /* Simple star distribution list */
+  kidRow: { fontSize: 14, fontWeight: "900", color: BLACK, marginTop: 4 },
+
+  sectionHint: { fontSize: 11, color: BLACK, opacity: 0.75 },
+});
