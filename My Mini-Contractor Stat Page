@@ -1,4 +1,4 @@
-// MiniContractStats.js
+// MiniContractStats.js 
 import React, { useMemo, useState } from "react";
 import {
   SafeAreaView,
@@ -133,11 +133,7 @@ const RED_TAGS = [
   "unexperienced","disorganized","rigid","slow"
 ];
 
-/* ===== Tag scoring from a window =====
-   - Deterministic per-day using prng(date-based seed)
-   - Weighted by daily jobs so the date range actually matters
-   - Normalized & sorted descending for bars
-*/
+/* ===== Tag scoring from a window ===== */
 function tagScoresFromWindow(days, list, seedSalt = 0) {
   const totals = Object.fromEntries(list.map(t => [t, 0]));
   let sumJobs = 0;
@@ -252,7 +248,6 @@ const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /* ===== Main Page ===== */
 export default function App() {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [niche, setNiche] = useState("All");
   const d = DATA[niche];
   const all = d.daily;
@@ -268,6 +263,7 @@ export default function App() {
   const [ratingMode, setRatingMode] = useState("satisfaction"); // "satisfaction" | "service"
   const [ratesScope, setRatesScope] = useState("interval");     // "interval" | "all"
   const [tagsScope, setTagsScope] = useState("interval");       // "interval" | "all"
+  const [ratingScope, setRatingScope] = useState("interval");   // NEW: unified scope toggle
 
   // Interval aggregates based on ratingMode
   const interval = useMemo(() => {
@@ -291,10 +287,14 @@ export default function App() {
     const abandoned = all.reduce((a,b)=>a+b.abandoned,0);
     const referrals = all.reduce((a,b)=>a+b.referrals,0);
     const rehire    = all.reduce((a,b)=>a+b.rehire,0);
+    const possibleStarsAll = all.reduce((a,b)=>a + b.jobs*5,0);
     return {
       jobs,
       avgSatisfactionAll,
       avgServiceAll,
+      satSum,
+      svcSum,
+      possibleStarsAll,
       rates: {
         abandonmentRate: jobs ? (abandoned / jobs) * 100 : 0,
         referralRate:    jobs ? (referrals / jobs) * 100 : 0,
@@ -302,19 +302,6 @@ export default function App() {
       }
     };
   }, [all]);
-
-  // Rates for interval
-  const intervalRates = useMemo(() => {
-    const jobs = inRange.reduce((a,b)=>a+b.jobs,0);
-    const abandoned = inRange.reduce((a,b)=>a+b.abandoned,0);
-    const referrals = inRange.reduce((a,b)=>a+b.referrals,0);
-    const rehire    = inRange.reduce((a,b)=>a+b.rehire,0);
-    return {
-      abandonmentRate: jobs ? (abandoned / jobs) * 100 : 0,
-      referralRate:    jobs ? (referrals / jobs) * 100 : 0,
-      rehireRate:      jobs ? (rehire    / jobs) * 100 : 0,
-    };
-  }, [inRange]);
 
   // Tags — compute from window (interval vs all)
   const greenInterval = useMemo(
@@ -337,8 +324,23 @@ export default function App() {
   const [showMoreGreen, setShowMoreGreen] = useState(false);
   const [showMoreRed, setShowMoreRed] = useState(false);
 
-  const overallAvg = ratingMode === "satisfaction" ? d.avgSatisfaction : d.avgService;
-  const activeRates = ratesScope === "interval" ? intervalRates : allTime.rates;
+  const activeRates = ratesScope === "interval" ? {
+    abandonmentRate: (() => {
+      const jobs = inRange.reduce((a,b)=>a+b.jobs,0);
+      const abandoned = inRange.reduce((a,b)=>a+b.abandoned,0);
+      return jobs ? (abandoned / jobs) * 100 : 0;
+    })(),
+    referralRate: (() => {
+      const jobs = inRange.reduce((a,b)=>a+b.jobs,0);
+      const referrals = inRange.reduce((a,b)=>a+b.referrals,0);
+      return jobs ? (referrals / jobs) * 100 : 0;
+    })(),
+    rehireRate: (() => {
+      const jobs = inRange.reduce((a,b)=>a+b.jobs,0);
+      const rehire = inRange.reduce((a,b)=>a+b.rehire,0);
+      return jobs ? (rehire / jobs) * 100 : 0;
+    })(),
+  } : allTime.rates;
 
   const activeGreen = tagsScope === "interval" ? greenInterval : greenAll;
   const activeRed   = tagsScope === "interval" ? redInterval   : redAll;
@@ -346,43 +348,31 @@ export default function App() {
   const greenToShow = showMoreGreen ? activeGreen : activeGreen.slice(0, 7);
   const redToShow   = showMoreRed ? activeRed : activeRed.slice(0, 6);
 
-  const onNavigate = (dest) => { setMenuOpen(false); console.log("Navigate to:", dest); };
+  // === Derived for unified Rating card ===
+  const avgAll = ratingMode === "satisfaction" ? allTime.avgSatisfactionAll : allTime.avgServiceAll;
+  const gainedStarsAll = Math.round(ratingMode === "satisfaction" ? allTime.satSum : allTime.svcSum);
+  const distAll = useMemo(() => intervalStarDistribution(all, ratingMode), [all, ratingMode]);
+
+  const scopeIsInterval = ratingScope === "interval";
+  const avgShown = scopeIsInterval ? (interval.avgInterval || 0) : (avgAll || 0);
+  const starsEarnedShown = scopeIsInterval ? interval.gainedStars : gainedStarsAll;
+  const possibleStarsShown = scopeIsInterval ? interval.possibleStars : allTime.possibleStarsAll;
+  const distShown = scopeIsInterval ? interval.dist : distAll;
+  const contractsShown = scopeIsInterval ? interval.jobs : allTime.jobs;
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={BLACK} />
 
-      {/* Top bar */}
+      {/* Top bar (no avatar, no menu) */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backBtn} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={24} color={WHITE} />
         </TouchableOpacity>
 
-        <View style={styles.headerCenter}>
-          <View style={styles.avatar}><View style={styles.avatarHead} /><View style={styles.avatarBody} /></View>
-          <View><Text style={styles.name}>John Doe</Text><Text style={styles.rank}>Level 5</Text></View>
-        </View>
+        <Text style={styles.topTitle}>Mini Contract Stats</Text>
 
-        <TouchableOpacity style={styles.menuBtn} activeOpacity={0.7} onPress={() => setMenuOpen(v=>!v)}>
-          <Ionicons name="ellipsis-vertical" size={20} color={WHITE} />
-        </TouchableOpacity>
-
-        {menuOpen && (
-          <View style={styles.menuSheet}>
-            <TouchableOpacity style={styles.menuItem} onPress={() => onNavigate("HelpStat")}>
-              <Ionicons name="help-buoy-outline" size={16} color={BLACK} />
-              <Text style={styles.menuText}>Help Stat</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem} onPress={() => onNavigate("MegaJob")}>
-              <Ionicons name="construct-outline" size={16} color={BLACK} />
-              <Text style={styles.menuText}>Mega Job</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem} onPress={() => setMenuOpen(false)}>
-              <Ionicons name="share-social-outline" size={16} color={BLACK} />
-              <Text style={styles.menuText}>Share</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={{ width: 40, height: 36 }} />
       </View>
 
       <View style={styles.topAccent} />
@@ -393,14 +383,14 @@ export default function App() {
           <TitleRow title="Niche" help="Pick a field. All numbers below use only MINI-CONTRACT data for that field." />
           <View style={styles.nicheRow}>
             {NICHE_KEYS.map((k) => (
-              <Chip key={k} text={k} active={niche === k} onPress={() => { setNiche(k); setMenuOpen(false); }} />
+              <Chip key={k} text={k} active={niche === k} onPress={() => setNiche(k)} />
             ))}
           </View>
         </Card>
 
         {/* DATE RANGE */}
         <Card>
-          <TitleRow title="Snapshot" help="Choose a date window to analyze your mini-contract performance." />
+          <TitleRow title="Date interval" help="Choose a date window to analyze your mini-contract performance." />
           <View style={styles.rangeRow}>
             <Text style={styles.rangeLbl}>From</Text>
             <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftStart(-1)}><Ionicons name="chevron-back" size={16} color={BLACK} /></TouchableOpacity>
@@ -426,35 +416,55 @@ export default function App() {
               <Text style={[styles.toggleTxt, ratingMode === "service" && styles.toggleTxtActive]}>Customer Service Rating</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Overall (all-time) meter + total contracts */}
-          <View style={[styles.kpiBlock, { marginTop: 8 }]}>
-            <Text style={styles.kpiBlockTitle}>
-              {ratingMode === "satisfaction" ? "Overall Satisfaction (all-time)" : "Overall Customer Service (all-time)"}
-            </Text>
-            <StarMeter value={overallAvg} />
-            <Text style={styles.kpiHint}>{d.totalReviews} total reviews • <Text style={styles.bigStatInline}>{allTime.jobs}</Text> total contracts</Text>
-          </View>
         </Card>
 
-        {/* Interval stars + distribution */}
+        {/* === MERGED Rating card with scope toggle === */}
         <Card>
-          <TitleRow title={ratingMode === "satisfaction" ? "Satisfaction (this interval)" : "Customer Service (this interval)"} help="These numbers reflect only the selected date window." />
-          <View style={styles.kpiBlock}>
-            <Text style={styles.kpiBlockTitle}>Average Rating (this interval)</Text>
-            <StarMeter value={interval.avgInterval || 0} />
-            <Text style={[styles.kpiHint, { marginTop: 6 }]}>Stars earned in this interval: <Text style={styles.bigStatInline}>{interval.gainedStars}</Text> / {interval.possibleStars}</Text>
-            <Text style={styles.kpiHint}>Contracts in this interval: <Text style={styles.bigStatInline}>{interval.jobs}</Text></Text>
+          <TitleRow
+            title={ratingMode === "satisfaction" ? "Satisfaction" : "Customer Service"}
+            help="Use the toggle to view metrics for the selected date interval or all-time."
+          />
+          <View style={styles.toggleRow}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, scopeIsInterval && styles.toggleActive]}
+              onPress={() => setRatingScope("interval")}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.toggleTxt, scopeIsInterval && styles.toggleTxtActive]}>This Interval</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, !scopeIsInterval && styles.toggleActive]}
+              onPress={() => setRatingScope("all")}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.toggleTxt, !scopeIsInterval && styles.toggleTxtActive]}>All-Time</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={[styles.kpiBlock, { marginTop: 8 }]}>
-            <Text style={styles.kpiBlockTitle}>Star Distribution (this interval)</Text>
-            <Text style={styles.kidRow}>⭐⭐⭐⭐⭐  =  {interval.dist[5]}</Text>
-            <Text style={styles.kidRow}>⭐⭐⭐⭐    =  {interval.dist[4]}</Text>
-            <Text style={styles.kidRow}>⭐⭐⭐      =  {interval.dist[3]}</Text>
-            <Text style={styles.kidRow}>⭐⭐        =  {interval.dist[2]}</Text>
-            <Text style={styles.kidRow}>⭐          =  {interval.dist[1]}</Text>
-            <Text style={styles.kpiHint}>Distribution modeled per day from average and contract count for this window.</Text>
+            <Text style={styles.kpiBlockTitle}>Average Rating</Text>
+            <StarMeter value={avgShown} />
+            <Text style={[styles.kpiHint, { marginTop: 6 }]}>
+              Stars earned: <Text style={styles.bigStatInline}>{starsEarnedShown}</Text> / {possibleStarsShown}
+            </Text>
+            <Text style={styles.kpiHint}>
+              {scopeIsInterval ? "Contracts in this interval" : "Total contracts"}:{" "}
+              <Text style={styles.bigStatInline}>{contractsShown}</Text>
+            </Text>
+          </View>
+
+          <View style={[styles.kpiBlock, { marginTop: 8 }]}>
+            <Text style={styles.kpiBlockTitle}>Star Distribution</Text>
+            <Text style={styles.kidRow}>⭐⭐⭐⭐⭐  =  {distShown[5]}</Text>
+            <Text style={styles.kidRow}>⭐⭐⭐⭐    =  {distShown[4]}</Text>
+            <Text style={styles.kidRow}>⭐⭐⭐      =  {distShown[3]}</Text>
+            <Text style={styles.kidRow}>⭐⭐        =  {distShown[2]}</Text>
+            <Text style={styles.kidRow}>⭐          =  {distShown[1]}</Text>
+            <Text style={styles.kpiHint}>
+              {scopeIsInterval
+                ? "Counts modeled from daily average and jobs for this window."
+                : "Counts modeled from daily average and jobs across all time."}
+            </Text>
           </View>
         </Card>
 
@@ -534,24 +544,7 @@ const styles = StyleSheet.create({
   },
   topAccent: { height: TOP_ACCENT, backgroundColor: YELLOW },
   backBtn: { width: 40, height: 36, justifyContent: "center" },
-  menuBtn: { width: 40, height: 36, justifyContent: "center", alignItems: "flex-end" },
-
-  headerCenter: { flexDirection: "row", alignItems: "center", gap: 10 },
-  avatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: WHITE, alignItems: "center", justifyContent: "center", backgroundColor: BLACK },
-  avatarHead: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: WHITE, backgroundColor: BLACK, marginBottom: 1 },
-  avatarBody: { width: 16, height: 8, borderRadius: 5, borderWidth: 2, borderColor: WHITE, backgroundColor: BLACK },
-  name: { color: WHITE, fontWeight: "900", fontSize: 16, lineHeight: 16 },
-  rank: { color: "#DADADA", fontSize: 12, marginTop: 2 },
-
-  /* Menu */
-  menuSheet: {
-    position: "absolute", right: 10, top: Platform.select({ ios: 58, android: 58 }),
-    backgroundColor: WHITE, borderRadius: 10, borderWidth: 2, borderColor: BLACK,
-    width: 200, paddingVertical: 6, elevation: 4,
-    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
-  },
-  menuItem: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
-  menuText: { color: BLACK, fontWeight: "800" },
+  topTitle: { color: WHITE, fontWeight: "900", fontSize: 18 },
 
   /* Cards */
   card: { backgroundColor: WHITE, borderWidth: 2, borderColor: BLACK, borderRadius: 14, padding: 12, marginBottom: 12 },
@@ -583,6 +576,7 @@ const styles = StyleSheet.create({
   kpiBlock: { borderWidth: 2, borderColor: BLACK, borderRadius: 12, padding: 10, backgroundColor: WHITE, marginTop: 8 },
   kpiBlockTitle: { fontSize: 12, color: BLACK, fontWeight: "900", marginBottom: 6 },
   bigStatInline: { fontSize: 16, fontWeight: "900", color: BLACK },
+  kpiHint: { fontSize: 11, color: BLACK, opacity: 0.75 },
 
   /* Star meter */
   starRow: { flexDirection: "row", alignItems: "center", gap: 4 },
