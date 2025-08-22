@@ -1,0 +1,533 @@
+// SettingsPage.js
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  Switch,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+/* ===== Brand ===== */
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+const TOP_BAR_HEIGHT = 88;
+const TOP_ACCENT = 3;
+
+/* ===== Small UI blocks ===== */
+function CollapsibleSection({ title, help, open, onToggle, children }) {
+  return (
+    <View style={styles.card}>
+      <TouchableOpacity
+        onPress={onToggle}
+        activeOpacity={0.8}
+        style={styles.titleRow}
+      >
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Ionicons
+          name={open ? "chevron-up" : "chevron-down"}
+          size={18}
+          color={BLACK}
+        />
+      </TouchableOpacity>
+      {!!help && <Text style={styles.optionalHint}>{help}</Text>}
+      {open ? children : null}
+    </View>
+  );
+}
+
+function SwitchRow({ label, value, onValueChange, sub }) {
+  return (
+    <View style={styles.switchRow}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.switchLabel}>{label}</Text>
+        {!!sub && <Text style={styles.subLabel}>{sub}</Text>}
+      </View>
+      <Switch value={value} onValueChange={onValueChange} />
+    </View>
+  );
+}
+
+function NavRow({ icon, label, onPress, rightText }) {
+  return (
+    <TouchableOpacity style={styles.navRow} activeOpacity={0.8} onPress={onPress}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        {icon ? <Ionicons name={icon} size={18} color={BLACK} /> : null}
+        <Text style={styles.navLabel}>{label}</Text>
+      </View>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        {rightText ? <Text style={styles.rightText}>{rightText}</Text> : null}
+        <Ionicons name="chevron-forward" size={18} color={BLACK} />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+export default function SettingsPage() {
+  /* ===== Toggles (local state placeholders) ===== */
+  // Security (REMOVED: 2FA, Biometric, App PIN)
+  const [loginAlerts, setLoginAlerts] = useState(true);
+
+  // Privacy (app-level)
+  const [readReceipts, setReadReceipts] = useState(true);
+  const [lastSeen, setLastSeen] = useState(true);
+  const [allowDMs, setAllowDMs] = useState(true);
+  const [showActivityStatus, setShowActivityStatus] = useState(true);
+
+  // Notifications
+  const [pushAll, setPushAll] = useState(true);
+  const [notifHelp, setNotifHelp] = useState(true);
+  const [notifJobs, setNotifJobs] = useState(true);
+  const [notifMentions, setNotifMentions] = useState(true);
+  const [notifFollows, setNotifFollows] = useState(true);
+  const [notifReviews, setNotifReviews] = useState(true);
+  const [emailDigest, setEmailDigest] = useState(false);
+  const [quietHours, setQuietHours] = useState(false);
+
+  // Feed & content (REMOVED: Data saver, Sensitive content filter)
+  const [autoplayMedia, setAutoplayMedia] = useState(true);
+
+  // Payments & payouts
+  const defaultCurrency = "NGN";
+  const payoutStatus = "Not set";
+
+  // Accessibility & app (REMOVED: Reduce motion, Larger text)
+  const [darkMode, setDarkMode] = useState(true);
+  const [systemTheme, setSystemTheme] = useState(false);
+
+  // Collapsible state per section
+  const [openAccount, setOpenAccount] = useState(false);
+  const [openPrivacy, setOpenPrivacy] = useState(false);
+  const [openNotifications, setOpenNotifications] = useState(false);
+  const [openFeed, setOpenFeed] = useState(false);
+  const [openPayments, setOpenPayments] = useState(false);
+  const [openData, setOpenData] = useState(false);
+  const [openAccessibility, setOpenAccessibility] = useState(false);
+  const [openSupport, setOpenSupport] = useState(false);
+  const [openAccountActions, setOpenAccountActions] = useState(false);
+
+  // Handlers (stub alerts / navigation placeholders)
+  const go = (label) => Alert.alert(label, "Wire this to your navigation.");
+  const confirm = (label, desc, destructive = false) =>
+    Alert.alert(label, desc, [
+      { text: "Cancel", style: "cancel" },
+      { text: destructive ? "Proceed" : "OK", style: destructive ? "destructive" : "default" },
+    ]);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.7} onPress={() => go("Back")}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+
+        {/* Center title only */}
+        <View style={styles.headerCenter}>
+          <Text style={styles.title}>Settings</Text>
+        </View>
+
+        {/* Right spacer keeps title centered */}
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 96 }}>
+        {/* ===== Account & Security ===== */}
+        <CollapsibleSection
+          title="Account & Security"
+          help="Keep your account safe."
+          open={openAccount}
+          onToggle={() => setOpenAccount((v) => !v)}
+        >
+          <NavRow icon="key-outline" label="Change password" onPress={() => go("Change Password")} />
+          <SwitchRow
+            label="Login alerts"
+            sub="Get notified when your account signs in on a new device"
+            value={loginAlerts}
+            onValueChange={setLoginAlerts}
+          />
+          <NavRow
+            icon="phone-portrait-outline"
+            label="Devices & active sessions"
+            onPress={() => go("Devices & Sessions")}
+            rightText="2 active"
+          />
+        </CollapsibleSection>
+
+        {/* ===== Privacy (app-level) ===== */}
+        <CollapsibleSection
+          title="Privacy"
+          help="Control app-wide privacy. (Profile field visibility is in Edit Profile.)"
+          open={openPrivacy}
+          onToggle={() => setOpenPrivacy((v) => !v)}
+        >
+          <SwitchRow
+            label="Allow direct messages"
+            sub="Users can DM you"
+            value={allowDMs}
+            onValueChange={setAllowDMs}
+          />
+          <SwitchRow
+            label="Read receipts"
+            sub="Others can see when you've read messages"
+            value={readReceipts}
+            onValueChange={setReadReceipts}
+          />
+          <SwitchRow
+            label="Last seen"
+            sub="Show when you were last active"
+            value={lastSeen}
+            onValueChange={setLastSeen}
+          />
+          <SwitchRow
+            label="Activity status"
+            sub="Show when you’re online right now"
+            value={showActivityStatus}
+            onValueChange={setShowActivityStatus}
+          />
+          <NavRow
+            icon="person-circle-outline"
+            label="Blocked users"
+            onPress={() => go("Blocked Users")}
+            rightText="0"
+          />
+          <NavRow
+            icon="shield-checkmark-outline"
+            label="Verification & KYC"
+            onPress={() => go("Verification")}
+            rightText="Unverified"
+          />
+        </CollapsibleSection>
+
+        {/* ===== Notifications ===== */}
+        <CollapsibleSection
+          title="Notifications"
+          help="Choose what you want to be notified about."
+          open={openNotifications}
+          onToggle={() => setOpenNotifications((v) => !v)}
+        >
+          <SwitchRow
+            label="Push notifications"
+            value={pushAll}
+            onValueChange={setPushAll}
+          />
+          <SwitchRow
+            label="Help requests"
+            sub="Alerts when help posts match your skills"
+            value={notifHelp}
+            onValueChange={setNotifHelp}
+          />
+          <SwitchRow
+            label="Job updates"
+            sub="Invites, offers, progress, completions"
+            value={notifJobs}
+            onValueChange={setNotifJobs}
+          />
+          <SwitchRow
+            label="Mentions & replies"
+            value={notifMentions}
+            onValueChange={setNotifMentions}
+          />
+          <SwitchRow
+            label="Follows & connections"
+            value={notifFollows}
+            onValueChange={setNotifFollows}
+          />
+          <SwitchRow
+            label="Reviews & ratings"
+            value={notifReviews}
+            onValueChange={setNotifReviews}
+          />
+          <SwitchRow
+            label="Email digests"
+            sub="Periodic summary to your inbox"
+            value={emailDigest}
+            onValueChange={setEmailDigest}
+          />
+          <SwitchRow
+            label="Quiet hours"
+            sub="Silence push at night"
+            value={quietHours}
+            onValueChange={setQuietHours}
+          />
+          <NavRow
+            icon="time-outline"
+            label="Notification schedule"
+            onPress={() => go("Notification Schedule")}
+            rightText="22:00–07:00"
+          />
+        </CollapsibleSection>
+
+        {/* ===== Feed & Content ===== */}
+        <CollapsibleSection
+          title="Feed & Content"
+          help="Tune your browsing experience."
+          open={openFeed}
+          onToggle={() => setOpenFeed((v) => !v)}
+        >
+          <SwitchRow
+            label="Autoplay media"
+            sub="Auto-play videos in feed"
+            value={autoplayMedia}
+            onValueChange={setAutoplayMedia}
+          />
+          <NavRow
+            icon="language-outline"
+            label="App language"
+            onPress={() => go("Language")}
+            rightText="English"
+          />
+          <NavRow
+            icon="globe-outline"
+            label="Region"
+            onPress={() => go("Region")}
+            rightText="Nigeria"
+          />
+        </CollapsibleSection>
+
+        {/* ===== Payments & Payouts ===== */}
+        <CollapsibleSection
+          title="Payments & Payouts"
+          help="Manage money in and out."
+          open={openPayments}
+          onToggle={() => setOpenPayments((v) => !v)}
+        >
+          <NavRow
+            icon="card-outline"
+            label="Payment methods"
+            onPress={() => go("Payment Methods")}
+            rightText="Add card"
+          />
+          <NavRow
+            icon="cash-outline"
+            label="Payout account"
+            onPress={() => go("Payouts")}
+            rightText={payoutStatus}
+          />
+          <NavRow
+            icon="pricetag-outline"
+            label="Default currency"
+            onPress={() => go("Currency")}
+            rightText={defaultCurrency}
+          />
+          <NavRow
+            icon="receipt-outline"
+            label="Invoices & receipts"
+            onPress={() => go("Billing History")}
+          />
+          <NavRow
+            icon="document-text-outline"
+            label="Tax information"
+            onPress={() => go("Tax Info")}
+          />
+        </CollapsibleSection>
+
+        {/* ===== Data & Permissions ===== */}
+        <CollapsibleSection
+          title="Data & Permissions"
+          help="Your data, your choice."
+          open={openData}
+          onToggle={() => setOpenData((v) => !v)}
+        >
+          {/* REMOVED: Download your data */}
+          <NavRow
+            icon="trash-outline"
+            label="Clear cache"
+            onPress={() => confirm("Clear cache", "This removes temporary files and media.")}
+          />
+          <NavRow
+            icon="location-outline"
+            label="Location permissions"
+            onPress={() => go("Location Permissions")}
+            rightText="While using app"
+          />
+          {/* REMOVED: System notification settings */}
+        </CollapsibleSection>
+
+        {/* ===== Accessibility & App ===== */}
+        <CollapsibleSection
+          title="Accessibility & App"
+          help="Make SSocket comfortable to use."
+          open={openAccessibility}
+          onToggle={() => setOpenAccessibility((v) => !v)}
+        >
+          <SwitchRow
+            label="Use system theme"
+            sub="Follow device dark/light"
+            value={systemTheme}
+            onValueChange={setSystemTheme}
+          />
+          <SwitchRow
+            label="Dark mode"
+            value={darkMode}
+            onValueChange={setDarkMode}
+          />
+          {/* REMOVED: Reduce motion, Larger text */}
+        </CollapsibleSection>
+
+        {/* ===== Support & Legal ===== */}
+        <CollapsibleSection
+          title="Support & Legal"
+          help="We’re here to help."
+          open={openSupport}
+          onToggle={() => setOpenSupport((v) => !v)}
+        >
+          {/* REMOVED: Help Center, Report a problem */}
+          <NavRow
+            icon="mail-outline"
+            label="Contact support"
+            onPress={() => go("Contact Support")}
+          />
+          <NavRow
+            icon="book-outline"
+            label="Terms of Service"
+            onPress={() => go("Terms")}
+          />
+          <NavRow
+            icon="shield-outline"
+            label="Privacy Policy"
+            onPress={() => go("Privacy")}
+          />
+          <NavRow
+            icon="information-circle-outline"
+            label="App version"
+            onPress={() => {}}
+            rightText="v0.1.0 (MVP)"
+          />
+        </CollapsibleSection>
+
+        {/* ===== Account Actions (Destructive) ===== */}
+        <CollapsibleSection
+          title="Account Actions"
+          open={openAccountActions}
+          onToggle={() => setOpenAccountActions((v) => !v)}
+        >
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: "#FFF5F5", borderColor: BLACK }]}
+            onPress={() =>
+              confirm("Deactivate account", "Temporarily hide your profile & pause activity?", true)
+            }
+            activeOpacity={0.9}
+          >
+            <Ionicons name="pause-circle-outline" size={18} color={BLACK} />
+            <Text style={[styles.actionTxt, { color: BLACK }]}>Deactivate account</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: "#FFECEC", borderColor: BLACK, marginTop: 8 }]}
+            onPress={() =>
+              confirm(
+                "Delete account",
+                "Permanently delete your account and data. This cannot be undone.",
+                true
+              )
+            }
+            activeOpacity={0.9}
+          >
+            <Ionicons name="close-circle-outline" size={18} color={BLACK} />
+            <Text style={[styles.actionTxt, { color: BLACK }]}>Delete account</Text>
+          </TouchableOpacity>
+        </CollapsibleSection>
+
+        {/* Spacer */}
+        <View style={{ height: 24 }} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top bar */
+  topBar: {
+    backgroundColor: BLACK,
+    height: TOP_BAR_HEIGHT,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  topAccent: { height: TOP_ACCENT, backgroundColor: YELLOW },
+  backBtn: { width: 40, height: 36, justifyContent: "center" },
+
+  headerCenter: { flexDirection: "row", alignItems: "center", gap: 10 },
+  title: { color: WHITE, fontWeight: "900", fontSize: 16, lineHeight: 16 },
+
+  /* Cards */
+  card: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+  },
+  titleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  cardTitle: { fontSize: 14, fontWeight: "900", color: BLACK },
+
+  optionalHint: {
+    fontSize: 11,
+    color: BLACK,
+    opacity: 0.6,
+    marginTop: 2,
+    marginBottom: 6,
+  },
+
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: WHITE,
+  },
+  switchLabel: { fontSize: 12, color: BLACK, fontWeight: "900" },
+  subLabel: { fontSize: 11, color: BLACK, opacity: 0.6, marginTop: 2 },
+
+  navRow: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    backgroundColor: WHITE,
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  navLabel: { color: BLACK, fontSize: 12, fontWeight: "900" },
+  rightText: { color: BLACK, fontSize: 12, opacity: 0.7 },
+
+  actionBtn: {
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  actionTxt: { fontSize: 14, fontWeight: "900" },
+});
