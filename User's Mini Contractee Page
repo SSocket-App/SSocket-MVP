@@ -26,23 +26,41 @@ const YELLOW = "#FFD54A";
 const GREEN = "#22c55e";
 const RED = "#ef4444";
 
-/* ===== Tag lists (match MiniContractStats) ===== */
+/* ===== Tag lists (match Mini Contractee Stats) ===== */
 const GREEN_TAGS = [
-  "diplomatic","sharp","punctuality","speed","perfection","quality","reliability","communication",
-  "teamspirit","flexibility","trust","peaceful","proactive","strategic","polite","prudent",
-  "leader","problem-solving"
+  "cooperative",
+  "communicative",
+  "respectful",
+  "trustworthy",
+  "supportive",
+  "professional",
+  "hospitality",
+  "decisive",
+  "responsive",
+  "responsible",
 ];
+
 const RED_TAGS = [
-  "lateness","unprofessional","conflict","unreliable","dishonesty","wasteful",
-  "unexperienced","disorganized","rigid","slow"
+  "disrespectful",
+  "not cooperative",
+  "untrustworthy",
+  "unclear instructions",
+  "irresponsible",
+  "slow response",
+  "rash",
 ];
 
 /* ===== UI bits ===== */
 function StarPicker({ value, onChange, size = 24 }) {
   return (
     <View style={styles.starRow}>
-      {[1,2,3,4,5].map((s) => (
-        <TouchableOpacity key={s} onPress={() => onChange(s)} activeOpacity={0.85} style={{padding:4}}>
+      {[1, 2, 3, 4, 5].map((s) => (
+        <TouchableOpacity
+          key={s}
+          onPress={() => onChange(s)}
+          activeOpacity={0.85}
+          style={{ padding: 4 }}
+        >
           <Ionicons
             name={value >= s ? "star" : "star-outline"}
             size={size}
@@ -50,7 +68,7 @@ function StarPicker({ value, onChange, size = 24 }) {
           />
         </TouchableOpacity>
       ))}
-      <Text style={[styles.starNum]}>{(value || 0).toFixed(1)}★</Text>
+      <Text style={styles.starNum}>{(value || 0).toFixed(1)}★</Text>
     </View>
   );
 }
@@ -64,7 +82,9 @@ function Chip({ text, active, onPress }) {
         active && { backgroundColor: "#fef9c3", borderColor: "#d4d4d8" },
       ]}
     >
-      <Text style={[styles.chipTxt, active && { fontWeight: "800" }]}>{text}</Text>
+      <Text style={[styles.chipTxt, active && { fontWeight: "800" }]}>
+        {text}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -101,9 +121,8 @@ const DEMO_CONTRACTS = [
 function ContractCard({ item }) {
   const [open, setOpen] = useState(false);
 
-  // New fields for stats
-  const [satisfaction, setSatisfaction] = useState(0);
-  const [customerService, setCustomerService] = useState(0);
+  // New single rating (matches Stats' "Rating")
+  const [rating, setRating] = useState(0);
   const [greenSelected, setGreenSelected] = useState([]);
   const [redSelected, setRedSelected] = useState([]);
   const [privateReview, setPrivateReview] = useState("");
@@ -115,19 +134,18 @@ function ContractCard({ item }) {
   const canGiveFeedback = item.status === "Ended";
 
   const submit = () => {
-    if (!satisfaction || !customerService) {
-      return Alert.alert("Missing ratings", "Please set both Satisfaction and Customer Service ratings (1–5).");
+    if (!rating) {
+      return Alert.alert("Missing rating", "Please set the Rating (1–5).");
     }
     const payload = {
       contractId: item.id,
-      satisfactionRating: satisfaction,
-      customerServiceRating: customerService,
+      rating, // single rating field
       greenTags: greenSelected,
       redTags: redSelected,
       privateReview: privateReview.trim(),
     };
-    console.log("MINI_CONTRACT_EVAL_SUBMIT", payload);
-    setOpen(false); // collapse like your first UI
+    console.log("MINI_CONTRACTEE_FEEDBACK_SUBMIT", payload);
+    setOpen(false); // collapse like the original dropdown UX
     Alert.alert("Submitted", "Feedback saved. Hidden until both parties submit.");
   };
 
@@ -135,7 +153,9 @@ function ContractCard({ item }) {
     <View style={styles.card}>
       {/* Header + basics */}
       <Text style={styles.jobTitle}>{item.title}</Text>
-      <Text style={styles.jobLine}>Roles: <Text style={styles.jobLineStrong}>{item.role}</Text></Text>
+      <Text style={styles.jobLine}>
+        Roles: <Text style={styles.jobLineStrong}>{item.role}</Text>
+      </Text>
       <Text style={styles.jobLine}>Nature: {item.nature}</Text>
       <Text style={styles.jobLine}>Details: {item.details}</Text>
 
@@ -159,7 +179,12 @@ function ContractCard({ item }) {
       </View>
 
       <View style={styles.statusRow}>
-        <Text style={[styles.status, { color: item.status === "Ended" ? GREEN : RED }]}>
+        <Text
+          style={[
+            styles.status,
+            { color: item.status === "Ended" ? GREEN : RED },
+          ]}
+        >
           {item.status}
         </Text>
 
@@ -184,22 +209,22 @@ function ContractCard({ item }) {
       {/* Double-blind note */}
       <View style={styles.blindRow}>
         <Ionicons name="lock-closed-outline" size={14} color={MUTED} />
-        <Text style={styles.blindTxt}>  Hidden until both parties submit (double-blind)</Text>
+        <Text style={styles.blindTxt}>
+          {"  "}Hidden until both parties submit (double-blind)
+        </Text>
       </View>
 
-      {/* Dropdown feedback — matches your older UI but with new fields */}
+      {/* Dropdown feedback — updated to single Rating + new tags */}
       {open && (
         <View style={styles.feedbackBox}>
-          {/* Satisfaction */}
-          <Text style={styles.sectionLabel}>Satisfaction Rating</Text>
-          <StarPicker value={satisfaction} onChange={setSatisfaction} />
-
-          {/* Customer Service */}
-          <Text style={[styles.sectionLabel, { marginTop: 12 }]}>Customer Service Rating</Text>
-          <StarPicker value={customerService} onChange={setCustomerService} />
+          {/* Rating */}
+          <Text style={styles.sectionLabel}>Rating</Text>
+          <StarPicker value={rating} onChange={setRating} />
 
           {/* Green tags */}
-          <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Green Tags (Strengths)</Text>
+          <Text style={[styles.sectionLabel, { marginTop: 16 }]}>
+            Green Tags (Strengths)
+          </Text>
           <View style={styles.chipsWrap}>
             {GREEN_TAGS.map((t) => (
               <Chip
@@ -212,7 +237,9 @@ function ContractCard({ item }) {
           </View>
 
           {/* Red tags */}
-          <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Red Tags (Risks)</Text>
+          <Text style={[styles.sectionLabel, { marginTop: 16 }]}>
+            Red Tags (Risks)
+          </Text>
           <View style={styles.chipsWrap}>
             {RED_TAGS.map((t) => (
               <Chip
@@ -239,11 +266,17 @@ function ContractCard({ item }) {
 
           <View style={styles.warnRow}>
             <Ionicons name="alert-circle-outline" size={16} color={RED} />
-            <Text style={styles.warnTxt}>  Feedback can only be submitted once and cannot be changed.</Text>
+            <Text style={styles.warnTxt}>
+              {"  "}Feedback can only be submitted once and cannot be changed.
+            </Text>
           </View>
 
           {/* Submit */}
-          <TouchableOpacity activeOpacity={0.9} style={styles.submitBtn} onPress={submit}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            style={styles.submitBtn}
+            onPress={submit}
+          >
             <Text style={styles.submitTxt}>Submit</Text>
           </TouchableOpacity>
         </View>
@@ -260,7 +293,10 @@ export default function MiniContracteeList() {
     <SafeAreaView style={{ flex: 1, backgroundColor: BG }}>
       {/* Top bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity activeOpacity={0.7} style={{ width: 40, height: 36, justifyContent: "center" }}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={{ width: 40, height: 36, justifyContent: "center" }}
+        >
           <Ionicons name="chevron-back" size={24} color={"#fff"} />
         </TouchableOpacity>
         <Text style={styles.topTitle}>Mini Contractee</Text>
