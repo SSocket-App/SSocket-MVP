@@ -24,16 +24,15 @@ const BDR = "#E5E7EB";
 const GREEN = "#22C55E";
 const RED = "#EF4444";
 
-/* ---------- Stickers (tags) ---------- */
-const TAG_OPTIONS = [
-  "Reliable",
-  "Fast",
-  "Thorough",
-  "Creative",
-  "Safety-Focused",
-  "Communicative",
-  "Team Player",
-  "Needs Guidance",
+/* ---------- Tag lists (match MiniContractStats) ---------- */
+const GREEN_TAGS = [
+  "diplomatic","sharp","punctuality","speed","perfection","quality","reliability","communication",
+  "teamspirit","flexibility","trust","peaceful","proactive","strategic","polite","prudent",
+  "leader","problem-solving"
+];
+const RED_TAGS = [
+  "lateness","unprofessional","conflict","unreliable","dishonesty","wasteful",
+  "unexperienced","disorganized","rigid","slow"
 ];
 
 /* ---------- DATA (Contractors side) ---------- */
@@ -71,7 +70,6 @@ const INITIAL_ACTIVE = [
   },
 ];
 
-/* Queued contracts grouped by posted contract */
 const CONTRACTORS_QUEUE_GROUPED = [
   {
     contractId: "qC1",
@@ -117,39 +115,60 @@ export default function MiniContractorPage() {
   // per-contract feedback dropdown open/close
   const [openFeedback, setOpenFeedback] = useState({}); // { [id]: boolean }
 
-  // one-time submit guard (simulate “only once”)
+  // one-time submit guard
   const [submittedFeedback, setSubmittedFeedback] = useState({}); // { [id]: true }
 
-  // local drafts per contract id
+  // local drafts per contract id — NEW shape for stats fields
   const [drafts, setDrafts] = useState(() =>
     Object.fromEntries(
-      INITIAL_ACTIVE.map((c) => [c.id, { rating: 0, tags: [], review: "" }])
+      INITIAL_ACTIVE.map((c) => [
+        c.id,
+        {
+          satisfactionRating: 0,
+          customerServiceRating: 0,
+          greenTags: [],
+          redTags: [],
+          review: "",
+        },
+      ])
     )
   );
 
   const toggleFeedback = (id, canOpen) => {
     if (!canOpen) return;
-    // if already submitted — don't open again
-    if (submittedFeedback[id]) return;
+    if (submittedFeedback[id]) return; // one-time
     setOpenFeedback((p) => ({ ...p, [id]: !p[id] }));
   };
 
   const updateDraft = (id, patch) =>
     setDrafts((p) => ({ ...p, [id]: { ...p[id], ...patch } }));
 
-  const toggleTag = (id, t, disabled) => {
-    if (disabled) return;
-    const prev = drafts[id] || { rating: 0, tags: [], review: "" };
-    const next = new Set(prev.tags);
-    next.has(t) ? next.delete(t) : next.add(t);
-    updateDraft(id, { tags: Array.from(next) });
+  const toggleChip = (id, key, tag) => {
+    const prev = drafts[id]?.[key] || [];
+    const next = prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag];
+    updateDraft(id, { [key]: next });
   };
 
   const submitFeedback = (id) => {
-    // Mark one-time submit
+    const d = drafts[id] || {};
+    if (!d.satisfactionRating || !d.customerServiceRating) {
+      return Alert.alert("Missing ratings", "Please set both Satisfaction and Customer Service ratings (1–5).");
+    }
+
+    // Submit payload aligned with stats page
+    const payload = {
+      contractId: id,
+      satisfactionRating: d.satisfactionRating,
+      customerServiceRating: d.customerServiceRating,
+      greenTags: d.greenTags,
+      redTags: d.redTags,
+      privateReview: d.review?.trim() ?? "",
+    };
+    console.log("MINI_CONTRACTOR_FEEDBACK_SUBMIT", payload);
+
     setSubmittedFeedback((p) => ({ ...p, [id]: true }));
-    setOpenFeedback((p) => ({ ...p, [id]: false }));
-    Alert.alert("Feedback submitted", "Thanks! Feedback can only be submitted once.");
+    setOpenFeedback((p) => ({ ...p, [id]: false })); // collapse after submit
+    Alert.alert("Feedback submitted", "Hidden until both parties submit (double-blind).");
   };
 
   const onCreateContract = () => {
@@ -176,7 +195,13 @@ export default function MiniContractorPage() {
     const isEnded = c.status === "ended";
     const isOpen = !!openFeedback[c.id];
     const isSubmitted = !!submittedFeedback[c.id];
-    const draft = drafts[c.id] || { rating: 0, tags: [], review: "" };
+    const draft = drafts[c.id] || {
+      satisfactionRating: 0,
+      customerServiceRating: 0,
+      greenTags: [],
+      redTags: [],
+      review: "",
+    };
 
     return (
       <View style={styles.card}>
@@ -189,7 +214,6 @@ export default function MiniContractorPage() {
         </View>
         <View style={styles.row}>
           <Field label="Location" value={c.location} />
-          {/* EXACT pay (no range) on your own contracts */}
           <Field label="Contract Pay" value={c.contractPay} />
         </View>
 
@@ -199,15 +223,8 @@ export default function MiniContractorPage() {
             <Text style={[styles.statusTxt, { color: isEnded ? GREEN : RED }]}>
               {isEnded ? "Ended" : "Ongoing"}
             </Text>
-            <View
-              style={[
-                styles.badge,
-                isEnded ? styles.badgeGreen : styles.badgeRed,
-              ]}
-            >
-              <Text style={styles.badgeText}>
-                {isEnded ? "ENDED" : "ONGOING"}
-              </Text>
+            <View style={[styles.badge, isEnded ? styles.badgeGreen : styles.badgeRed]}>
+              <Text style={styles.badgeText}>{isEnded ? "ENDED" : "ONGOING"}</Text>
             </View>
           </View>
 
@@ -223,12 +240,7 @@ export default function MiniContractorPage() {
           >
             <View style={styles.btnContent}>
               {(!isEnded || isSubmitted) && (
-                <Ionicons
-                  name="lock-closed"
-                  size={16}
-                  color={WHITE}
-                  style={{ marginRight: 6 }}
-                />
+                <Ionicons name="lock-closed" size={16} color={WHITE} style={{ marginRight: 6 }} />
               )}
               <Text style={styles.fbBtnText}>Give Feedback</Text>
               {isEnded && !isSubmitted && (
@@ -243,42 +255,76 @@ export default function MiniContractorPage() {
           </TouchableOpacity>
         </View>
 
+        {/* Double-blind note (always visible like your other page) */}
+        <View style={styles.blindRow}>
+          <Ionicons name="lock-closed-outline" size={14} color={MUTED} />
+          <Text style={styles.blindTxt}>  Hidden until both parties submit (double-blind)</Text>
+        </View>
+
         {/* Feedback dropdown (ended & not yet submitted) */}
         {isEnded && isOpen && !isSubmitted && (
           <View style={styles.feedbackWrap}>
-            <Text style={styles.formLabel}>Rating</Text>
-            <StarsPicker
-              value={draft.rating}
-              onChange={(v) => updateDraft(c.id, { rating: v })}
-              disabled={false}
-            />
+            {/* Satisfaction */}
+            <Text style={styles.formLabel}>Satisfaction Rating</Text>
+            <View style={styles.starRow}>
+              <StarsPicker
+                value={draft.satisfactionRating}
+                onChange={(v) => updateDraft(c.id, { satisfactionRating: v })}
+                disabled={false}
+              />
+              <Text style={styles.starNum}>{(draft.satisfactionRating || 0).toFixed(1)}★</Text>
+            </View>
 
-            <Text style={[styles.formLabel, { marginTop: 12 }]}>
-              Tags (stickers)
-            </Text>
+            {/* Customer Service */}
+            <Text style={[styles.formLabel, { marginTop: 12 }]}>Customer Service Rating</Text>
+            <View style={styles.starRow}>
+              <StarsPicker
+                value={draft.customerServiceRating}
+                onChange={(v) => updateDraft(c.id, { customerServiceRating: v })}
+                disabled={false}
+              />
+              <Text style={styles.starNum}>{(draft.customerServiceRating || 0).toFixed(1)}★</Text>
+            </View>
+
+            {/* Green Tags */}
+            <Text style={[styles.formLabel, { marginTop: 12 }]}>Green Tags (Strengths)</Text>
             <View style={styles.tagsWrap}>
-              {TAG_OPTIONS.map((t) => {
-                const active = draft.tags.includes(t);
+              {GREEN_TAGS.map((t) => {
+                const active = draft.greenTags.includes(t);
                 return (
                   <TouchableOpacity
                     key={t}
-                    onPress={() => toggleTag(c.id, t, false)}
+                    onPress={() => toggleChip(c.id, "greenTags", t)}
                     activeOpacity={0.85}
-                    style={[
-                      styles.tagChip,
-                      active && styles.tagChipActive,
-                    ]}
+                    style={[styles.tagChip, active && styles.tagChipActive]}
                   >
-                    <Text style={[styles.tagText, active && styles.tagTextActive]}>
-                      {t}
-                    </Text>
+                    <Text style={[styles.tagText, active && styles.tagTextActive]}>{t}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
 
+            {/* Red Tags */}
+            <Text style={[styles.formLabel, { marginTop: 12 }]}>Red Tags (Risks)</Text>
+            <View style={styles.tagsWrap}>
+              {RED_TAGS.map((t) => {
+                const active = draft.redTags.includes(t);
+                return (
+                  <TouchableOpacity
+                    key={t}
+                    onPress={() => toggleChip(c.id, "redTags", t)}
+                    activeOpacity={0.85}
+                    style={[styles.tagChip, active && styles.tagChipActive]}
+                  >
+                    <Text style={[styles.tagText, active && styles.tagTextActive]}>{t}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Review (private) */}
             <Text style={[styles.formLabel, { marginTop: 12 }]}>
-              Review (private to system)
+              Review <Text style={{ color: MUTED }}>(private to system)</Text>
             </Text>
             <TextInput
               placeholder="Write a short review…"
@@ -290,19 +336,11 @@ export default function MiniContractorPage() {
               numberOfLines={4}
               textAlignVertical="top"
             />
-            <Text style={styles.privateNote}>
-              🔒 Reviews are private and only visible to the system.
-            </Text>
+            <Text style={styles.privateNote}>🔒 Reviews are private and only visible to the system.</Text>
 
-            <Text style={styles.warning}>
-              ⚠️ Feedback can only be submitted once.
-            </Text>
+            <Text style={styles.warning}>⚠️ Feedback can only be submitted once.</Text>
 
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => submitFeedback(c.id)}
-              style={styles.submitBtn}
-            >
+            <TouchableOpacity activeOpacity={0.9} onPress={() => submitFeedback(c.id)} style={styles.submitBtn}>
               <Text style={styles.submitBtnText}>Submit</Text>
             </TouchableOpacity>
           </View>
@@ -336,9 +374,7 @@ export default function MiniContractorPage() {
         </View>
       ))}
 
-      {group.applicants.length === 0 && (
-        <Text style={styles.emptyText}>No applicants yet.</Text>
-      )}
+      {group.applicants.length === 0 && <Text style={styles.emptyText}>No applicants yet.</Text>}
     </View>
   );
 
@@ -363,27 +399,20 @@ export default function MiniContractorPage() {
           style={[styles.tab, activeTab === "create" && styles.tabActive]}
           onPress={() => setActiveTab("create")}
         >
-          <Text style={[styles.tabText, activeTab === "create" && styles.tabTextActive]}>
-            Create Contract
-          </Text>
+          <Text style={[styles.tabText, activeTab === "create" && styles.tabTextActive]}>Create Contract</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.tab, activeTab === "contractors" && styles.tabActive]}
           onPress={() => setActiveTab("contractors")}
         >
-          <Text style={[styles.tabText, activeTab === "contractors" && styles.tabTextActive]}>
-            Contractors
-          </Text>
+          <Text style={[styles.tabText, activeTab === "contractors" && styles.tabTextActive]}>Contractors</Text>
         </TouchableOpacity>
       </View>
 
       {/* CONTENT */}
       {activeTab === "create" ? (
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-        >
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
             <View style={styles.formCard}>
               <FormRow label="Job Title">
@@ -563,7 +592,7 @@ function StarsPicker({ value, onChange, disabled }) {
           <Ionicons
             name={i <= value ? "star" : "star-outline"}
             size={24}
-            color={disabled ? "#CCC" : YELLOW}
+            color={disabled ? "#CCC" : "#111"} // keep black star to match soft UI
           />
         </TouchableOpacity>
       ))}
@@ -702,6 +731,11 @@ const styles = StyleSheet.create({
   btnContent: { flexDirection: "row", alignItems: "center" },
   fbBtnText: { color: WHITE, fontWeight: "900" },
 
+  /* Double-blind note */
+  blindRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
+  blindTxt: { color: MUTED, fontSize: 12, fontWeight: "600" },
+
+  /* Feedback dropdown (soft UI like Contractee list) */
   feedbackWrap: {
     marginTop: 10,
     padding: 12,
@@ -710,7 +744,8 @@ const styles = StyleSheet.create({
     borderColor: "#E5E5E5",
     backgroundColor: "#FAFAFA",
   },
-  formLabel2: { fontWeight: "800", color: BLACK, marginBottom: 6 },
+  starRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  starNum: { fontSize: 14, fontWeight: "900", color: BLACK },
 
   tagsWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
   tagChip: {
@@ -725,12 +760,7 @@ const styles = StyleSheet.create({
   tagText: { fontSize: 12, fontWeight: "800", color: BLACK },
   tagTextActive: { color: BLACK },
 
-  privateNote: {
-    marginTop: 6,
-    fontSize: 12,
-    color: MUTED,
-    fontStyle: "italic",
-  },
+  privateNote: { marginTop: 6, fontSize: 12, color: MUTED, fontStyle: "italic" },
 
   warning: {
     marginTop: 10,
