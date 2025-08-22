@@ -1,0 +1,615 @@
+// MiniContractStats.js
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  Dimensions,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+/* ===== Brand ===== */
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+const TOP_BAR_HEIGHT = 88;
+const TOP_ACCENT = 3;
+
+/* ===== PRNG + Mock MINI-CONTRACT data ===== */
+function prng(n) { const x = Math.sin(n) * 10000; return x - Math.floor(x); }
+
+function buildDailyMini(seed = 2, days = 90) {
+  const arr = [];
+  const now = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    const k = Number(`${d.getFullYear()}${d.getMonth()+1}${d.getDate()}`) * seed;
+
+    // number of mini contracts finished per day
+    const jobs = Math.max(0, Math.round(prng(k) * 3 + (d.getDay() % 2)));
+
+    // Base ratings for both toggles
+    const satBase   = 3.9 + prng(k + 11) * 1.0; // Satisfaction (result)
+    const csBase    = 4.0 + prng(k + 17) * 0.9; // Customer Service (experience)
+
+    const wBias     = (d.getDay() === 0 || d.getDay() === 6) ? -0.1 : 0.05;
+
+    const satisfactionRating    = jobs ? Math.max(1, Math.min(5, satBase + wBias)) : 0;
+    const customerServiceRating = jobs ? Math.max(1, Math.min(5, csBase  - 0.05 + wBias)) : 0;
+
+    const abandonProb = 0.05 + 0.05 * prng(k + 23); // 5–10%
+    const abandoned   = Math.round(jobs * abandonProb);
+
+    const referralProb = 0.15 + 0.10 * prng(k + 29); // 15–25%
+    const referrals    = Math.round(jobs * referralProb);
+
+    const rehireProb = 0.20 + 0.10 * prng(k + 31); // 20–30%
+    const rehire     = Math.round(jobs * rehireProb);
+
+    arr.push({
+      date: d,
+      label: `${d.getDate()}/${d.getMonth()+1}`,
+      jobs,
+      satisfactionRating: Number(satisfactionRating.toFixed(2)),
+      customerServiceRating: Number(customerServiceRating.toFixed(2)),
+      abandoned,
+      referrals,
+      rehire,
+    });
+  }
+  return arr;
+}
+
+const NICHE_KEYS = ["All", "Mechanical", "Software", "Marketing", "Design", "Events"];
+
+// Mock dataset per niche
+const DATA = {
+  All: { totalReviews: 142, avgSatisfaction: 4.6, avgService: 4.7, daily: buildDailyMini(2) },
+  Mechanical: { totalReviews: 58, avgSatisfaction: 4.5, avgService: 4.6, daily: buildDailyMini(3) },
+  Software: { totalReviews: 45, avgSatisfaction: 4.7, avgService: 4.6, daily: buildDailyMini(4) },
+  Marketing:{ totalReviews: 29, avgSatisfaction: 4.4, avgService: 4.6, daily: buildDailyMini(5) },
+  Design:   { totalReviews: 22, avgSatisfaction: 4.5, avgService: 4.6, daily: buildDailyMini(6) },
+  Events:   { totalReviews: 31, avgSatisfaction: 4.5, avgService: 4.7, daily: buildDailyMini(7) },
+};
+
+/* ===== Utils ===== */
+const W = Dimensions.get("window").width;
+const pad2 = (n) => (n < 10 ? `${n}`.padStart(2, "0") : `${n}`);
+const fmt = (dt) => `${pad2(dt.getDate())}/${pad2(dt.getMonth()+1)}/${dt.getFullYear()}`;
+
+/* === STAR DISTRIBUTION (interval-aware) === */
+function roundPreserve(total, floats, seedBase = 0) {
+  const floors = floats.map(Math.floor);
+  let rem = total - floors.reduce((a,b)=>a+b,0);
+  const order = floats.map((v,i)=>({i, r:v - floors[i]}))
+                      .sort((a,b)=> b.r - a.r || prng(seedBase + a.i) - prng(seedBase + b.i));
+  const out = floors.slice();
+  for (let j = 0; j < rem; j++) out[order[j].i]++;
+  return out;
+}
+function dayStarCountsFromAvg(avg, count, seed = 0) {
+  const h = Math.max(0, count || 0);
+  if (!h) return {1:0,2:0,3:0,4:0,5:0};
+  const r = Math.max(1, Math.min(5, avg || 3.5));
+  const sigma = 1.0 - Math.min(0.6, Math.log10(Math.max(1, h)) * 0.25);
+  const weights = [1,2,3,4,5].map((s, i) => {
+    const base = Math.exp(-Math.pow(s - r, 2) / (2 * sigma * sigma));
+    const jitter = 0.9 + 0.2 * prng(seed + i);
+    return base * jitter;
+  });
+  const sumW = weights.reduce((a,b)=>a+b,0) || 1;
+  const probs = weights.map(w => w / sumW);
+  const floats = probs.map(p => p * h);
+  const [c1,c2,c3,c4,c5] = roundPreserve(h, floats, seed);
+  return {1:c1,2:c2,3:c3,4:c4,5:c5}; // keys present => no NaN
+}
+function intervalStarDistribution(inRange, mode = "satisfaction") {
+  return inRange.reduce((acc, p, idx) => {
+    const avg = mode === "satisfaction" ? p.satisfactionRating : p.customerServiceRating;
+    const counts = dayStarCountsFromAvg(avg, p.jobs, (p.date?.getTime?.() || idx) + idx);
+    acc[1] = (acc[1] || 0) + counts[1];
+    acc[2] = (acc[2] || 0) + counts[2];
+    acc[3] = (acc[3] || 0) + counts[3];
+    acc[4] = (acc[4] || 0) + counts[4];
+    acc[5] = (acc[5] || 0) + counts[5];
+    return acc;
+  }, {1:0,2:0,3:0,4:0,5:0});
+}
+
+/* ===== Tag Lists ===== */
+const GREEN_TAGS = [
+  "diplomatic","sharp","punctuality","speed","perfection","quality","reliability","communication",
+  "teamspirit","flexibility","trust","peaceful","proactive","strategic","polite","prudent",
+  "leader","problem-solving"
+];
+const RED_TAGS = [
+  "lateness","unprofessional","conflict","unreliable","dishonesty","wasteful",
+  "unexperienced","disorganized","rigid","slow"
+];
+
+/* ===== Tag scoring from a window =====
+   - Deterministic per-day using prng(date-based seed)
+   - Weighted by daily jobs so the date range actually matters
+   - Normalized & sorted descending for bars
+*/
+function tagScoresFromWindow(days, list, seedSalt = 0) {
+  const totals = Object.fromEntries(list.map(t => [t, 0]));
+  let sumJobs = 0;
+  days.forEach((p, idx) => {
+    const jobs = p.jobs || 0;
+    sumJobs += jobs;
+    list.forEach((t, i) => {
+      const s = 0.5 + 0.5 * prng((p.date?.getTime?.() || 0) + seedSalt * 1000 + i * 77);
+      totals[t] += jobs * s; // more jobs that day -> stronger tag weight
+    });
+  });
+  const maxVal = Math.max(1, ...Object.values(totals));
+  const arr = list.map(t => ({ tag: t, pct: Math.round((totals[t] / maxVal) * 100) }));
+  return arr.sort((a,b) => b.pct - a.pct);
+}
+
+/* ===== Reusable UI ===== */
+function TitleRow({ title, help }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={{ marginBottom: open ? 8 : 0 }}>
+      <View style={styles.titleRow}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <TouchableOpacity
+          onPress={() => setOpen((v) => !v)}
+          activeOpacity={0.85}
+          style={styles.infoBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text style={styles.infoTxt}>i</Text>
+        </TouchableOpacity>
+      </View>
+      {open && (
+        <View style={styles.helpBox}>
+          <Text style={styles.helpText}>{help}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+function Card({ children }) { return <View style={styles.card}>{children}</View>; }
+function Chip({ text, active, onPress }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.9}
+      style={[styles.chip, active && { backgroundColor: "#FFFDF2", borderColor: YELLOW }]}
+    >
+      <Text style={styles.chipTxt}>{text}</Text>
+    </TouchableOpacity>
+  );
+}
+function StarMeter({ value = 0 }) {
+  const full = Math.floor(value);
+  const hasHalf = value - full >= 0.5;
+  const stars = Array(5).fill("star-outline").map((_, i) =>
+    i < full ? "star" : i === full && hasHalf ? "star-half" : "star-outline"
+  );
+  return (
+    <View style={styles.starRow}>
+      {stars.map((name, i) => (
+        <Ionicons key={i} name={name} size={16} color={BLACK} />
+      ))}
+      <Text style={styles.starVal}>{value.toFixed(1)}★</Text>
+    </View>
+  );
+}
+
+/* ===== 360° Circular Gauge (donut) ===== */
+function GaugeRing({ label, pct = 0, size = 84, thickness = 10 }) {
+  const p = Math.max(0, Math.min(100, Number.isFinite(pct) ? pct : 0));
+  const angle = (p / 100) * 360;
+  const rightAngle = Math.min(angle, 180);
+  const leftAngle  = Math.max(angle - 180, 0);
+
+  return (
+    <View style={[styles.gaugeWrap, { width: size + 24 }]}>
+      <View style={[styles.gaugeBox, { width: size, height: size }]}>
+        {/* Track */}
+        <View style={[styles.gaugeTrack, { width: size, height: size, borderRadius: size/2, borderWidth: thickness }]} />
+        {/* Right half */}
+        <View style={[styles.halfWrap, { width: size/2, height: size, right: size/2 }]}>
+          <View style={[styles.arc, { width: size, height: size, borderRadius: size/2, borderWidth: thickness, transform: [{ rotateZ: `${rightAngle}deg` }] }]} />
+        </View>
+        {/* Left half */}
+        <View style={[styles.halfWrap, { width: size/2, height: size, left: size/2 }]}>
+          <View style={[styles.arc, { width: size, height: size, borderRadius: size/2, borderWidth: thickness, transform: [{ rotateZ: `${leftAngle}deg` }], opacity: angle > 180 ? 1 : 0 }]} />
+        </View>
+        {/* Inner hole + % */}
+        <View style={[styles.gaugeHole, { width: size - thickness*2, height: size - thickness*2, borderRadius: (size - thickness*2)/2 }]}>
+          <Text style={styles.gaugePct}>{Math.round(p)}%</Text>
+        </View>
+      </View>
+      <Text style={styles.gaugeLabel} numberOfLines={2}>{label}</Text>
+    </View>
+  );
+}
+
+/* ===== Tag bar (screenshot style) ===== */
+function HBarTag({ label, pct }) {
+  return (
+    <View style={styles.hbarRow}>
+      <Text style={styles.hbarLabel} numberOfLines={1}>{label}</Text>
+      <View style={styles.hbarTrack}>
+        <View style={[styles.hbarFill, { width: `${Math.max(4, Math.min(100, pct || 0))}%` }]} />
+      </View>
+      <Text style={styles.hbarPct}>{Math.round(pct || 0)}%</Text>
+    </View>
+  );
+}
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/* ===== Main Page ===== */
+export default function App() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [niche, setNiche] = useState("All");
+  const d = DATA[niche];
+  const all = d.daily;
+
+  // Date interval
+  const [startIdx, setStartIdx] = useState(Math.max(0, all.length - 14));
+  const [endIdx, setEndIdx] = useState(all.length - 1);
+  const inRange = useMemo(() => all.slice(startIdx, endIdx + 1), [all, startIdx, endIdx]);
+  const shiftStart = (dir) => setStartIdx((s) => Math.min(endIdx, Math.max(0, s + dir)));
+  const shiftEnd   = (dir) => setEndIdx((e) => Math.max(startIdx, Math.min(all.length - 1, e + dir)));
+
+  // Toggles
+  const [ratingMode, setRatingMode] = useState("satisfaction"); // "satisfaction" | "service"
+  const [ratesScope, setRatesScope] = useState("interval");     // "interval" | "all"
+  const [tagsScope, setTagsScope] = useState("interval");       // "interval" | "all"
+
+  // Interval aggregates based on ratingMode
+  const interval = useMemo(() => {
+    const jobs = inRange.reduce((a,b)=>a+b.jobs,0);
+    let sum = 0;
+    inRange.forEach(p => { const avg = ratingMode === "satisfaction" ? p.satisfactionRating : p.customerServiceRating; sum += avg * p.jobs; });
+    const avgInterval = jobs ? (sum / jobs) : 0;
+    const gainedStars = Math.round(sum);
+    const possibleStars = inRange.reduce((a,b)=>a + b.jobs*5,0);
+    const dist = intervalStarDistribution(inRange, ratingMode);
+    return { jobs, avgInterval, gainedStars, possibleStars, dist };
+  }, [inRange, ratingMode]);
+
+  // All-time aggregates
+  const allTime = useMemo(() => {
+    const jobs = all.reduce((a,b)=>a+b.jobs,0);
+    const satSum = all.reduce((a,b)=> a + b.satisfactionRating * b.jobs, 0);
+    const svcSum = all.reduce((a,b)=> a + b.customerServiceRating * b.jobs, 0);
+    const avgSatisfactionAll = jobs ? satSum / jobs : 0;
+    const avgServiceAll = jobs ? svcSum / jobs : 0;
+    const abandoned = all.reduce((a,b)=>a+b.abandoned,0);
+    const referrals = all.reduce((a,b)=>a+b.referrals,0);
+    const rehire    = all.reduce((a,b)=>a+b.rehire,0);
+    return {
+      jobs,
+      avgSatisfactionAll,
+      avgServiceAll,
+      rates: {
+        abandonmentRate: jobs ? (abandoned / jobs) * 100 : 0,
+        referralRate:    jobs ? (referrals / jobs) * 100 : 0,
+        rehireRate:      jobs ? (rehire    / jobs) * 100 : 0,
+      }
+    };
+  }, [all]);
+
+  // Rates for interval
+  const intervalRates = useMemo(() => {
+    const jobs = inRange.reduce((a,b)=>a+b.jobs,0);
+    const abandoned = inRange.reduce((a,b)=>a+b.abandoned,0);
+    const referrals = inRange.reduce((a,b)=>a+b.referrals,0);
+    const rehire    = inRange.reduce((a,b)=>a+b.rehire,0);
+    return {
+      abandonmentRate: jobs ? (abandoned / jobs) * 100 : 0,
+      referralRate:    jobs ? (referrals / jobs) * 100 : 0,
+      rehireRate:      jobs ? (rehire    / jobs) * 100 : 0,
+    };
+  }, [inRange]);
+
+  // Tags — compute from window (interval vs all)
+  const greenInterval = useMemo(
+    () => tagScoresFromWindow(inRange, GREEN_TAGS, 111),
+    [inRange]
+  );
+  const redInterval = useMemo(
+    () => tagScoresFromWindow(inRange, RED_TAGS, 333),
+    [inRange]
+  );
+  const greenAll = useMemo(
+    () => tagScoresFromWindow(all, GREEN_TAGS, 111),
+    [all]
+  );
+  const redAll = useMemo(
+    () => tagScoresFromWindow(all, RED_TAGS, 333),
+    [all]
+  );
+
+  const [showMoreGreen, setShowMoreGreen] = useState(false);
+  const [showMoreRed, setShowMoreRed] = useState(false);
+
+  const overallAvg = ratingMode === "satisfaction" ? d.avgSatisfaction : d.avgService;
+  const activeRates = ratesScope === "interval" ? intervalRates : allTime.rates;
+
+  const activeGreen = tagsScope === "interval" ? greenInterval : greenAll;
+  const activeRed   = tagsScope === "interval" ? redInterval   : redAll;
+
+  const greenToShow = showMoreGreen ? activeGreen : activeGreen.slice(0, 7);
+  const redToShow   = showMoreRed ? activeRed : activeRed.slice(0, 6);
+
+  const onNavigate = (dest) => { setMenuOpen(false); console.log("Navigate to:", dest); };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+
+        <View style={styles.headerCenter}>
+          <View style={styles.avatar}><View style={styles.avatarHead} /><View style={styles.avatarBody} /></View>
+          <View><Text style={styles.name}>John Doe</Text><Text style={styles.rank}>Level 5</Text></View>
+        </View>
+
+        <TouchableOpacity style={styles.menuBtn} activeOpacity={0.7} onPress={() => setMenuOpen(v=>!v)}>
+          <Ionicons name="ellipsis-vertical" size={20} color={WHITE} />
+        </TouchableOpacity>
+
+        {menuOpen && (
+          <View style={styles.menuSheet}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => onNavigate("HelpStat")}>
+              <Ionicons name="help-buoy-outline" size={16} color={BLACK} />
+              <Text style={styles.menuText}>Help Stat</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={() => onNavigate("MegaJob")}>
+              <Ionicons name="construct-outline" size={16} color={BLACK} />
+              <Text style={styles.menuText}>Mega Job</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={() => setMenuOpen(false)}>
+              <Ionicons name="share-social-outline" size={16} color={BLACK} />
+              <Text style={styles.menuText}>Share</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 24 }}>
+        {/* Niche */}
+        <Card>
+          <TitleRow title="Niche" help="Pick a field. All numbers below use only MINI-CONTRACT data for that field." />
+          <View style={styles.nicheRow}>
+            {NICHE_KEYS.map((k) => (
+              <Chip key={k} text={k} active={niche === k} onPress={() => { setNiche(k); setMenuOpen(false); }} />
+            ))}
+          </View>
+        </Card>
+
+        {/* DATE RANGE */}
+        <Card>
+          <TitleRow title="Snapshot" help="Choose a date window to analyze your mini-contract performance." />
+          <View style={styles.rangeRow}>
+            <Text style={styles.rangeLbl}>From</Text>
+            <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftStart(-1)}><Ionicons name="chevron-back" size={16} color={BLACK} /></TouchableOpacity>
+            <Text style={styles.rangeVal}>{fmt(all[startIdx].date)}</Text>
+            <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftStart(1)}><Ionicons name="chevron-forward" size={16} color={BLACK} /></TouchableOpacity>
+          </View>
+          <View style={styles.rangeRow}>
+            <Text style={styles.rangeLbl}>To</Text>
+            <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftEnd(-1)}><Ionicons name="chevron-back" size={16} color={BLACK} /></TouchableOpacity>
+            <Text style={styles.rangeVal}>{fmt(all[endIdx].date)}</Text>
+            <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftEnd(1)}><Ionicons name="chevron-forward" size={16} color={BLACK} /></TouchableOpacity>
+          </View>
+        </Card>
+
+        {/* TOGGLE: Satisfaction vs Customer Service */}
+        <Card>
+          <TitleRow title="Rating Focus" help="Switch between: Satisfaction Rating (job result) and Customer Service Rating (experience)." />
+          <View style={styles.toggleRow}>
+            <TouchableOpacity style={[styles.toggleBtn, ratingMode === "satisfaction" && styles.toggleActive]} onPress={() => setRatingMode("satisfaction")} activeOpacity={0.9}>
+              <Text style={[styles.toggleTxt, ratingMode === "satisfaction" && styles.toggleTxtActive]}>Satisfaction Rating</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.toggleBtn, ratingMode === "service" && styles.toggleActive]} onPress={() => setRatingMode("service")} activeOpacity={0.9}>
+              <Text style={[styles.toggleTxt, ratingMode === "service" && styles.toggleTxtActive]}>Customer Service Rating</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Overall (all-time) meter + total contracts */}
+          <View style={[styles.kpiBlock, { marginTop: 8 }]}>
+            <Text style={styles.kpiBlockTitle}>
+              {ratingMode === "satisfaction" ? "Overall Satisfaction (all-time)" : "Overall Customer Service (all-time)"}
+            </Text>
+            <StarMeter value={overallAvg} />
+            <Text style={styles.kpiHint}>{d.totalReviews} total reviews • <Text style={styles.bigStatInline}>{allTime.jobs}</Text> total contracts</Text>
+          </View>
+        </Card>
+
+        {/* Interval stars + distribution */}
+        <Card>
+          <TitleRow title={ratingMode === "satisfaction" ? "Satisfaction (this interval)" : "Customer Service (this interval)"} help="These numbers reflect only the selected date window." />
+          <View style={styles.kpiBlock}>
+            <Text style={styles.kpiBlockTitle}>Average Rating (this interval)</Text>
+            <StarMeter value={interval.avgInterval || 0} />
+            <Text style={[styles.kpiHint, { marginTop: 6 }]}>Stars earned in this interval: <Text style={styles.bigStatInline}>{interval.gainedStars}</Text> / {interval.possibleStars}</Text>
+            <Text style={styles.kpiHint}>Contracts in this interval: <Text style={styles.bigStatInline}>{interval.jobs}</Text></Text>
+          </View>
+
+          <View style={[styles.kpiBlock, { marginTop: 8 }]}>
+            <Text style={styles.kpiBlockTitle}>Star Distribution (this interval)</Text>
+            <Text style={styles.kidRow}>⭐⭐⭐⭐⭐  =  {interval.dist[5]}</Text>
+            <Text style={styles.kidRow}>⭐⭐⭐⭐    =  {interval.dist[4]}</Text>
+            <Text style={styles.kidRow}>⭐⭐⭐      =  {interval.dist[3]}</Text>
+            <Text style={styles.kidRow}>⭐⭐        =  {interval.dist[2]}</Text>
+            <Text style={styles.kidRow}>⭐          =  {interval.dist[1]}</Text>
+            <Text style={styles.kpiHint}>Distribution modeled per day from average and contract count for this window.</Text>
+          </View>
+        </Card>
+
+        {/* ===== KEY RATES (360° Gauges) ===== */}
+        <Card>
+          <TitleRow title="Key Rates" help="Abandonment (lower better), Referral, and Rehire. Toggle for interval vs all-time." />
+          <View style={styles.toggleRow}>
+            <TouchableOpacity style={[styles.toggleBtn, ratesScope === "interval" && styles.toggleActive]} onPress={() => setRatesScope("interval")} activeOpacity={0.9}>
+              <Text style={[styles.toggleTxt, ratesScope === "interval" && styles.toggleTxtActive]}>This Interval</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.toggleBtn, ratesScope === "all" && styles.toggleActive]} onPress={() => setRatesScope("all")} activeOpacity={0.9}>
+              <Text style={[styles.toggleTxt, ratesScope === "all" && styles.toggleTxtActive]}>All-Time</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.gaugeRow}>
+            <GaugeRing label="🚫 Abandonment" pct={activeRates.abandonmentRate} />
+            <GaugeRing label="📣 Referral" pct={activeRates.referralRate} />
+            <GaugeRing label="🔁 Rehire" pct={activeRates.rehireRate} />
+          </View>
+        </Card>
+
+        {/* ===== TAGS ===== */}
+        <Card>
+          <TitleRow title="Green Tags" help="Top strengths based on signals inside the selected date range (or All-Time via toggle)." />
+          <View style={styles.toggleRow}>
+            <TouchableOpacity style={[styles.toggleBtn, tagsScope === "interval" && styles.toggleActive]} onPress={() => setTagsScope("interval")} activeOpacity={0.9}>
+              <Text style={[styles.toggleTxt, tagsScope === "interval" && styles.toggleTxtActive]}>This Interval</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.toggleBtn, tagsScope === "all" && styles.toggleActive]} onPress={() => setTagsScope("all")} activeOpacity={0.9}>
+              <Text style={[styles.toggleTxt, tagsScope === "all" && styles.toggleTxtActive]}>All-Time</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ marginTop: 6 }}>
+            {greenToShow.map((t) => (<HBarTag key={t.tag} label={`• ${cap(t.tag)}`} pct={t.pct} />))}
+            <TouchableOpacity style={styles.moreBtn} activeOpacity={0.85} onPress={() => setShowMoreGreen(v => !v)}>
+              <Text style={styles.moreTxt}>{showMoreGreen ? "Show less" : "Show more"}</Text>
+            </TouchableOpacity>
+          </View>
+        </Card>
+
+        <Card>
+          <TitleRow title="Red Tags" help="Risk signals inside the selected date range (or All-Time via toggle)." />
+          <View style={styles.toggleRow}>
+            <TouchableOpacity style={[styles.toggleBtn, tagsScope === "interval" && styles.toggleActive]} onPress={() => setTagsScope("interval")} activeOpacity={0.9}>
+              <Text style={[styles.toggleTxt, tagsScope === "interval" && styles.toggleTxtActive]}>This Interval</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.toggleBtn, tagsScope === "all" && styles.toggleActive]} onPress={() => setTagsScope("all")} activeOpacity={0.9}>
+              <Text style={[styles.toggleTxt, tagsScope === "all" && styles.toggleTxtActive]}>All-Time</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ marginTop: 6 }}>
+            {redToShow.map((t) => (<HBarTag key={t.tag} label={`• ${cap(t.tag)}`} pct={t.pct} />))}
+            <TouchableOpacity style={styles.moreBtn} activeOpacity={0.85} onPress={() => setShowMoreRed(v => !v)}>
+              <Text style={styles.moreTxt}>{showMoreRed ? "Show less" : "Show more"}</Text>
+            </TouchableOpacity>
+          </View>
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top bar */
+  topBar: {
+    backgroundColor: BLACK,
+    height: TOP_BAR_HEIGHT,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  topAccent: { height: TOP_ACCENT, backgroundColor: YELLOW },
+  backBtn: { width: 40, height: 36, justifyContent: "center" },
+  menuBtn: { width: 40, height: 36, justifyContent: "center", alignItems: "flex-end" },
+
+  headerCenter: { flexDirection: "row", alignItems: "center", gap: 10 },
+  avatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: WHITE, alignItems: "center", justifyContent: "center", backgroundColor: BLACK },
+  avatarHead: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: WHITE, backgroundColor: BLACK, marginBottom: 1 },
+  avatarBody: { width: 16, height: 8, borderRadius: 5, borderWidth: 2, borderColor: WHITE, backgroundColor: BLACK },
+  name: { color: WHITE, fontWeight: "900", fontSize: 16, lineHeight: 16 },
+  rank: { color: "#DADADA", fontSize: 12, marginTop: 2 },
+
+  /* Menu */
+  menuSheet: {
+    position: "absolute", right: 10, top: Platform.select({ ios: 58, android: 58 }),
+    backgroundColor: WHITE, borderRadius: 10, borderWidth: 2, borderColor: BLACK,
+    width: 200, paddingVertical: 6, elevation: 4,
+    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
+  },
+  menuItem: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
+  menuText: { color: BLACK, fontWeight: "800" },
+
+  /* Cards */
+  card: { backgroundColor: WHITE, borderWidth: 2, borderColor: BLACK, borderRadius: 14, padding: 12, marginBottom: 12 },
+  titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  cardTitle: { fontSize: 14, fontWeight: "900", color: BLACK },
+  infoBtn: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: BLACK, alignItems: "center", justifyContent: "center", backgroundColor: WHITE },
+  helpBox: { marginTop: 8, borderWidth: 2, borderColor: BLACK, borderRadius: 10, padding: 8, backgroundColor: "#FFFDF2" },
+  helpText: { color: BLACK, fontSize: 12 },
+
+  /* Niche row */
+  nicheRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
+  chip: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE },
+  chipTxt: { color: BLACK, fontSize: 12, fontWeight: "900" },
+
+  /* Range */
+  rangeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+  rangeLbl: { width: 38, fontSize: 12, color: BLACK, fontWeight: "900" },
+  arrowBtn: { width: 30, height: 28, borderRadius: 8, borderWidth: 2, borderColor: BLACK, alignItems: "center", justifyContent: "center", backgroundColor: WHITE },
+  rangeVal: { minWidth: 120, textAlign: "center", borderWidth: 2, borderColor: BLACK, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8, fontSize: 12, fontWeight: "900", color: BLACK, backgroundColor: "#FFFDF2" },
+
+  /* Toggle */
+  toggleRow: { flexDirection: "row", gap: 8, marginTop: 8 },
+  toggleBtn: { flex: 1, borderWidth: 2, borderColor: BLACK, borderRadius: 12, paddingVertical: 10, alignItems: "center", backgroundColor: WHITE },
+  toggleActive: { backgroundColor: "#FFFDF2", borderColor: YELLOW },
+  toggleTxt: { fontSize: 12, fontWeight: "900", color: BLACK, textAlign: "center" },
+  toggleTxtActive: { color: BLACK },
+
+  /* KPI blocks */
+  kpiBlock: { borderWidth: 2, borderColor: BLACK, borderRadius: 12, padding: 10, backgroundColor: WHITE, marginTop: 8 },
+  kpiBlockTitle: { fontSize: 12, color: BLACK, fontWeight: "900", marginBottom: 6 },
+  bigStatInline: { fontSize: 16, fontWeight: "900", color: BLACK },
+
+  /* Star meter */
+  starRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  starVal: { marginLeft: 6, fontSize: 16, fontWeight: "900", color: BLACK },
+
+  /* Simple star distribution list */
+  kidRow: { fontSize: 14, fontWeight: "900", color: BLACK, marginTop: 4 },
+
+  /* Gauges (360° donut) */
+  gaugeRow: { flexDirection: "row", justifyContent: "space-around", marginTop: 12, flexWrap: "wrap" },
+  gaugeWrap: { alignItems: "center", marginVertical: 8 },
+  gaugeBox: { justifyContent: "center", alignItems: "center" },
+  gaugeTrack: { position: "absolute", borderColor: "#E0E0E0", backgroundColor: "transparent" },
+  halfWrap: { position: "absolute", overflow: "hidden" },
+  arc: { position: "absolute", borderColor: YELLOW, backgroundColor: "transparent" },
+  gaugeHole: { position: "absolute", backgroundColor: WHITE, alignItems: "center", justifyContent: "center" },
+  gaugePct: { fontSize: 16, fontWeight: "900", color: BLACK },
+  gaugeLabel: { marginTop: 6, fontSize: 12, fontWeight: "900", color: BLACK, textAlign: "center" },
+
+  /* Tag bars */
+  hbarRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+  hbarLabel: { width: 180, fontSize: 12, color: BLACK },
+  hbarTrack: { flex: 1, height: 20, borderRadius: 10, backgroundColor: WHITE, borderWidth: 2, borderColor: BLACK, overflow: "hidden" },
+  hbarFill: { height: "100%", backgroundColor: YELLOW, borderRightWidth: 2, borderRightColor: BLACK },
+  hbarPct: { width: 48, textAlign: "right", fontSize: 12, color: BLACK, fontWeight: "900" },
+
+  /* Show more/less */
+  moreBtn: { alignSelf: "center", marginTop: 10, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 2, borderColor: BLACK, backgroundColor: "#FFFDF2" },
+  moreTxt: { fontSize: 12, fontWeight: "900", color: BLACK },
+});
