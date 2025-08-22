@@ -1,4 +1,4 @@
-// App.js
+// HelpStats.js (updated with shared toggle + tag titles)
 import React, { useMemo, useState } from "react";
 import {
   SafeAreaView,
@@ -20,7 +20,7 @@ const YELLOW = "#FFD54A";
 const TOP_BAR_HEIGHT = 88;
 const TOP_ACCENT = 3;
 
-/* ===== PRNG + Mock HELP data ===== */
+/* ===== PRNG + Mock HELP data (same as before) ===== */
 function prng(n) { const x = Math.sin(n) * 10000; return x - Math.floor(x); }
 
 function buildDaily(seed = 1, days = 90) {
@@ -38,10 +38,6 @@ function buildDaily(seed = 1, days = 90) {
     const winRate = 0.25 + 0.5 * winBias * (0.8 + 0.4 * prng(k + 13));
     const wins = Math.min(helps, Math.round(helps * winRate));
 
-    // Optionally attach real ratings per day:
-    // starCounts: {1: n, 2: n, 3: n, 4: n, 5: n}
-    // ratings: [5,4,5,3,...]
-
     arr.push({
       date: d,
       label: `${d.getDate()}/${d.getMonth()+1}`,
@@ -49,7 +45,6 @@ function buildDaily(seed = 1, days = 90) {
       rating: Number(rating.toFixed(2)),
       wins,
       attempts: helps,
-      // starCounts, ratings
     });
   }
   return arr;
@@ -112,6 +107,7 @@ const DATA = {
     totalReviews: 10, avgRating: 4.6, wins: 4, attempts: 13, consistency: 0.73,
     posTags: { Creative: 12, Clear: 8, Practical: 7, Helpful: 6, Fast: 5, Analytical: 4 },
     improve: { "More Detail": 4, "Clear Format": 3, "Real Example": 2, "Step-by-Step": 2, "Practical Solution": 2, "Simpler Language": 2, "Accurate Information": 1 },
+    negFlags: { Unclear: 1, "Overly Brief": 1, Impractical: 0 },
     categories: { UI: 55, UX: 30, Branding: 15 },
     repeatSelectors: 1,
     daily: buildDaily(5),
@@ -126,10 +122,7 @@ const pad2 = (n) => (n < 10 ? `0${n}` : `${n}`);
 const fmt = (dt) => `${pad2(dt.getDate())}/${pad2(dt.getMonth()+1)}/${dt.getFullYear()}`;
 
 /* === STAR DISTRIBUTION (realistic, interval-aware) === */
-function mergeCounts(acc, add) {
-  for (let s = 1; s <= 5; s++) acc[s] = (acc[s] || 0) + (add[s] || 0);
-  return acc;
-}
+function mergeCounts(acc, add) { for (let s = 1; s <= 5; s++) acc[s] = (acc[s] || 0) + (add[s] || 0); return acc; }
 function roundPreserve(total, floats, seedBase = 0) {
   const floors = floats.map(Math.floor);
   let rem = total - floors.reduce((a,b)=>a+b,0);
@@ -140,12 +133,7 @@ function roundPreserve(total, floats, seedBase = 0) {
   return out;
 }
 function dayStarCountsRealistic(day, seed = 0) {
-  if (day.starCounts) {
-    const safe = {1:0,2:0,3:0,4:0,5:0, ...day.starCounts};
-    const sum = Object.values(safe).reduce((a,b)=>a+b,0);
-    if (sum !== (day.helps || sum)) return safe;
-    return safe;
-  }
+  if (day.starCounts) { const safe = {1:0,2:0,3:0,4:0,5:0, ...day.starCounts}; return safe; }
   if (Array.isArray(day.ratings)) {
     const c = {1:0,2:0,3:0,4:0,5:0};
     day.ratings.forEach(v => { if (v>=1 && v<=5) c[v]++; });
@@ -154,7 +142,7 @@ function dayStarCountsRealistic(day, seed = 0) {
   const h = Math.max(0, day.helps || 0);
   if (!h) return {1:0,2:0,3:0,4:0,5:0};
   const r = Math.max(1, Math.min(5, day.rating || 3.5));
-  const sigma = 1.0 - Math.min(0.6, Math.log10(Math.max(1, h)) * 0.25); // tighter with more data
+  const sigma = 1.0 - Math.min(0.6, Math.log10(Math.max(1, h)) * 0.25);
   const weights = [1,2,3,4,5].map((s, i) => {
     const base = Math.exp(-Math.pow(s - r, 2) / (2 * sigma * sigma));
     const jitter = 0.9 + 0.2 * prng(seed + i);
@@ -166,8 +154,8 @@ function dayStarCountsRealistic(day, seed = 0) {
   const [c1,c2,c3,c4,c5] = roundPreserve(h, floats, seed);
   return {1:c1,2:c2,3:c3,4:c4,5:c5};
 }
-function intervalStarDistribution(inRange) {
-  return inRange.reduce((acc, p, idx) => {
+function distForRange(days) {
+  return days.reduce((acc, p, idx) => {
     const counts = dayStarCountsRealistic(p, (p.date?.getTime?.() || idx) + idx);
     return mergeCounts(acc, counts);
   }, {1:0,2:0,3:0,4:0,5:0});
@@ -204,7 +192,7 @@ function strengthsFromInterval(inRange, d) {
   return pct;
 }
 
-/* Interval-based “what would make perfect” */
+/* Interval-based negatives */
 function improveFromInterval(inRange, d) {
   const base = {
     "Undetailed explanation": (d.improve["More Detail"] || 0),
@@ -314,23 +302,26 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [niche, setNiche] = useState("All");
 
-  // Simple navigation stub for the 3-dot menu:
-  const onNavigate = (dest) => {
-    setMenuOpen(false);
-    // swap with your navigator, e.g.: navigation.navigate(dest)
-    console.log("Navigate to:", dest);
-  };
-
   const d = DATA[niche];
   const all = d.daily;
 
-  // Date interval for all interval-driven sections
+  // Date interval
   const [startIdx, setStartIdx] = useState(Math.max(0, all.length - 14));
   const [endIdx, setEndIdx] = useState(all.length - 1);
   const inRange = useMemo(() => all.slice(startIdx, endIdx + 1), [all, startIdx, endIdx]);
 
   const shiftStart = (dir) => setStartIdx((s) => Math.min(endIdx, Math.max(0, s + dir)));
   const shiftEnd   = (dir) => setEndIdx((e) => Math.max(startIdx, Math.min(all.length - 1, e + dir)));
+
+  /* === Toggles === */
+  // Shared toggle for BOTH Average Rating + Star Distribution
+  const [ratingDistScope, setRatingDistScope] = useState("interval"); // 'interval' | 'all'
+  const [winScope, setWinScope] = useState("interval");
+  const [consScope, setConsScope] = useState("interval");
+  const [greenScope, setGreenScope] = useState("interval");
+  const [redScope, setRedScope] = useState("interval");
+  const [proofScope, setProofScope] = useState("interval");
+  const [catScope, setCatScope] = useState("interval");
 
   // Interval totals
   const interval = useMemo(() => {
@@ -339,18 +330,63 @@ export default function App() {
     const possibleStars = inRange.reduce((a,b)=>a + b.helps*5,0);
     const wins = inRange.reduce((a,b)=>a + b.wins,0);
     const attempts = inRange.reduce((a,b)=>a + b.attempts,0);
-    const dist = intervalStarDistribution(inRange);
+    const dist = distForRange(inRange);
     const activeDays = inRange.filter(p => p.helps > 0).length;
     const totalDays = inRange.length;
     const avgPerHelp = helps ? (gainedStars / helps) : 0;
-    return { helps, gainedStars, possibleStars, wins, attempts, dist, activeDays, totalDays, avgPerHelp };
+
+    // Interval 14-dot map
+    const last14 = inRange.slice(-14);
+    const consMap = Array(14).fill(false);
+    const start = Math.max(0, 14 - last14.length);
+    for (let i = 0; i < last14.length; i++) consMap[start + i] = (last14[i].helps || 0) > 0;
+
+    return { helps, gainedStars, possibleStars, wins, attempts, dist, activeDays, totalDays, avgPerHelp, consMap };
   }, [inRange]);
 
-  const strengths8 = useMemo(() => strengthsFromInterval(inRange, d), [inRange, d]);
-  const improve7   = useMemo(() => improveFromInterval(inRange, d), [inRange, d]);
+  // All-time totals
+  const allTime = useMemo(() => {
+    const helps = all.reduce((a,b)=>a+b.helps,0);
+    const gainedStars = all.reduce((a,b)=>a + Math.round(b.rating * b.helps),0);
+    const possibleStars = all.reduce((a,b)=>a + b.helps*5,0);
+    const wins = all.reduce((a,b)=>a + b.wins,0);
+    const attempts = all.reduce((a,b)=>a + b.attempts,0);
+    const dist = distForRange(all);
+    const activeDays = all.filter(p => p.helps > 0).length;
+    const totalDays = all.length;
+    const avgPerHelp = helps ? (gainedStars / helps) : 0;
 
-  const catTotal = sumVals(d.categories);
+    return { helps, gainedStars, possibleStars, wins, attempts, dist, activeDays, totalDays, avgPerHelp };
+  }, [all]);
+
+  const greenInterval = useMemo(() => strengthsFromInterval(inRange, d), [inRange, d]);
+  const greenAll = useMemo(() => strengthsFromInterval(all, d), [all, d]);
+
+  const redInterval = useMemo(() => improveFromInterval(inRange, d), [inRange, d]);
+  const redAll = useMemo(() => improveFromInterval(all, d), [all, d]);
+
+  const catAllTotal = sumVals(d.categories);
   const catEntries = Object.entries(d.categories);
+
+  // small toggle row helper
+  const ToggleRow = ({ scope, setScope }) => (
+    <View style={styles.toggleRow}>
+      <TouchableOpacity
+        style={[styles.toggleBtn, scope === "interval" && styles.toggleActive]}
+        onPress={() => setScope("interval")}
+        activeOpacity={0.9}
+      >
+        <Text style={[styles.toggleTxt, scope === "interval" && styles.toggleTxtActive]}>This Interval</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.toggleBtn, scope === "all" && styles.toggleActive]}
+        onPress={() => setScope("all")}
+        activeOpacity={0.9}
+      >
+        <Text style={[styles.toggleTxt, scope === "all" && styles.toggleTxtActive]}>All-Time</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -376,30 +412,6 @@ export default function App() {
         <TouchableOpacity style={styles.menuBtn} activeOpacity={0.7} onPress={() => setMenuOpen(v=>!v)}>
           <Ionicons name="ellipsis-vertical" size={20} color={WHITE} />
         </TouchableOpacity>
-
-        {menuOpen && (
-          <View style={styles.menuSheet}>
-            {/* NEW: Navigation items */}
-            <TouchableOpacity style={styles.menuItem} onPress={() => onNavigate("MiniJob")}>
-              <Ionicons name="briefcase-outline" size={16} color={BLACK} />
-              <Text style={styles.menuText}>Mini Job</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem} onPress={() => onNavigate("MegaJob")}>
-              <Ionicons name="construct-outline" size={16} color={BLACK} />
-              <Text style={styles.menuText}>Mega Job</Text>
-            </TouchableOpacity>
-
-            {/* Existing items */}
-            <TouchableOpacity style={styles.menuItem} onPress={() => setMenuOpen(false)}>
-              <Ionicons name="person-outline" size={16} color={BLACK} />
-              <Text style={styles.menuText}>Profile</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem} onPress={() => setMenuOpen(false)}>
-              <Ionicons name="share-social-outline" size={16} color={BLACK} />
-              <Text style={styles.menuText}>Share</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </View>
 
       <View style={styles.topAccent} />
@@ -415,12 +427,14 @@ export default function App() {
           </View>
         </Card>
 
-        {/* SNAPSHOT (with date interval) */}
+        {/* RATING & DATA (title updated) */}
         <Card>
           <TitleRow
-            title="Snapshot"
-            help="Choose a date window to see how you did in that period."
+            title="Rating and Data"
+            help="Choose a date window. Then flip cards to see interval vs all-time."
           />
+
+          {/* Date range pickers */}
           <View style={styles.rangeRow}>
             <Text style={styles.rangeLbl}>From</Text>
             <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftStart(-1)}>
@@ -442,83 +456,114 @@ export default function App() {
             </TouchableOpacity>
           </View>
 
-          {/* Rating */}
+          {/* SHARED toggle for Average Rating + Star Distribution */}
+          <ToggleRow scope={ratingDistScope} setScope={setRatingDistScope} />
+
+          {/* Average Rating */}
           <View style={styles.kpiBlock}>
-            <Text style={styles.kpiBlockTitle}>
-              Rating (how useful and valuable were solutions to the helpee)
-            </Text>
-            <StarMeter value={d.avgRating} />
-            <Text style={styles.kpiHint}>{d.totalReviews} reviews overall (interval stats below)</Text>
+            <Text style={styles.kpiBlockTitle}>Average Rating</Text>
+            <StarMeter
+              value={
+                ratingDistScope === "interval"
+                  ? (interval.helps ? interval.gainedStars / interval.helps : 0)
+                  : (allTime.helps ? allTime.gainedStars / allTime.helps : 0)
+              }
+            />
             <Text style={[styles.kpiHint, { marginTop: 6 }]}>
-              Stars earned in this interval: <Text style={styles.bigStatInline}>{interval.gainedStars}</Text> / {interval.possibleStars}
+              Stars earned:{" "}
+              <Text style={styles.bigStatInline}>
+                {ratingDistScope === "interval" ? interval.gainedStars : allTime.gainedStars}
+              </Text>{" "}
+              / {ratingDistScope === "interval" ? interval.possibleStars : allTime.possibleStars}
+            </Text>
+            <Text style={styles.kpiHint}>
+              Reviews overall: <Text style={styles.bigStatInline}>{d.totalReviews}</Text>
             </Text>
           </View>
 
-          {/* Star Distribution (interval) */}
+          {/* Star Distribution — uses the SAME toggle */}
           <View style={[styles.kpiBlock, { marginTop: 8 }]}>
-            <Text style={styles.kpiBlockTitle}>Star Distribution (this interval)</Text>
-            <Text style={styles.kidRow}>⭐⭐⭐⭐⭐  =  {interval.dist[5]} helps</Text>
-            <Text style={styles.kidRow}>⭐⭐⭐⭐    =  {interval.dist[4]} helps</Text>
-            <Text style={styles.kidRow}>⭐⭐⭐      =  {interval.dist[3]} helps</Text>
-            <Text style={styles.kidRow}>⭐⭐        =  {interval.dist[2]} helps</Text>
-            <Text style={styles.kidRow}>⭐          =  {interval.dist[1]} helps</Text>
-            <Text style={styles.kpiHint}>Counts use real ratings when available; otherwise they’re modeled per-day from average rating and helps.</Text>
+            <Text style={styles.kpiBlockTitle}>Star Distribution</Text>
+            {["5","4","3","2","1"].map(s => (
+              <Text key={s} style={styles.kidRow}>
+                {"⭐".repeat(Number(s)).padEnd(5," ")} = {(ratingDistScope === "interval" ? interval.dist : allTime.dist)[s]} helps
+              </Text>
+            ))}
+            <Text style={styles.kpiHint}>
+              Counts use real ratings when available; otherwise modeled per-day from average rating and helps.
+            </Text>
           </View>
 
-          {/* Win rate, Consistency */}
+          {/* Win Rate (own toggle) */}
+          <ToggleRow scope={winScope} setScope={setWinScope} />
           <View style={[styles.kpiBlock, { marginTop: 8 }]}>
-            <Text style={styles.kpiBlockTitle}>Win Rate (this interval)</Text>
+            <Text style={styles.kpiBlockTitle}>Win Rate</Text>
             <Text style={styles.bigStat}>
-              {interval.wins}/{interval.attempts} ({interval.attempts ? Math.round((interval.wins/interval.attempts)*100) : 0}%)
+              {(winScope === "interval" ? interval.wins : allTime.wins)}/
+              {(winScope === "interval" ? interval.attempts : allTime.attempts)} (
+              {(() => {
+                const w = winScope === "interval" ? interval.wins : allTime.wins;
+                const a = winScope === "interval" ? interval.attempts : allTime.attempts;
+                return a ? Math.round((w / a) * 100) : 0;
+              })()}
+              %)
             </Text>
             <Text style={styles.kpiHint}>Chosen as the final solution / attempts.</Text>
           </View>
+
+          {/* Consistency strip (own toggle) */}
+          <ToggleRow scope={consScope} setScope={setConsScope} />
           <View style={[styles.kpiBlock, { marginTop: 8 }]}>
             <Text style={styles.kpiBlockTitle}>Consistency (last 14 days)</Text>
-            <ConsistencyStrip map14={DATA[niche].activeMap} />
-            <Text style={styles.kpiHint}>{Math.round(DATA[niche].consistency*100)}% active days recently</Text>
+            <ConsistencyStrip map14={consScope === "interval" ? interval.consMap : DATA[niche].activeMap} />
+            <Text style={styles.kpiHint}>
+              {Math.round((consScope === "interval" ? interval.activeDays/interval.totalDays : d.consistency) * 100)}% active days
+              {consScope === "interval" ? " in this window" : " recently"}
+            </Text>
           </View>
         </Card>
 
-        {/* Strengths */}
+        {/* Green Tags (formerly Strengths) */}
         <Card>
           <TitleRow
-            title="Strengths (in this interval)"
-            help="Big yellow bars show what people liked most about your answers."
+            title="Green Tags"
+            help="What people liked most in this interval (or all-time)."
           />
+          <ToggleRow scope={greenScope} setScope={setGreenScope} />
           <View style={{ marginTop: 6 }}>
             {[
-              ["💡 Creative", strengths8.Creative],
-              ["🧠 Analytical", strengths8.Analytical],
-              ["🔧 Practical", strengths8.Practical],
-              ["📝 Detailed", strengths8.Detailed],
-              ["🤝 Helpful", strengths8.Helpful],
-              ["👀 Insightful", strengths8.Insightful],
-              ["🚀 Innovative", strengths8.Innovative],
-              ["🎓 Professional", strengths8.Professional],
+              ["💡 Creative", (greenScope === "interval" ? greenInterval : greenAll).Creative],
+              ["🧠 Analytical", (greenScope === "interval" ? greenInterval : greenAll).Analytical],
+              ["🔧 Practical", (greenScope === "interval" ? greenInterval : greenAll).Practical],
+              ["📝 Detailed", (greenScope === "interval" ? greenInterval : greenAll).Detailed],
+              ["🤝 Helpful", (greenScope === "interval" ? greenInterval : greenAll).Helpful],
+              ["👀 Insightful", (greenScope === "interval" ? greenInterval : greenAll).Insightful],
+              ["🚀 Innovative", (greenScope === "interval" ? greenInterval : greenAll).Innovative],
+              ["🎓 Professional", (greenScope === "interval" ? greenInterval : greenAll).Professional],
             ].map(([label, pct]) => (
-              <HBar key={label} label={label} pct={pct} big />
+              <HBar key={label} label={label} pct={pct || 0} big />
             ))}
           </View>
         </Card>
 
-        {/* What would make perfect */}
+        {/* Red Tags (formerly “What would make this perfect”) */}
         <Card>
           <TitleRow
-            title='“What would make this perfect” (in this interval)'
-            help="Bigger bar = bigger reason people didn’t give 5★."
+            title="Red Tags"
+            help="Biggest reasons people didn’t give 5★ in this interval (or all-time)."
           />
+          <ToggleRow scope={redScope} setScope={setRedScope} />
           <View style={{ marginTop: 6 }}>
             {[
-              ["🪫 Undetailed explanation", improve7["Undetailed explanation"]],
-              ["🧩 Overcomplicated", improve7["Overcomplicated"]],
-              ["📦 Unconcreted illustration", improve7["Unconcreted illustration"]],
-              ["❓ Unclear solution", improve7["Unclear solution"]],
-              ["🚫 Not actionable", improve7["Not actionable"]],
-              ["🌀 Messy explanation", improve7["Messy explanation"]],
-              ["⚠️ Misleading fact", improve7["Misleading fact"]],
+              ["🪫 Undetailed explanation", (redScope === "interval" ? redInterval : redAll)["Undetailed explanation"]],
+              ["🧩 Overcomplicated", (redScope === "interval" ? redInterval : redAll)["Overcomplicated"]],
+              ["📦 Unconcreted illustration", (redScope === "interval" ? redInterval : redAll)["Unconcreted illustration"]],
+              ["❓ Unclear solution", (redScope === "interval" ? redInterval : redAll)["Unclear solution"]],
+              ["🚫 Not actionable", (redScope === "interval" ? redInterval : redAll)["Not actionable"]],
+              ["🌀 Messy explanation", (redScope === "interval" ? redInterval : redAll)["Messy explanation"]],
+              ["⚠️ Misleading fact", (redScope === "interval" ? redInterval : redAll)["Misleading fact"]],
             ].map(([label, pct]) => (
-              <HBar key={label} label={label} pct={pct} big />
+              <HBar key={label} label={label} pct={pct || 0} big />
             ))}
           </View>
         </Card>
@@ -527,33 +572,40 @@ export default function App() {
         <Card>
           <TitleRow
             title="Proof Points (for employers)"
-            help="Straight-to-the-point outcomes for the selected period."
+            help="Straight-to-the-point outcomes for the selected period or all time."
           />
+          <ToggleRow scope={proofScope} setScope={setProofScope} />
           <View style={styles.kpiGrid2}>
             <View style={styles.kpi}>
               <Text style={styles.kpiLabel}>Helps completed</Text>
-              <Text style={styles.kpiValue}>{interval.helps}</Text>
-              <Text style={styles.kpiHint}>Total solved requests in this window</Text>
+              <Text style={styles.kpiValue}>{proofScope === "interval" ? interval.helps : allTime.helps}</Text>
+              <Text style={styles.kpiHint}>Total solved requests</Text>
             </View>
             <View style={styles.kpi}>
               <Text style={styles.kpiLabel}>Avg ★ per help</Text>
-              <Text style={styles.kpiValue}>{interval.avgPerHelp.toFixed(2)}</Text>
-              <Text style={styles.kpiHint}>Quality per answer, simple and clear</Text>
+              <Text style={styles.kpiValue}>
+                {(proofScope === "interval" ? interval.avgPerHelp : allTime.avgPerHelp).toFixed(2)}
+              </Text>
+              <Text style={styles.kpiHint}>Quality per answer</Text>
             </View>
             <View style={styles.kpi}>
               <Text style={styles.kpiLabel}>On-duty days</Text>
               <Text style={styles.kpiValue}>
-                {interval.activeDays}/{interval.totalDays}
+                {(proofScope === "interval" ? interval.activeDays : allTime.activeDays)}/
+                {(proofScope === "interval" ? interval.totalDays : allTime.totalDays)}
               </Text>
               <Text style={styles.kpiHint}>Days you showed up and helped</Text>
             </View>
           </View>
 
+          {/* Categories (proportional display) */}
+          <ToggleRow scope={catScope} setScope={setCatScope} />
           <View style={{ marginTop: 10 }}>
             <Text style={[styles.sectionHint, { marginBottom: 4 }]}>Common problem types you help with</Text>
-            {catEntries.map(([k, v]) => (
-              <HBar key={k} label={`• ${k}`} pct={Math.round((v / catTotal) * 100)} big />
-            ))}
+            {catEntries.map(([k, v]) => {
+              const pct = Math.round((v / Math.max(1, catAllTotal)) * 100);
+              return <HBar key={k} label={`• ${k}`} pct={pct} big />;
+            })}
           </View>
         </Card>
       </ScrollView>
@@ -591,22 +643,8 @@ const styles = StyleSheet.create({
   name: { color: WHITE, fontWeight: "900", fontSize: 16, lineHeight: 16 },
   rank: { color: "#DADADA", fontSize: 12, marginTop: 2 },
 
-  /* Menu */
-  menuSheet: {
-    position: "absolute", right: 10, top: Platform.select({ ios: 58, android: 58 }),
-    backgroundColor: WHITE, borderRadius: 10, borderWidth: 2, borderColor: BLACK,
-    width: 180, paddingVertical: 6, elevation: 4,
-    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
-  },
-  menuItem: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
-  menuText: { color: BLACK, fontWeight: "800" },
-
   /* Cards */
-  card: {
-    backgroundColor: WHITE,
-    borderWidth: 2, borderColor: BLACK,
-    borderRadius: 14, padding: 12, marginBottom: 12,
-  },
+  card: { backgroundColor: WHITE, borderWidth: 2, borderColor: BLACK, borderRadius: 14, padding: 12, marginBottom: 12 },
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cardTitle: { fontSize: 14, fontWeight: "900", color: BLACK },
   infoBtn: {
@@ -614,36 +652,29 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: BLACK,
     alignItems: "center", justifyContent: "center", backgroundColor: WHITE,
   },
-  infoTxt: { color: BLACK, fontSize: 12, fontWeight: "900" },
   helpBox: { marginTop: 8, borderWidth: 2, borderColor: BLACK, borderRadius: 10, padding: 8, backgroundColor: "#FFFDF2" },
   helpText: { color: BLACK, fontSize: 12 },
 
   /* Niche row */
   nicheRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
-  chip: {
-    paddingVertical: 6, paddingHorizontal: 10,
-    borderRadius: 16, borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
-  },
+  chip: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE },
   chipTxt: { color: BLACK, fontSize: 12, fontWeight: "900" },
 
   /* Range */
   rangeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
   rangeLbl: { width: 38, fontSize: 12, color: BLACK, fontWeight: "900" },
-  arrowBtn: {
-    width: 30, height: 28, borderRadius: 8, borderWidth: 2, borderColor: BLACK,
-    alignItems: "center", justifyContent: "center", backgroundColor: WHITE,
-  },
-  rangeVal: {
-    minWidth: 120, textAlign: "center",
-    borderWidth: 2, borderColor: BLACK, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8,
-    fontSize: 12, fontWeight: "900", color: BLACK, backgroundColor: "#FFFDF2",
-  },
+  arrowBtn: { width: 30, height: 28, borderRadius: 8, borderWidth: 2, borderColor: BLACK, alignItems: "center", justifyContent: "center", backgroundColor: WHITE },
+  rangeVal: { minWidth: 120, textAlign: "center", borderWidth: 2, borderColor: BLACK, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8, fontSize: 12, fontWeight: "900", color: BLACK, backgroundColor: "#FFFDF2" },
+
+  /* Toggle */
+  toggleRow: { flexDirection: "row", gap: 8, marginTop: 8 },
+  toggleBtn: { flex: 1, borderWidth: 2, borderColor: BLACK, borderRadius: 12, paddingVertical: 10, alignItems: "center", backgroundColor: WHITE },
+  toggleActive: { backgroundColor: "#FFFDF2", borderColor: YELLOW },
+  toggleTxt: { fontSize: 12, fontWeight: "900", color: BLACK, textAlign: "center" },
+  toggleTxtActive: { color: BLACK },
 
   /* KPI blocks */
-  kpiBlock: {
-    borderWidth: 2, borderColor: BLACK, borderRadius: 12, padding: 10,
-    backgroundColor: WHITE, marginTop: 8,
-  },
+  kpiBlock: { borderWidth: 2, borderColor: BLACK, borderRadius: 12, padding: 10, backgroundColor: WHITE, marginTop: 8 },
   kpiBlockTitle: { fontSize: 12, color: BLACK, fontWeight: "900", marginBottom: 6 },
   bigStat: { fontSize: 16, fontWeight: "900", color: BLACK },
   bigStatInline: { fontSize: 16, fontWeight: "900", color: BLACK },
@@ -652,7 +683,7 @@ const styles = StyleSheet.create({
   consRow: { flexDirection: "row", gap: 6, marginTop: 2 },
   consBox: { width: 12, height: 12, borderRadius: 4, borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE },
 
-  /* Thick H bars */
+  /* H bars */
   hbarRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
   hbarLabel: { width: 140, fontSize: 12, color: BLACK },
   hbarTrack: { flex: 1, height: 20, borderRadius: 10, backgroundColor: WHITE, borderWidth: 2, borderColor: BLACK, overflow: "hidden" },
@@ -661,10 +692,7 @@ const styles = StyleSheet.create({
 
   /* Proof points grid */
   kpiGrid2: { flexDirection: "row", gap: 8, marginTop: 8, flexWrap: "wrap" },
-  kpi: {
-    flexGrow: 1, minWidth: (W - 12 * 2 - 8) / 2 - 8,
-    backgroundColor: WHITE, borderWidth: 2, borderColor: BLACK, borderRadius: 12, padding: 10,
-  },
+  kpi: { flexGrow: 1, minWidth: (W - 12 * 2 - 8) / 2 - 8, backgroundColor: WHITE, borderWidth: 2, borderColor: BLACK, borderRadius: 12, padding: 10 },
   kpiLabel: { fontSize: 11, color: BLACK, opacity: 0.8 },
   kpiValue: { fontSize: 20, fontWeight: "900", color: BLACK, marginTop: 2 },
   kpiHint: { fontSize: 11, color: BLACK, opacity: 0.7, marginTop: 2 },
