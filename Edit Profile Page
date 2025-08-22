@@ -1,0 +1,690 @@
+// EditProfile.js 
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  TextInput,
+  Switch,
+  Alert,
+  Dimensions,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+/* ===== Brand ===== */
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+const TOP_BAR_HEIGHT = 88;
+const TOP_ACCENT = 3;
+const W = Dimensions.get("window").width;
+
+/* ===== Visibility (compact dropdown) ===== */
+// CHANGED: "Employers" -> "Contractor/Contractee"
+const VISIBILITY = ["Public", "Contacts", "Contractor/Contractee", "Private"];
+function VisibilityDropdown({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={{ marginTop: 6 }}>
+      <TouchableOpacity
+        style={styles.selectBox}
+        activeOpacity={0.9}
+        onPress={() => setOpen((v) => !v)}
+      >
+        <Text style={styles.selectTxt}>{value || "Visibility"}</Text>
+        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color={BLACK} />
+      </TouchableOpacity>
+      {open && (
+        <View style={styles.dropdown}>
+          {VISIBILITY.map((opt) => (
+            <TouchableOpacity
+              key={opt}
+              style={[styles.dropdownItem, value === opt && styles.dropdownItemActive]}
+              onPress={() => {
+                onChange(opt);
+                setOpen(false);
+              }}
+            >
+              <Text style={styles.dropdownTxt}>{opt}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+/* ===== Small UI blocks ===== */
+function SectionCard({ title, help, children }) {
+  return (
+    <View style={styles.card}>
+      <View style={styles.titleRow}>
+        <Text style={styles.cardTitle}>{title}</Text>
+      </View>
+      {help ? <Text style={styles.optionalHint}>{help}</Text> : null}
+      {children}
+    </View>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType = "default",
+  multiline = false,
+  compact = false,
+}) {
+  return (
+    <View style={[{ marginTop: 10 }, compact && { marginTop: 0 }]}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="#777"
+        keyboardType={keyboardType}
+        multiline={multiline}
+        style={[styles.input, multiline && { height: 92, textAlignVertical: "top" }]}
+      />
+    </View>
+  );
+}
+
+function SmallField(props) {
+  return <Field {...props} compact />;
+}
+
+function SwitchRow({ label, value, onValueChange }) {
+  return (
+    <View style={styles.switchRow}>
+      <Text style={styles.switchLabel}>{label}</Text>
+      <Switch value={value} onValueChange={onValueChange} />
+    </View>
+  );
+}
+
+function Chip({ text, active, onPress }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.9}
+      style={[styles.chip, active && { backgroundColor: "#FFFDF2", borderColor: YELLOW }]}
+    >
+      <Text style={styles.chipTxt}>{text}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function ChipGroup({ items = [], value = [], onChange }) {
+  const toggle = (t) => {
+    const has = value.includes(t);
+    const next = has ? value.filter((v) => v !== t) : [...value, t];
+    onChange(next);
+  };
+  return (
+    <View style={styles.chipWrap}>
+      {items.map((t) => (
+        <Chip key={t} text={t} active={value.includes(t)} onPress={() => toggle(t)} />
+      ))}
+    </View>
+  );
+}
+
+/* ===== Main ===== */
+export default function EditProfile() {
+  /* Identity (required) — no visibility selectors for name/username */
+  const [firstName, setFirstName] = useState("John");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState("Doe");
+  const [username, setUsername] = useState("john_doe");
+  const [gender, setGender] = useState("");
+  const [dob, setDob] = useState("");
+
+  /* Contact (optional) */
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [phoneVis, setPhoneVis] = useState("Contacts"); // OK
+  const [emailVis, setEmailVis] = useState("Contractor/Contractee"); // CHANGED default
+
+  /* Location (optional) */
+  const [address, setAddress] = useState("");
+  const [state, setState] = useState("");
+  const [city, setCity] = useState("");
+  const [radiusKm, setRadiusKm] = useState("25");
+  const [locVis, setLocVis] = useState("Contractor/Contractee"); // CHANGED default
+
+  /* Availability (optional) */
+  const [onCall, setOnCall] = useState(false);
+  const [days, setDays] = useState(["Mon", "Tue", "Wed", "Thu", "Fri"]);
+  const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("18:00");
+  const [availVis, setAvailVis] = useState("Contractor/Contractee"); // CHANGED default
+
+  /* Equipment & Transport (optional) */
+  const [equipment, setEquipment] = useState(["Toolbox", "Drill"]);
+  const [transport, setTransport] = useState("Bike");
+  const [equipVis, setEquipVis] = useState("Contractor/Contractee"); // CHANGED default
+
+  /* Languages (optional) */
+  const [languages, setLanguages] = useState([{ name: "English", level: "Fluent" }]);
+  const [langVis, setLangVis] = useState("Public"); // OK
+
+  /* Bio (optional) */
+  const [headline, setHeadline] = useState("Reliable electrician & plumber");
+  const [about, setAbout] = useState("");
+  const [bioVis, setBioVis] = useState("Public"); // OK
+
+  /* Job Preferences (optional) */
+  const [jobSizes, setJobSizes] = useState(["Mini", "Mega"]);
+  const [indoor, setIndoor] = useState(true);
+  const [outdoor, setOutdoor] = useState(true);
+  const [heavyLifting, setHeavyLifting] = useState(false);
+  const [heightsOk, setHeightsOk] = useState(false);
+  const [remoteOk, setRemoteOk] = useState(true);
+  const [prefVis, setPrefVis] = useState("Contractor/Contractee"); // CHANGED default
+
+  const toggleDay = (d) => {
+    const has = days.includes(d);
+    setDays(has ? days.filter((x) => x !== d) : [...days, d]);
+  };
+
+  const removeLanguage = (idx) => {
+    setLanguages((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const onSave = () => {
+    // required checks
+    if (!firstName.trim() || !lastName.trim())
+      return Alert.alert("Missing name", "Please enter your first and last name.");
+    if (!username.trim())
+      return Alert.alert("Missing username", "Please pick a username.");
+    console.log("PROFILE_SAVE", {
+      identity: { firstName, middleName, lastName, username, gender, dob },
+      visibility: {
+        contact: { phone: phoneVis, email: emailVis },
+        location: locVis,
+        availability: availVis,
+        equipment: equipVis,
+        languages: langVis,
+        bio: bioVis,
+        preferences: prefVis,
+      },
+      contact: { phone, email },
+      location: { address, state, city, radiusKm },
+      availability: { days, startTime, endTime, onCall },
+      equipment: { list: equipment, transport },
+      languages,
+      bio: { headline, about },
+      preferences: { jobSizes, indoor, outdoor, heavyLifting, heightsOk, remoteOk },
+    });
+    Alert.alert("Saved", "Profile changes saved (stub).");
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top bar (avatar + "SSocket" removed) */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+
+        {/* Center title only */}
+        <View style={styles.headerCenter}>
+          <Text style={styles.name}>Edit Profile</Text>
+        </View>
+
+        {/* Right spacer keeps title centered */}
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 90 }}>
+        {/* Identity (required) */}
+        <SectionCard title="Identity" help="">
+          <View style={styles.row}>
+            <SmallField
+              label="First name"
+              value={firstName}
+              onChangeText={setFirstName}
+              placeholder="e.g., John"
+            />
+            <SmallField
+              label="Middle name"
+              value={middleName}
+              onChangeText={setMiddleName}
+              placeholder="Optional"
+            />
+          </View>
+          <SmallField
+            label="Last name"
+            value={lastName}
+            onChangeText={setLastName}
+            placeholder="e.g., Doe"
+          />
+          <SmallField
+            label="Username"
+            value={username}
+            onChangeText={setUsername}
+            placeholder="e.g., john_doe"
+          />
+          <View style={styles.row}>
+            <SmallField
+              label="Gender (optional)"
+              value={gender}
+              onChangeText={setGender}
+              placeholder="e.g., Male"
+            />
+            <SmallField
+              label="Date of birth (optional)"
+              value={dob}
+              onChangeText={setDob}
+              placeholder="YYYY-MM-DD"
+            />
+          </View>
+          {/* No visibility dropdowns for name/username per your request */}
+        </SectionCard>
+
+        {/* Contact (optional) */}
+        <SectionCard
+          title="Contact (optional)"
+          help="You can control who can see each contact method."
+        >
+          <View style={styles.row}>
+            <SmallField
+              label="Phone"
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="+234..."
+              keyboardType="phone-pad"
+            />
+            <SmallField
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              keyboardType="email-address"
+            />
+          </View>
+          <View style={styles.row}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.fieldLabel}>Phone visibility</Text>
+              <VisibilityDropdown value={phoneVis} onChange={setPhoneVis} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.fieldLabel}>Email visibility</Text>
+              <VisibilityDropdown value={emailVis} onChange={setEmailVis} />
+            </View>
+          </View>
+        </SectionCard>
+
+        {/* Location (optional) */}
+        <SectionCard
+          title="Location & Service Area (optional)"
+          help="Set how much location info people see."
+        >
+          <Field
+            label="Address"
+            value={address}
+            onChangeText={setAddress}
+            placeholder="Street, area"
+          />
+          <View style={styles.row}>
+            <SmallField
+              label="State"
+              value={state}
+              onChangeText={setState}
+              placeholder="State"
+            />
+            <SmallField
+              label="City/Town"
+              value={city}
+              onChangeText={setCity}
+              placeholder="e.g., Yaba"
+            />
+          </View>
+          <SmallField
+            label="Travel radius (km)"
+            value={radiusKm}
+            onChangeText={setRadiusKm}
+            placeholder="e.g., 25"
+            keyboardType="numeric"
+          />
+          <Text style={styles.fieldLabel}>Location visibility</Text>
+          <VisibilityDropdown value={locVis} onChange={setLocVis} />
+        </SectionCard>
+
+        {/* Availability (optional) */}
+        <SectionCard
+          title="Availability (optional)"
+          help="Your typical days & times (you can still accept outside these)."
+        >
+          <SwitchRow
+            label="On-call (emergencies)"
+            value={onCall}
+            onValueChange={setOnCall}
+          />
+          <Text style={styles.fieldLabel}>Days available</Text>
+          <View style={styles.chipWrap}>
+            {DAYS.map((d) => (
+              <Chip
+                key={d}
+                text={d}
+                active={days.includes(d)}
+                onPress={() => toggleDay(d)}
+              />
+            ))}
+          </View>
+          <View style={styles.row}>
+            <SmallField
+              label="Start"
+              value={startTime}
+              onChangeText={setStartTime}
+              placeholder="HH:MM"
+            />
+            <SmallField
+              label="End"
+              value={endTime}
+              onChangeText={setEndTime}
+              placeholder="HH:MM"
+            />
+          </View>
+          <Text style={styles.fieldLabel}>Availability visibility</Text>
+          <VisibilityDropdown value={availVis} onChange={setAvailVis} />
+        </SectionCard>
+
+        {/* Equipment & Transport (optional) */}
+        <SectionCard
+          title="Equipment & Transport (optional)"
+          help="Show what you bring and how you move."
+        >
+          <Text style={styles.fieldLabel}>Equipment/Tools</Text>
+          <View style={styles.chipWrap}>
+            {equipment.map((e) => (
+              <Chip
+                key={e}
+                text={`✕ ${e}`}
+                active
+                onPress={() =>
+                  setEquipment((prev) => prev.filter((x) => x !== e))
+                }
+              />
+            ))}
+          </View>
+          <View style={styles.row}>
+            {["Toolbox", "Drill", "Ladder", "Safety boots", "Gloves"].map((opt) => (
+              <TouchableOpacity
+                key={opt}
+                style={styles.addBtn}
+                onPress={() =>
+                  setEquipment((prev) => [...new Set([...prev, opt])])
+                }
+                activeOpacity={0.9}
+              >
+                <Text style={styles.addTxt}>+ {opt}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={[styles.fieldLabel, { marginTop: 10 }]}>Transport</Text>
+          <View style={styles.chipWrap}>
+            {["Foot", "Bike", "Car", "Van", "Truck"].map((opt) => (
+              <Chip
+                key={opt}
+                text={opt}
+                active={transport === opt}
+                onPress={() => setTransport(opt)}
+              />
+            ))}
+          </View>
+
+          <Text style={styles.fieldLabel}>Equipment visibility</Text>
+          <VisibilityDropdown value={equipVis} onChange={setEquipVis} />
+        </SectionCard>
+
+        {/* Languages (optional) */}
+        <SectionCard title="Languages (optional)" help="List the languages you speak.">
+          {languages.length === 0 ? (
+            <Text style={styles.emptyHint}>No languages added yet</Text>
+          ) : (
+            languages.map((l, idx) => (
+              <View key={`${l.name}-${idx}`} style={styles.listRow}>
+                <Text style={styles.listTxt}>
+                  {l.name} • {l.level}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => removeLanguage(idx)}
+                  style={styles.listRemove}
+                >
+                  <Ionicons name="trash-outline" size={16} color={BLACK} />
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+
+          <View style={styles.row}>
+            <SmallField
+              label="Language"
+              value={""}
+              onChangeText={() => {}}
+              placeholder="Use quick add below"
+            />
+          </View>
+
+          <View style={styles.row}>
+            {[
+              { name: "English", level: "Fluent" },
+              { name: "Yoruba", level: "Conversational" },
+              { name: "Hausa", level: "Conversational" },
+              { name: "Igbo", level: "Conversational" },
+            ].map((pair) => (
+              <TouchableOpacity
+                key={pair.name}
+                style={styles.addBtn}
+                onPress={() =>
+                  setLanguages((prev) => {
+                    const exists = prev.some((p) => p.name === pair.name);
+                    if (exists) return prev;
+                    return [...prev, pair];
+                  })
+                }
+                activeOpacity={0.9}
+              >
+                <Text style={styles.addTxt}>+ {pair.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.fieldLabel}>Languages visibility</Text>
+          <VisibilityDropdown value={langVis} onChange={setLangVis} />
+        </SectionCard>
+
+        {/* Bio (optional) */}
+        <SectionCard title="Bio & Highlights (optional)" help="Short headline & about.">
+          <Field
+            label="Headline"
+            value={headline}
+            onChangeText={setHeadline}
+            placeholder="e.g., Fast, neat, reliable"
+          />
+          <Field
+            label="About you"
+            value={about}
+            onChangeText={setAbout}
+            placeholder="Tell clients what to expect..."
+            multiline
+          />
+          <Text style={styles.fieldLabel}>Bio visibility</Text>
+          <VisibilityDropdown value={bioVis} onChange={setBioVis} />
+        </SectionCard>
+
+        {/* Job Preferences (optional) */}
+        <SectionCard title="Job Preferences (optional)" help="What type of jobs you prefer.">
+          <Text style={styles.fieldLabel}>Job size</Text>
+          <ChipGroup
+            items={["Mini", "Mega"]}
+            value={jobSizes}
+            onChange={setJobSizes}
+          />
+          <View style={styles.row}>
+            <SwitchRow
+              label="Indoor OK"
+              value={indoor}
+              onValueChange={setIndoor}
+            />
+            <SwitchRow
+              label="Outdoor OK"
+              value={outdoor}
+              onValueChange={setOutdoor}
+            />
+          </View>
+          <View style={styles.row}>
+            <SwitchRow
+              label="Heavy lifting OK"
+              value={heavyLifting}
+              onValueChange={setHeavyLifting}
+            />
+            <SwitchRow
+              label="Heights OK"
+              value={heightsOk}
+              onValueChange={setHeightsOk}
+            />
+          </View>
+          <SwitchRow
+            label="Remote/Online work OK"
+            value={remoteOk}
+            onValueChange={setRemoteOk}
+          />
+          <Text style={styles.fieldLabel}>Preferences visibility</Text>
+          <VisibilityDropdown value={prefVis} onChange={setPrefVis} />
+        </SectionCard>
+      </ScrollView>
+
+      {/* Save button */}
+      <View style={styles.saveBar}>
+        <TouchableOpacity style={styles.saveBtn} onPress={onSave} activeOpacity={0.9}>
+          <Ionicons name="save-outline" size={18} color={BLACK} />
+          <Text style={styles.saveTxt}>Save Changes</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top bar */
+  topBar: {
+    backgroundColor: BLACK,
+    height: TOP_BAR_HEIGHT,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  topAccent: { height: TOP_ACCENT, backgroundColor: YELLOW },
+  backBtn: { width: 40, height: 36, justifyContent: "center" },
+
+  // Header center (avatar removed; keep for title layout)
+  headerCenter: { flexDirection: "row", alignItems: "center", gap: 10 },
+  // avatar styles kept (unused) to avoid touching other parts
+  avatar: {
+    width: 36, height: 36, borderRadius: 18,
+    borderWidth: 2, borderColor: WHITE,
+    alignItems: "center", justifyContent: "center", backgroundColor: BLACK,
+  },
+  avatarHead: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: WHITE, backgroundColor: BLACK, marginBottom: 1 },
+  avatarBody: { width: 16, height: 8, borderRadius: 5, borderWidth: 2, borderColor: WHITE, backgroundColor: BLACK },
+  name: { color: WHITE, fontWeight: "900", fontSize: 16, lineHeight: 16 },
+  rank: { color: "#DADADA", fontSize: 12, marginTop: 2 },
+
+  /* Cards */
+  card: {
+    backgroundColor: WHITE,
+    borderWidth: 2, borderColor: BLACK,
+    borderRadius: 14, padding: 12, marginBottom: 12,
+  },
+  titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  cardTitle: { fontSize: 14, fontWeight: "900", color: BLACK },
+
+  optionalHint: { fontSize: 11, color: BLACK, opacity: 0.6, marginTop: 2, marginBottom: 6 },
+
+  fieldLabel: { fontSize: 12, fontWeight: "900", color: BLACK, marginBottom: 4, marginTop: 4 },
+  input: {
+    borderWidth: 2, borderColor: BLACK, borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 8, color: BLACK, backgroundColor: WHITE,
+  },
+
+  row: { flexDirection: "row", gap: 8 },
+
+  selectBox: {
+    borderWidth: 2, borderColor: BLACK, borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 10, backgroundColor: "#FFFDF2",
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+  },
+  selectTxt: { fontSize: 12, color: BLACK, fontWeight: "900" },
+  dropdown: {
+    marginTop: 6,
+    borderWidth: 2, borderColor: BLACK, borderRadius: 10,
+    backgroundColor: WHITE, overflow: "hidden",
+  },
+  dropdownItem: {
+    paddingVertical: 10, paddingHorizontal: 10,
+    borderTopWidth: 1, borderTopColor: BLACK,
+  },
+  dropdownItemActive: { backgroundColor: "#FFFDF2" },
+  dropdownTxt: { fontSize: 12, color: BLACK, fontWeight: "900" },
+
+  chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
+  chip: {
+    paddingVertical: 6, paddingHorizontal: 10,
+    borderRadius: 16, borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+  },
+  chipTxt: { color: BLACK, fontSize: 12, fontWeight: "900" },
+
+  switchRow: {
+    flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8,
+    borderWidth: 2, borderColor: BLACK, borderRadius: 12, padding: 10, backgroundColor: WHITE,
+  },
+  switchLabel: { fontSize: 12, color: BLACK, fontWeight: "900", flex: 1 },
+
+  listRow: {
+    borderWidth: 2, borderColor: BLACK, borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 10, backgroundColor: WHITE,
+    marginTop: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+  },
+  listTxt: { color: BLACK, fontSize: 12, fontWeight: "900", flex: 1, paddingRight: 8 },
+  listRemove: {
+    width: 30, height: 28, borderRadius: 8, borderWidth: 2, borderColor: BLACK,
+    alignItems: "center", justifyContent: "center", backgroundColor: WHITE,
+  },
+
+  addBtn: { borderWidth: 2, borderColor: BLACK, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#FFFDF2", marginTop: 8 },
+  addTxt: { fontSize: 12, fontWeight: "900", color: BLACK },
+
+  emptyHint: { fontSize: 12, color: BLACK, opacity: 0.6, marginTop: 6 },
+
+  /* Save Bar */
+  saveBar: {
+    position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: WHITE,
+    borderTopWidth: 2, borderTopColor: BLACK, padding: 10,
+  },
+  saveBtn: {
+    height: 48, borderRadius: 14, borderWidth: 2, borderColor: BLACK,
+    backgroundColor: YELLOW, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8,
+  },
+  saveTxt: { fontSize: 14, fontWeight: "900", color: BLACK },
+});
