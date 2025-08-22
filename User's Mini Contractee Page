@@ -1,4 +1,4 @@
-// MiniContracteePage.js — no extra dependencies, consistent UI, padlocked Give Feedback
+// MiniContracteeList.js
 import React, { useState } from "react";
 import {
   SafeAreaView,
@@ -6,454 +6,386 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
+  ScrollView,
   TextInput,
   Platform,
-  KeyboardAvoidingView,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+/* ===== Palette / Brand ===== */
+const BLACK = "#111111";
+const WHITE = "#FFFFFF";
+const BG = "#FFFFFF";
+const TEXT = "#111111";
+const MUTED = "#6b7280";
+const CARD = "#ffffff";
+const BDR = "#e5e7eb";
 const YELLOW = "#FFD54A";
-const BLACK = "#000";
-const WHITE = "#FFF";
-const MUTED = "#6B7280";
-const BDR = "#E5E7EB";
-const GREEN = "#4CAF50";
-const RED = "#FF4C4C";
+const GREEN = "#22c55e";
+const RED = "#ef4444";
 
-/** Neutral TAGS (stickers-as-tags) */
-const TAG_OPTIONS = [
-  "Reliable",
-  "Fast",
-  "Thorough",
-  "Creative",
-  "Safety-Focused",
-  "Communicative",
-  "Team Player",
-  "Needs Guidance",
+/* ===== Tag lists (match MiniContractStats) ===== */
+const GREEN_TAGS = [
+  "diplomatic","sharp","punctuality","speed","perfection","quality","reliability","communication",
+  "teamspirit","flexibility","trust","peaceful","proactive","strategic","polite","prudent",
+  "leader","problem-solving"
+];
+const RED_TAGS = [
+  "lateness","unprofessional","conflict","unreliable","dishonesty","wasteful",
+  "unexperienced","disorganized","rigid","slow"
 ];
 
-/** Sample data */
-const initialContracts = [
-  {
-    id: "1",
-    title: "House Construction",
-    roles: ["Bricklayer"],
-    nature: "Block setting for 3-bed foundation",
-    notes: "Bring basic tools; DPC experience preferred.",
-    startDate: "2025-08-20",
-    endDate: "2025-08-30",
-    location: "Lagos, Nigeria",
-    contractPay: "₦120,000",
-    status: "ended", // ended = can give feedback
-    // Double-blind state
-    mySubmitted: false,
-    otherSubmitted: false,
-    ratingPublic: 0,
-    tagsPublic: [],
-    myDraft: { rating: 0, tags: [], review: "" },
-  },
-  {
-    id: "2",
-    title: "Office Painting",
-    roles: ["Painter"],
-    nature: "Prep + 2 coats emulsion, doors/frames gloss",
-    notes: "Paint supplied on site. Show recent work sample.",
-    startDate: "2025-09-02",
-    endDate: "2025-09-05",
-    location: "Abuja, Nigeria",
-    contractPay: "₦80,000",
-    status: "ongoing", // ongoing = locked
-    mySubmitted: false,
-    otherSubmitted: false,
-    ratingPublic: 0,
-    tagsPublic: [],
-    myDraft: { rating: 0, tags: [], review: "" },
-  },
-];
-
-/** Static stars (display) */
-function StarsStatic({ value, size = 18, color = YELLOW }) {
+/* ===== UI bits ===== */
+function StarPicker({ value, onChange, size = 24 }) {
   return (
-    <View style={{ flexDirection: "row" }}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <Ionicons
-          key={i}
-          name={i <= value ? "star" : "star-outline"}
-          size={size}
-          color={color}
-        />
-      ))}
-    </View>
-  );
-}
-
-/** Interactive stars (in form only) */
-function StarsPicker({ value, onChange, disabled }) {
-  return (
-    <View style={{ flexDirection: "row" }}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <TouchableOpacity
-          key={i}
-          disabled={disabled}
-          onPress={() => !disabled && onChange(i)}
-          activeOpacity={disabled ? 1 : 0.7}
-        >
+    <View style={styles.starRow}>
+      {[1,2,3,4,5].map((s) => (
+        <TouchableOpacity key={s} onPress={() => onChange(s)} activeOpacity={0.85} style={{padding:4}}>
           <Ionicons
-            name={i <= value ? "star" : "star-outline"}
-            size={24}
-            color={disabled ? "#CCCCCC" : YELLOW}
+            name={value >= s ? "star" : "star-outline"}
+            size={size}
+            color={BLACK}
           />
         </TouchableOpacity>
       ))}
+      <Text style={[styles.starNum]}>{(value || 0).toFixed(1)}★</Text>
+    </View>
+  );
+}
+function Chip({ text, active, onPress }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={[
+        styles.chip,
+        active && { backgroundColor: "#fef9c3", borderColor: "#d4d4d8" },
+      ]}
+    >
+      <Text style={[styles.chipTxt, active && { fontWeight: "800" }]}>{text}</Text>
+    </TouchableOpacity>
+  );
+}
+
+/* ===== Demo data (replace with your list) ===== */
+const DEMO_CONTRACTS = [
+  {
+    id: "MC-1048",
+    title: "Block setting for 3-bed foundation",
+    role: "Mason",
+    nature: "Bring basic tools; DPC experience preferred.",
+    details: "Prep & set blocks to plan; quality checks required.",
+    start: "2025-08-20",
+    end: "2025-08-30",
+    location: "Lagos, Nigeria",
+    pay: "₦120,000",
+    status: "Ended",
+  },
+  {
+    id: "MC-2081",
+    title: "Office Painting",
+    role: "Painter",
+    nature: "Prep + 2 coats emulsion, doors/frames gloss",
+    details: "Paint supplied on site. Show recent work sample.",
+    start: "2025-09-02",
+    end: "2025-09-05",
+    location: "Abuja, Nigeria",
+    pay: "₦80,000",
+    status: "Ongoing",
+  },
+];
+
+/* ===== Card component with dropdown feedback ===== */
+function ContractCard({ item }) {
+  const [open, setOpen] = useState(false);
+
+  // New fields for stats
+  const [satisfaction, setSatisfaction] = useState(0);
+  const [customerService, setCustomerService] = useState(0);
+  const [greenSelected, setGreenSelected] = useState([]);
+  const [redSelected, setRedSelected] = useState([]);
+  const [privateReview, setPrivateReview] = useState("");
+
+  const toggle = (arr, setArr, t) => {
+    setArr((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+  };
+
+  const canGiveFeedback = item.status === "Ended";
+
+  const submit = () => {
+    if (!satisfaction || !customerService) {
+      return Alert.alert("Missing ratings", "Please set both Satisfaction and Customer Service ratings (1–5).");
+    }
+    const payload = {
+      contractId: item.id,
+      satisfactionRating: satisfaction,
+      customerServiceRating: customerService,
+      greenTags: greenSelected,
+      redTags: redSelected,
+      privateReview: privateReview.trim(),
+    };
+    console.log("MINI_CONTRACT_EVAL_SUBMIT", payload);
+    setOpen(false); // collapse like your first UI
+    Alert.alert("Submitted", "Feedback saved. Hidden until both parties submit.");
+  };
+
+  return (
+    <View style={styles.card}>
+      {/* Header + basics */}
+      <Text style={styles.jobTitle}>{item.title}</Text>
+      <Text style={styles.jobLine}>Roles: <Text style={styles.jobLineStrong}>{item.role}</Text></Text>
+      <Text style={styles.jobLine}>Nature: {item.nature}</Text>
+      <Text style={styles.jobLine}>Details: {item.details}</Text>
+
+      <View style={styles.metaGrid}>
+        <View style={styles.metaCol}>
+          <Text style={styles.metaKey}>Start</Text>
+          <Text style={styles.metaVal}>{item.start}</Text>
+        </View>
+        <View style={styles.metaCol}>
+          <Text style={styles.metaKey}>End</Text>
+          <Text style={styles.metaVal}>{item.end}</Text>
+        </View>
+        <View style={styles.metaCol}>
+          <Text style={styles.metaKey}>Location</Text>
+          <Text style={styles.metaVal}>{item.location}</Text>
+        </View>
+        <View style={styles.metaCol}>
+          <Text style={styles.metaKey}>Contract Pay</Text>
+          <Text style={styles.metaVal}>{item.pay}</Text>
+        </View>
+      </View>
+
+      <View style={styles.statusRow}>
+        <Text style={[styles.status, { color: item.status === "Ended" ? GREEN : RED }]}>
+          {item.status}
+        </Text>
+
+        <TouchableOpacity
+          disabled={!canGiveFeedback}
+          onPress={() => setOpen((v) => !v)}
+          activeOpacity={0.9}
+          style={[
+            styles.fbBtn,
+            { backgroundColor: canGiveFeedback ? "#22c55e" : "#fda4af" },
+          ]}
+        >
+          <Ionicons
+            name={canGiveFeedback ? "create-outline" : "lock-closed-outline"}
+            size={16}
+            color="#ffffff"
+          />
+          <Text style={styles.fbBtnTxt}>Give Feedback</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Double-blind note */}
+      <View style={styles.blindRow}>
+        <Ionicons name="lock-closed-outline" size={14} color={MUTED} />
+        <Text style={styles.blindTxt}>  Hidden until both parties submit (double-blind)</Text>
+      </View>
+
+      {/* Dropdown feedback — matches your older UI but with new fields */}
+      {open && (
+        <View style={styles.feedbackBox}>
+          {/* Satisfaction */}
+          <Text style={styles.sectionLabel}>Satisfaction Rating</Text>
+          <StarPicker value={satisfaction} onChange={setSatisfaction} />
+
+          {/* Customer Service */}
+          <Text style={[styles.sectionLabel, { marginTop: 12 }]}>Customer Service Rating</Text>
+          <StarPicker value={customerService} onChange={setCustomerService} />
+
+          {/* Green tags */}
+          <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Green Tags (Strengths)</Text>
+          <View style={styles.chipsWrap}>
+            {GREEN_TAGS.map((t) => (
+              <Chip
+                key={t}
+                text={t}
+                active={greenSelected.includes(t)}
+                onPress={() => toggle(greenSelected, setGreenSelected, t)}
+              />
+            ))}
+          </View>
+
+          {/* Red tags */}
+          <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Red Tags (Risks)</Text>
+          <View style={styles.chipsWrap}>
+            {RED_TAGS.map((t) => (
+              <Chip
+                key={t}
+                text={t}
+                active={redSelected.includes(t)}
+                onPress={() => toggle(redSelected, setRedSelected, t)}
+              />
+            ))}
+          </View>
+
+          {/* Private review */}
+          <Text style={[styles.sectionLabel, { marginTop: 16 }]}>
+            Review <Text style={{ color: MUTED }}>(private to system)</Text>
+          </Text>
+          <TextInput
+            value={privateReview}
+            onChangeText={setPrivateReview}
+            placeholder="Write a short private review..."
+            placeholderTextColor="#9ca3af"
+            multiline
+            style={styles.reviewBox}
+          />
+
+          <View style={styles.warnRow}>
+            <Ionicons name="alert-circle-outline" size={16} color={RED} />
+            <Text style={styles.warnTxt}>  Feedback can only be submitted once and cannot be changed.</Text>
+          </View>
+
+          {/* Submit */}
+          <TouchableOpacity activeOpacity={0.9} style={styles.submitBtn} onPress={submit}>
+            <Text style={styles.submitTxt}>Submit</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
 
-export default function MiniContracteePage() {
-  const [contracts, setContracts] = useState(initialContracts);
-  const [openForm, setOpenForm] = useState({}); // { [id]: boolean }
-
-  const updateDraft = (id, patch) => {
-    setContracts((prev) =>
-      prev.map((c) =>
-        c.id === id ? { ...c, myDraft: { ...c.myDraft, ...patch } } : c
-      )
-    );
-  };
-
-  const toggleTag = (c, tag, disabled) => {
-    if (disabled) return;
-    const sel = new Set(c.myDraft.tags);
-    sel.has(tag) ? sel.delete(tag) : sel.add(tag);
-    updateDraft(c.id, { tags: Array.from(sel) });
-  };
-
-  /** Submit my feedback (one-time, only when ended & not already submitted) */
-  const submitFeedback = (c) => {
-    const canSubmit = c.status === "ended" && !c.mySubmitted;
-    if (!canSubmit) return;
-    setContracts((prev) =>
-      prev.map((x) => (x.id === c.id ? { ...x, mySubmitted: true } : x))
-    );
-    setOpenForm((p) => ({ ...p, [c.id]: false }));
-  };
-
-  const renderItem = ({ item: c }) => {
-    const isEnded = c.status === "ended";
-    const canOpenForm = isEnded && !c.mySubmitted;
-    const formOpen = !!openForm[c.id];
-    const bothSubmitted = c.mySubmitted && c.otherSubmitted;
-
-    return (
-      <View style={styles.card}>
-        {/* Title */}
-        <Text style={styles.title}>{c.title}</Text>
-
-        {/* Meta */}
-        <Text style={styles.field}>Roles: {c.roles.join(", ")}</Text>
-        <Text style={styles.field}>Nature: {c.nature}</Text>
-        <Text style={styles.field}>Details: {c.notes}</Text>
-
-        {/* Dates & Location & Pay */}
-        <View style={styles.row}>
-          <Field label="Start" value={c.startDate} />
-          <Field label="End" value={c.endDate} />
-        </View>
-        <View style={styles.row}>
-          <Field label="Location" value={c.location} />
-          <Field label="Contract Pay" value={c.contractPay} />
-        </View>
-
-        {/* Status line with colors */}
-        <View style={styles.statusRow}>
-          <Text style={[styles.statusText, { color: isEnded ? GREEN : RED }]}>
-            {isEnded ? "Ended" : "Ongoing"}
-          </Text>
-
-          {/* Give Feedback button with padlock when locked */}
-          <TouchableOpacity
-            activeOpacity={canOpenForm ? 0.85 : 1}
-            disabled={!canOpenForm}
-            onPress={() => setOpenForm((p) => ({ ...p, [c.id]: !p[c.id] }))}
-            style={[
-              styles.feedbackBtn,
-              { backgroundColor: isEnded ? GREEN : RED },
-              !canOpenForm && { opacity: 0.8 },
-            ]}
-          >
-            <View style={styles.btnContent}>
-              {!canOpenForm && (
-                <Ionicons
-                  name="lock-closed"
-                  size={16}
-                  color={WHITE}
-                  style={{ marginRight: 6 }}
-                />
-              )}
-              <Text style={styles.feedbackBtnText}>Give Feedback</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Visibility rule */}
-        {bothSubmitted ? (
-          <>
-            <Text style={styles.sectionTitle}>Published Feedback</Text>
-            <View style={styles.pubRow}>
-              <StarsStatic value={c.ratingPublic || 0} />
-              <Text style={styles.pubNote}>Visible (both submitted)</Text>
-            </View>
-            {c.tagsPublic.length > 0 ? (
-              <View style={styles.tagsWrap}>
-                {c.tagsPublic.map((t) => (
-                  <View key={t} style={styles.tagChip}>
-                    <Text style={styles.tagText}>{t}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-            <Text style={styles.privateNote}>
-              Review: Private to system (not displayed)
-            </Text>
-          </>
-        ) : (
-          <>
-            <Text style={styles.sectionTitle}>Feedback</Text>
-            <View style={styles.pubRow}>
-              <Ionicons name="lock-closed-outline" size={16} color={MUTED} />
-              <Text style={styles.lockText}>
-                Hidden until both parties submit (double-blind)
-              </Text>
-            </View>
-          </>
-        )}
-
-        {/* Form (only toggles open; inputs disabled if not allowed) */}
-        {formOpen && (
-          <View style={styles.formWrap}>
-            <Text style={styles.formLabel}>Rating</Text>
-            <StarsPicker
-              value={c.myDraft.rating}
-              onChange={(v) => updateDraft(c.id, { rating: v })}
-              disabled={!canOpenForm}
-            />
-
-            <Text style={[styles.formLabel, { marginTop: 12 }]}>
-              Tags (stickers)
-            </Text>
-            <View style={styles.tagsWrap}>
-              {TAG_OPTIONS.map((t) => {
-                const active = c.myDraft.tags.includes(t);
-                return (
-                  <TouchableOpacity
-                    key={t}
-                    onPress={() => toggleTag(c, t, !canOpenForm ? true : false)}
-                    activeOpacity={canOpenForm ? 0.85 : 1}
-                    style={[
-                      styles.tagChip,
-                      active && styles.tagChipActive,
-                      !canOpenForm && { opacity: 0.5 },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.tagText,
-                        active && styles.tagTextActive,
-                      ]}
-                    >
-                      {t}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <Text style={[styles.formLabel, { marginTop: 12 }]}>
-              Review (private to system)
-            </Text>
-            <TextInput
-              placeholder="Write a short private review…"
-              placeholderTextColor="#9AA0A6"
-              value={c.myDraft.review}
-              onChangeText={(txt) => updateDraft(c.id, { review: txt })}
-              style={[
-                styles.input,
-                styles.inputMultiline,
-                !canOpenForm && styles.inputDisabled,
-              ]}
-              editable={canOpenForm}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-
-            <Text style={styles.warning}>
-              ⚠️ Feedback can only be submitted once and cannot be changed.
-            </Text>
-
-            <TouchableOpacity
-              activeOpacity={canOpenForm ? 0.9 : 1}
-              onPress={() => submitFeedback(c)}
-              style={[
-                styles.submitBtn,
-                { backgroundColor: canOpenForm ? YELLOW : "#CCCCCC" },
-                !canOpenForm && { borderColor: "#CCCCCC" },
-              ]}
-              disabled={!canOpenForm}
-            >
-              <Text style={styles.submitBtnText}>Submit</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-    );
-  };
+/* ===== Page ===== */
+export default function MiniContracteeList() {
+  StatusBar.setBarStyle("light-content");
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
-
-      {/* Top Bar (consistent UI) */}
+    <SafeAreaView style={{ flex: 1, backgroundColor: BG }}>
+      {/* Top bar */}
       <View style={styles.topBar}>
-        <Text style={styles.topBarTitle}>Mini Contractee</Text>
+        <TouchableOpacity activeOpacity={0.7} style={{ width: 40, height: 36, justifyContent: "center" }}>
+          <Ionicons name="chevron-back" size={24} color={"#fff"} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Mini Contractee</Text>
+        <View style={{ width: 40 }} />
       </View>
       <View style={styles.topAccent} />
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <FlatList
-          data={contracts}
-          keyExtractor={(it) => it.id}
-          renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 120 }}
-          keyboardShouldPersistTaps="handled"
-        />
-      </KeyboardAvoidingView>
+      <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 20 }}>
+        {DEMO_CONTRACTS.map((c) => (
+          <ContractCard key={c.id} item={c} />
+        ))}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-/* ------------ Small Field block ------------ */
-function Field({ label, value }) {
-  return (
-    <View style={{ flex: 1 }}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <Text style={styles.fieldValue}>{value}</Text>
-    </View>
-  );
-}
-
-/* --------------- Styles --------------- */
+/* ===== Styles ===== */
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: WHITE },
-
+  /* Top bar */
   topBar: {
-    backgroundColor: BLACK,
-    height: 70,
-    alignItems: "center",
-    justifyContent: "flex-end",
+    backgroundColor: "#000",
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
     paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
   },
-  topBarTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
   topAccent: { height: 3, backgroundColor: YELLOW },
+  topTitle: { color: "#fff", fontSize: 22, fontWeight: "900" },
 
+  /* Cards */
   card: {
-    margin: 14,
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: WHITE,
-    borderWidth: 1.5,
+    backgroundColor: CARD,
+    borderRadius: 16,
+    borderWidth: 1,
     borderColor: BDR,
+    padding: 14,
+    marginBottom: 14,
+    elevation: 1,
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
   },
-  title: { fontSize: 17, fontWeight: "800", color: BLACK, marginBottom: 6 },
+  jobTitle: { fontSize: 18, fontWeight: "900", color: TEXT, marginBottom: 6 },
+  jobLine: { color: TEXT, fontSize: 14, marginTop: 2 },
+  jobLineStrong: { fontWeight: "800" },
 
-  fieldLabel: { fontSize: 12, color: MUTED, marginBottom: 2, fontWeight: "700" },
-  fieldValue: { fontSize: 14, color: "#222" },
-
-  row: { flexDirection: "row", gap: 10, marginTop: 6 },
+  metaGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 14,
+    marginTop: 10,
+  },
+  metaCol: { width: "46%" },
+  metaKey: { fontSize: 13, color: MUTED, fontWeight: "800" },
+  metaVal: { fontSize: 16, color: TEXT, fontWeight: "800", marginTop: 2 },
 
   statusRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 10,
+    marginTop: 12,
   },
-  statusText: { fontWeight: "900" },
-
-  feedbackBtn: {
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  btnContent: { flexDirection: "row", alignItems: "center" },
-  feedbackBtnText: { color: WHITE, fontWeight: "900" },
-
-  sectionTitle: { marginTop: 12, fontSize: 13, fontWeight: "900", color: BLACK },
-
-  pubRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
-  pubNote: { fontSize: 12, color: MUTED, fontWeight: "700" },
-  lockText: { fontSize: 12, color: MUTED, fontWeight: "700" },
-  privateNote: { marginTop: 6, fontSize: 12, color: MUTED, fontStyle: "italic" },
-
-  formWrap: {
-    marginTop: 10,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#E5E5E5",
-    backgroundColor: "#FAFAFA",
-  },
-  formLabel: { fontWeight: "800", color: BLACK, marginBottom: 6 },
-
-  tagsWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
-  tagChip: {
-    borderWidth: 2,
-    borderColor: BLACK,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: WHITE,
-  },
-  tagChipActive: { backgroundColor: YELLOW, borderColor: YELLOW },
-  tagText: { fontSize: 12, fontWeight: "800", color: BLACK },
-  tagTextActive: { color: BLACK },
-
-  input: {
-    borderWidth: 2,
-    borderColor: BLACK,
-    borderRadius: 10,
-    paddingHorizontal: 10,
+  status: { fontSize: 14, fontWeight: "900" },
+  fbBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: WHITE,
-    color: BLACK,
+    borderRadius: 12,
   },
-  inputMultiline: { minHeight: 90 },
-  inputDisabled: { opacity: 0.5 },
+  fbBtnTxt: { color: "#fff", fontWeight: "900" },
 
-  warning: {
+  blindRow: { flexDirection: "row", alignItems: "center", marginTop: 10 },
+  blindTxt: { color: MUTED, fontSize: 12, fontWeight: "600" },
+
+  /* Dropdown feedback box (soft UI) */
+  feedbackBox: {
+    borderWidth: 1,
+    borderColor: BDR,
+    borderRadius: 16,
+    padding: 12,
     marginTop: 10,
-    fontSize: 12,
-    color: "#B91C1C",
-    fontWeight: "700",
-    textAlign: "center",
+    backgroundColor: "#fafafa",
   },
+  sectionLabel: { fontSize: 16, fontWeight: "900", color: TEXT, marginBottom: 8 },
+  starRow: { flexDirection: "row", alignItems: "center", gap: 2 },
+  starNum: { marginLeft: 8, fontSize: 16, fontWeight: "900", color: TEXT },
+
+  chipsWrap: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  chip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: "#111827",
+    backgroundColor: "#fff",
+  },
+  chipTxt: { color: TEXT, fontWeight: "700" },
+
+  reviewBox: {
+    minHeight: 120,
+    borderWidth: 2,
+    borderColor: "#111827",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: TEXT,
+    backgroundColor: "#fff",
+    textAlignVertical: "top",
+  },
+  warnRow: { flexDirection: "row", alignItems: "center", marginTop: 10 },
+  warnTxt: { color: RED, fontSize: 12, fontWeight: "800" },
+
   submitBtn: {
     marginTop: 12,
-    borderRadius: 10,
-    paddingVertical: 10,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: YELLOW,
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: BLACK,
+    justifyContent: "center",
   },
-  submitBtnText: { fontWeight: "900", color: BLACK },
+  submitTxt: { fontSize: 16, fontWeight: "900", color: BLACK },
 });
-
