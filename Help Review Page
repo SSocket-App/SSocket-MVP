@@ -1,4 +1,4 @@
-// App.js
+// App.js — Help Review page with Volunteer dropdown feedback (no tip, updated warning)
 import React, { useMemo, useRef, useState } from "react";
 import {
   SafeAreaView,
@@ -11,100 +11,115 @@ import {
   FlatList,
   Pressable,
   Alert,
+  TextInput,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 
 const BLACK = "#000";
 const WHITE = "#FFF";
 const YELLOW = "#FFD54A";
+const MUTED = "#6B7280";
 
-/** Sample volunteers (replace with real data) */
+/* ==== Tag sets — MUST match HelpStats.js ==== */
+const GREEN_TAGS = [
+  "Creative","Analytical","Practical","Detailed",
+  "Helpful","Insightful","Innovative","Professional",
+];
+const RED_TAGS = [
+  "Undetailed explanation","Overcomplicated","Unconcreted illustration",
+  "Unclear solution","Not actionable","Messy explanation","Misleading fact",
+];
+
+/** Sample volunteers */
 const VOLUNTEERS = [
-  { id: "v1", name: "Anonymous 1", response: "Reconciled POS vs bank settlement; adjusted for timezone offsets; re-ran batches with detailed logging." },
-  { id: "v2", name: "Anonymous 2", response: "Checked firmware and network stability; added stabilizer; verified breaker ratings at peak load." },
-  { id: "v3", name: "Anonymous 3", response: "Created incident log; compared timestamps; exported raw logs; isolated module before hotfix." },
-  { id: "v4", name: "Anonymous 4", response: "Enabled audit trails; rebuilt index; validated merchant fee mappings and cutoff windows." },
+  { id: "v1", name: "Anonymous 1",
+    response: "Reconciled POS vs bank settlement; adjusted for timezone offsets; re-ran batches with detailed logging." },
+  { id: "v2", name: "Anonymous 2",
+    response: "Checked firmware and network stability; added stabilizer; verified breaker ratings at peak load." },
+  { id: "v3", name: "Anonymous 3",
+    response: "Created incident log; compared timestamps; exported raw logs; isolated module before hotfix." },
+  { id: "v4", name: "Anonymous 4",
+    response: "Enabled audit trails; rebuilt index; validated merchant fee mappings and cutoff windows." },
 ];
 
 export default function App() {
   const [winnerId, setWinnerId] = useState(null);
-  const [ratings, setRatings] = useState(
-    Object.fromEntries(VOLUNTEERS.map(v => [v.id, 0]))
-  );
 
-  // volunteers counter
-  const threshold = 7;
-  const count = VOLUNTEERS.length;
+  // dropdown state per volunteer
+  const [open, setOpen] = useState({});
+  const [submitted, setSubmitted] = useState({}); // one-time guard
+
+  // local drafts per volunteer
+  const [drafts, setDrafts] = useState(() =>
+    Object.fromEntries(
+      VOLUNTEERS.map(v => [v.id, { rating: 0, greenTags: [], redTags: [], review: "" }])
+    )
+  );
 
   const data = useMemo(() => VOLUNTEERS, []);
   const listRef = useRef(null);
 
-  const handleRate = (id, n) => {
-    setRatings(prev => {
-      const curr = prev[id] || 0;
-      // tap same star again -> decrease (n-1), else set to n
-      const next = (n === curr) ? n - 1 : n;
-      return { ...prev, [id]: Math.max(0, Math.min(5, next)) };
-    });
+  const toggleOpen = (id) => {
+    if (submitted[id]) return;
+    setOpen(p => ({ ...p, [id]: !p[id] }));
   };
 
-  const handleDoubleTap = (id) => {
-    setWinnerId(prev => (prev === id ? null : id));
+  const updateDraft = (id, patch) =>
+    setDrafts(p => ({ ...p, [id]: { ...p[id], ...patch } }));
+
+  const toggleChip = (id, key, tag) => {
+    const prev = drafts[id]?.[key] || [];
+    const next = prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag];
+    updateDraft(id, { [key]: next });
+  };
+
+  const submitFeedback = (id) => {
+    const d = drafts[id] || {};
+    if (!d.rating) return Alert.alert("Missing rating", "Please give a 1–5★ rating.");
+    const payload = {
+      volunteerSolutionId: id,
+      rating: d.rating,
+      greenTags: d.greenTags,
+      redTags: d.redTags,
+      privateReview: (d.review || "").trim(),
+    };
+    console.log("HELP_REVIEW_SUBMIT", payload);
+    setSubmitted(p => ({ ...p, [id]: true }));
+    setOpen(p => ({ ...p, [id]: false }));
+    Alert.alert("Submitted", "Solution can only be offered once.");
   };
 
   const renderItem = ({ item }) => (
     <VolunteerCard
       item={item}
-      rating={ratings[item.id] || 0}
       isWinner={item.id === winnerId}
-      onRate={(n) => handleRate(item.id, n)}
-      onDoubleTap={() => handleDoubleTap(item.id)}
+      isOpen={!!open[item.id]}
+      isSubmitted={!!submitted[item.id]}
+      draft={drafts[item.id]}
+      onToggleOpen={() => toggleOpen(item.id)}
+      onSetRating={(n) => updateDraft(item.id, { rating: n })}
+      onToggleGreen={(tag) => toggleChip(item.id, "greenTags", tag)}
+      onToggleRed={(tag) => toggleChip(item.id, "redTags", tag)}
+      onChangeReview={(txt) => updateDraft(item.id, { review: txt })}
+      onSubmit={() => submitFeedback(item.id)}
     />
   );
-
-  const onPublish = () => {
-    if (!winnerId) {
-      Alert.alert("Pick a winner", "Double tap a response to select a winner.");
-      return;
-    }
-    const winner = VOLUNTEERS.find(v => v.id === winnerId);
-    Alert.alert("Published", `Winner: ${winner?.name || "Unknown"}`);
-  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={BLACK} />
 
-      {/* Top bar WITH chat bubble + exclamation */}
+      {/* Top bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backBox} activeOpacity={0.8}>
           <Ionicons name="chevron-back" size={24} color={WHITE} />
         </TouchableOpacity>
 
-        <View style={styles.topCenter}>
-          <Text style={styles.topTitle}>Helps</Text>
-          <View style={styles.chatIconWrap}>
-            <Ionicons name="chatbox-outline" size={20} color={WHITE} />
-            <Text style={styles.exMark}>!</Text>
-          </View>
-          <Text style={styles.topTitle}>Review</Text>
-        </View>
+        <Text style={styles.topTitle}>Helps Review</Text>
 
         <View style={{ width: 40 }} />
       </View>
       <View style={styles.topAccent} />
-
-      {/* Volunteers counter (top-right, under bar) */}
-      <View style={styles.counterWrap}>
-        <Text style={styles.counterText}>{count}/{threshold}</Text>
-      </View>
-
-      {/* Tip */}
-      <View style={styles.tip}>
-        <Text style={styles.tipText}>
-          Double tap a response and press Publish to pick a winner <Text>🌟</Text>
-        </Text>
-      </View>
 
       {/* Scrollable list */}
       <FlatList
@@ -115,79 +130,50 @@ export default function App() {
         contentContainerStyle={{ paddingBottom: 20 }}
         showsVerticalScrollIndicator={false}
       />
-
-      {/* Publish */}
-      <View style={styles.publishWrap}>
-        <TouchableOpacity
-          style={[styles.publishBtn, { opacity: winnerId ? 1 : 0.5 }]}
-          onPress={onPublish}
-          disabled={!winnerId}
-          activeOpacity={0.9}
-        >
-          <Text style={styles.publishText}>Publish</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
 
-/* ---------- Volunteer Card ---------- */
-function VolunteerCard({ item, rating, isWinner, onRate, onDoubleTap }) {
-  // double-tap detector (per-card)
-  const lastTapRef = useRef(0);
-  const onPress = () => {
-    const now = Date.now();
-    if (now - lastTapRef.current < 300) {
-      onDoubleTap();
-    }
-    lastTapRef.current = now;
-  };
+/* ---------- Small UI ---------- */
+function StarsPicker({ value, onChange, disabled }) {
+  return (
+    <View style={{ flexDirection: "row" }}>
+      {[1,2,3,4,5].map(i => (
+        <TouchableOpacity
+          key={i}
+          disabled={disabled}
+          onPress={() => !disabled && onChange(i)}
+          activeOpacity={disabled ? 1 : 0.7}
+          style={{ marginRight: 3 }}
+        >
+          <Ionicons
+            name={i <= value ? "star" : "star-outline"}
+            size={22}
+            color={disabled ? "#CCC" : YELLOW}
+          />
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
 
+/* ---------- Volunteer Card ---------- */
+function VolunteerCard({
+  item, isWinner, isOpen, isSubmitted,
+  draft, onToggleOpen,
+  onSetRating, onToggleGreen, onToggleRed,
+  onChangeReview, onSubmit
+}) {
   return (
     <Pressable
-      onPress={onPress}
-      style={[
-        styles.card,
-        isWinner && { borderColor: YELLOW, backgroundColor: "#FFFDF2" },
-      ]}
+      style={[styles.card, isWinner && { borderColor: YELLOW, backgroundColor: "#FFFDF2" }]}
     >
       <View style={styles.cardHeader}>
-        <View style={styles.avatar}>
-          <View style={styles.avatarHead} />
-          <View style={styles.avatarBody} />
-        </View>
         <Text style={styles.name}>{item.name}</Text>
-        <Ionicons name="document-text-outline" size={16} color={BLACK} />
-      </View>
-
-      {/* Stars (interactive) + Sticker icon on the RIGHT */}
-      <View style={styles.starRow}>
-        {Array.from({ length: 5 }).map((_, i) => {
-          const n = i + 1;
-          const filled = n <= rating;
-          return (
-            <TouchableOpacity
-              key={i}
-              onPress={() => onRate(n)}
-              activeOpacity={0.7}
-              style={{ marginRight: 3 }}
-            >
-              <Ionicons
-                name={filled ? "star" : "star-outline"}
-                size={20}
-                color={YELLOW}
-              />
-            </TouchableOpacity>
-          );
-        })}
-
-        {/* WhatsApp-like Sticker icon (to the right of stars) */}
-        <MaterialCommunityIcons
-          name="sticker-emoji"
-          size={20}
-          color="#4CAF50"
-          style={{ marginLeft: 10 }}
-        />
+        <TouchableOpacity onPress={onToggleOpen} activeOpacity={0.8} style={styles.volBtn}>
+          <Text style={styles.volTxt}>Volunteer</Text>
+          <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={16} color={BLACK} style={{ marginLeft: 6 }} />
+        </TouchableOpacity>
       </View>
 
       {/* Response text */}
@@ -195,26 +181,66 @@ function VolunteerCard({ item, rating, isWinner, onRate, onDoubleTap }) {
         <Text style={styles.responseText}>{item.response}</Text>
       </View>
 
-      {/* Action row: Save + Share icons */}
-      <View style={styles.actionsRow}>
-        <TouchableOpacity
-          style={styles.actionBtn}
-          onPress={() => Alert.alert("Saved", "Answer saved.")}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="bookmark-outline" size={18} color={BLACK} />
-          <Text style={styles.actionText}>Save</Text>
-        </TouchableOpacity>
+      {/* Dropdown content (feedback) */}
+      {isOpen && !isSubmitted && (
+        <View style={styles.feedbackWrap}>
+          <Text style={styles.formLabel}>Rating</Text>
+          <StarsPicker value={draft?.rating || 0} onChange={onSetRating} disabled={false} />
 
-        <TouchableOpacity
-          style={styles.actionBtn}
-          onPress={() => Alert.alert("Share", "Open share sheet.")}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="share-social-outline" size={18} color={BLACK} />
-          <Text style={styles.actionText}>Share</Text>
-        </TouchableOpacity>
-      </View>
+          <Text style={[styles.formLabel, { marginTop: 12 }]}>Green Tags (Strengths)</Text>
+          <View style={styles.tagsWrap}>
+            {GREEN_TAGS.map(t => {
+              const active = draft?.greenTags?.includes(t);
+              return (
+                <TouchableOpacity
+                  key={t}
+                  onPress={() => onToggleGreen(t)}
+                  activeOpacity={0.85}
+                  style={[styles.tagChip, active && styles.tagChipActive]}
+                >
+                  <Text style={[styles.tagText, active && styles.tagTextActive]}>{t}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={[styles.formLabel, { marginTop: 12 }]}>Red Tags (Reasons not 5★)</Text>
+          <View style={styles.tagsWrap}>
+            {RED_TAGS.map(t => {
+              const active = draft?.redTags?.includes(t);
+              return (
+                <TouchableOpacity
+                  key={t}
+                  onPress={() => onToggleRed(t)}
+                  activeOpacity={0.85}
+                  style={[styles.tagChip, active && styles.tagChipActive]}
+                >
+                  <Text style={[styles.tagText, active && styles.tagTextActive]}>{t}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={[styles.formLabel, { marginTop: 12 }]}>Review (private to system)</Text>
+          <TextInput
+            placeholder="Write a short private review…"
+            placeholderTextColor="#9AA0A6"
+            value={draft?.review || ""}
+            onChangeText={onChangeReview}
+            style={[styles.input, styles.inputMultiline]}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
+          <Text style={styles.privateNote}>🔒 Reviews are private and only visible to the system.</Text>
+
+          <Text style={styles.warning}>⚠️ Solution can only be offered once.</Text>
+
+          <TouchableOpacity activeOpacity={0.9} onPress={onSubmit} style={styles.submitBtn}>
+            <Text style={styles.submitBtnText}>Submit</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -235,116 +261,55 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   backBox: { width: 40, height: 36, justifyContent: "center" },
-
-  topCenter: { flexDirection: "row", alignItems: "center", gap: 8 },
   topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
-
-  // chatbox with "!" overlay
-  chatIconWrap: {
-    position: "relative",
-    width: 22,
-    height: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  exMark: {
-    position: "absolute",
-    top: -2,
-    left: 8,
-    color: WHITE,
-    fontWeight: "900",
-    fontSize: 12,
-  },
-
   topAccent: { height: 3, backgroundColor: YELLOW },
-
-  /* counter */
-  counterWrap: {
-    alignItems: "flex-end",
-    paddingHorizontal: 12,
-    paddingTop: 6,
-    paddingBottom: 2,
-  },
-  counterText: { color: BLACK, fontWeight: "800" },
-
-  /* tip */
-  tip: { paddingHorizontal: 12, paddingVertical: 8 },
-  tipText: { color: "#444", fontSize: 13 },
 
   /* card */
   card: {
-    marginHorizontal: 12,
-    marginVertical: 8,
-    borderWidth: 2,
-    borderColor: BLACK,
-    borderRadius: 10,
-    padding: 10,
-    backgroundColor: WHITE,
+    marginHorizontal: 12, marginVertical: 8,
+    borderWidth: 2, borderColor: BLACK, borderRadius: 10,
+    padding: 10, backgroundColor: WHITE,
   },
   cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  avatar: {
-    width: 34, height: 34, borderRadius: 17,
-    borderWidth: 2, borderColor: BLACK,
-    alignItems: "center", justifyContent: "center",
-    backgroundColor: WHITE, marginRight: 8,
-  },
-  avatarHead: {
-    width: 9, height: 9, borderRadius: 4.5,
-    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE, marginBottom: 1,
-  },
-  avatarBody: {
-    width: 14, height: 7, borderRadius: 5,
-    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8,
   },
   name: { flex: 1, marginLeft: 8, color: BLACK, fontSize: 16, fontWeight: "800" },
 
-  /* stars + sticker */
-  starRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+  volBtn: {
+    borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10,
+    flexDirection: "row", alignItems: "center",
+    borderWidth: 2, borderColor: BLACK, backgroundColor: YELLOW,
+  },
+  volTxt: { fontWeight: "900", color: BLACK },
 
   /* response */
-  responseBox: {
-    borderWidth: 1,
-    borderColor: "#E5E5E5",
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: "#FAFAFA",
-  },
+  responseBox: { borderWidth: 1, borderColor: "#E5E5E5", borderRadius: 8, padding: 10, backgroundColor: "#FAFAFA" },
   responseText: { color: "#333", fontSize: 13 },
 
-  /* actions */
-  actionsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginTop: 10,
+  /* feedback dropdown */
+  feedbackWrap: { marginTop: 10, padding: 12, borderRadius: 12, borderWidth: 1.5, borderColor: "#E5E5E5", backgroundColor: "#FAFAFA" },
+  formLabel: { fontWeight: "800", color: BLACK, marginBottom: 6, fontSize: 13 },
+  input: {
+    height: 44, borderWidth: 2, borderColor: BLACK, borderRadius: 10,
+    paddingHorizontal: 10, backgroundColor: WHITE, color: BLACK,
   },
-  actionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 2,
-    borderColor: BLACK,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: WHITE,
-  },
-  actionText: { color: BLACK, fontWeight: "800", fontSize: 12 },
+  inputMultiline: { height: 92, textAlignVertical: "top" },
 
-  /* publish */
-  publishWrap: { paddingHorizontal: 12, paddingVertical: 10 },
-  publishBtn: {
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: BLACK,
-    alignItems: "center",
-    justifyContent: "center",
+  tagsWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
+  tagChip: {
+    borderWidth: 2, borderColor: BLACK, borderRadius: 999,
+    paddingHorizontal: 10, paddingVertical: 6, backgroundColor: WHITE,
   },
-  publishText: { color: WHITE, fontWeight: "900", fontSize: 16 },
+  tagChipActive: { backgroundColor: YELLOW, borderColor: YELLOW },
+  tagText: { fontSize: 12, fontWeight: "800", color: BLACK },
+  tagTextActive: { color: BLACK },
+
+  privateNote: { marginTop: 6, fontSize: 12, color: MUTED, fontStyle: "italic" },
+  warning: { marginTop: 10, fontSize: 12, color: "#B91C1C", fontWeight: "700", textAlign: "center" },
+
+  submitBtn: {
+    marginTop: 12, borderRadius: 10, paddingVertical: 10, alignItems: "center",
+    borderWidth: 2, borderColor: BLACK, backgroundColor: YELLOW,
+  },
+  submitBtnText: { fontWeight: "900", color: BLACK },
 });
-
