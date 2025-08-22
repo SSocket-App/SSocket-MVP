@@ -299,7 +299,7 @@ function StarMeter({ value = 0 }) {
 
 /* ===== Main Page ===== */
 export default function App() {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false); // kept for chip onPress (setMenuOpen(false))
   const [niche, setNiche] = useState("All");
 
   const d = DATA[niche];
@@ -314,7 +314,6 @@ export default function App() {
   const shiftEnd   = (dir) => setEndIdx((e) => Math.max(startIdx, Math.min(all.length - 1, e + dir)));
 
   /* === Toggles === */
-  // Shared toggle for BOTH Average Rating + Star Distribution
   const [ratingDistScope, setRatingDistScope] = useState("interval"); // 'interval' | 'all'
   const [winScope, setWinScope] = useState("interval");
   const [consScope, setConsScope] = useState("interval");
@@ -335,7 +334,6 @@ export default function App() {
     const totalDays = inRange.length;
     const avgPerHelp = helps ? (gainedStars / helps) : 0;
 
-    // Interval 14-dot map
     const last14 = inRange.slice(-14);
     const consMap = Array(14).fill(false);
     const start = Math.max(0, 14 - last14.length);
@@ -368,7 +366,6 @@ export default function App() {
   const catAllTotal = sumVals(d.categories);
   const catEntries = Object.entries(d.categories);
 
-  // small toggle row helper
   const ToggleRow = ({ scope, setScope }) => (
     <View style={styles.toggleRow}>
       <TouchableOpacity
@@ -392,26 +389,20 @@ export default function App() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={BLACK} />
 
-      {/* Top bar */}
+      {/* Top bar (avatar + 3-dots removed) */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backBtn} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={24} color={WHITE} />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <View style={styles.avatar}>
-            <View style={styles.avatarHead} />
-            <View style={styles.avatarBody} />
-          </View>
           <View>
             <Text style={styles.name}>John Doe</Text>
             <Text style={styles.rank}>Level 5</Text>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.menuBtn} activeOpacity={0.7} onPress={() => setMenuOpen(v=>!v)}>
-          <Ionicons name="ellipsis-vertical" size={20} color={WHITE} />
-        </TouchableOpacity>
+        <View style={{ width: 40, height: 36 }} />
       </View>
 
       <View style={styles.topAccent} />
@@ -630,16 +621,8 @@ const styles = StyleSheet.create({
   },
   topAccent: { height: TOP_ACCENT, backgroundColor: YELLOW },
   backBtn: { width: 40, height: 36, justifyContent: "center" },
-  menuBtn: { width: 40, height: 36, justifyContent: "center", alignItems: "flex-end" },
 
   headerCenter: { flexDirection: "row", alignItems: "center", gap: 10 },
-  avatar: {
-    width: 36, height: 36, borderRadius: 18,
-    borderWidth: 2, borderColor: WHITE,
-    alignItems: "center", justifyContent: "center", backgroundColor: BLACK,
-  },
-  avatarHead: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: WHITE, backgroundColor: BLACK, marginBottom: 1 },
-  avatarBody: { width: 16, height: 8, borderRadius: 5, borderWidth: 2, borderColor: WHITE, backgroundColor: BLACK },
   name: { color: WHITE, fontWeight: "900", fontSize: 16, lineHeight: 16 },
   rank: { color: "#DADADA", fontSize: 12, marginTop: 2 },
 
