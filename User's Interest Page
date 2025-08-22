@@ -1,4 +1,4 @@
-// InterestsPage.js
+// InterestsPage.js 
 import React, { useState } from "react";
 import {
   SafeAreaView,
@@ -205,8 +205,13 @@ export default function InterestsPage() {
       <View style={styles.topAccent} />
 
       <View style={styles.headerWrap}>
-        <Text style={styles.h1}>What this user loves to solve</Text>
+        {/* UPDATED heading */}
+        <Text style={styles.h1}>What problems are you interested in solving</Text>
         <Text style={styles.sub}>Tap a category to expand and view occupations.</Text>
+        {/* NEW red note */}
+        <Text style={styles.noteRed}>
+          Note: you cannot be a volunteer for help request outside your interest
+        </Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -266,6 +271,12 @@ const styles = StyleSheet.create({
   headerWrap: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 4 },
   h1: { fontSize: 18, fontWeight: "800", color: TEXT },
   sub: { marginTop: 4, fontSize: 13, color: MUTED },
+  noteRed: {
+    marginTop: 6,
+    fontSize: 13,
+    color: "red",
+    fontWeight: "800",
+  },
 
   scroll: { paddingHorizontal: 18, paddingBottom: 20 },
 
