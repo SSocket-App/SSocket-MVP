@@ -1,0 +1,159 @@
+// MegaContractorsHome.js — UI-only landing for Mega Contractors (MVP, vertical buttons with subtitles + Tournament)
+import React from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+/* ===== Brand ===== */
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+const MUTED = "#6B7280";
+
+/* Small reusable UI */
+function Card({ children }) {
+  return <View style={styles.card}>{children}</View>;
+}
+
+function LineButton({ icon, label, subtitle, tone = "primary" }) {
+  const isPrimary = tone === "primary";
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      style={[
+        styles.lineBtn,
+        isPrimary ? styles.linePrimary : styles.lineGhost,
+      ]}
+    >
+      <Ionicons name={icon} size={20} color={BLACK} style={{ marginRight: 10 }} />
+      <View style={{ flex: 1 }}>
+        <Text
+          style={[
+            styles.lineText,
+            isPrimary ? styles.lineTextPrimary : styles.lineTextGhost,
+          ]}
+        >
+          {label}
+        </Text>
+        {subtitle ? <Text style={styles.lineSub}>{subtitle}</Text> : null}
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={BLACK} />
+    </TouchableOpacity>
+  );
+}
+
+export default function MegaContractorsHome() {
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.8}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Business Mega Contractors</Text>
+        <View style={styles.iconBox} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+        <Card>
+          <Text style={styles.cardTitle}>Actions</Text>
+
+          <View style={{ marginTop: 12 }}>
+            <LineButton
+              icon="document-text-outline"
+              label="Create Mega Contracts"
+              subtitle="Draft and publish new contracts for major roles"
+              tone="primary"
+            />
+            <LineButton
+              icon="people-outline"
+              label="Contractors List"
+              subtitle="View and manage all active mega contractors"
+              tone="ghost"
+            />
+            <LineButton
+              icon="time-outline"
+              label="Pending Contracts"
+              subtitle="Track contracts awaiting approval or response"
+              tone="ghost"
+            />
+            <LineButton
+              icon="checkmark-done-outline"
+              label="Confirmations"
+              subtitle="Confirm contractors claims"
+              tone="ghost"
+            />
+            <LineButton
+              icon="trophy-outline"
+              label="Host a Tournament"
+              subtitle="Let contractors compete to win contracts"
+              tone="ghost"
+            />
+          </View>
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top bar */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Card */
+  card: {
+    marginHorizontal: 12,
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  cardTitle: { fontSize: 16, fontWeight: "900", color: BLACK },
+
+  /* Line Buttons */
+  lineBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+  linePrimary: { backgroundColor: YELLOW },
+  lineGhost: { backgroundColor: WHITE },
+
+  lineText: { fontSize: 14, fontWeight: "900" },
+  lineSub: { fontSize: 11, color: MUTED, marginTop: 2 },
+  lineTextPrimary: { color: BLACK },
+  lineTextGhost: { color: BLACK },
+});
