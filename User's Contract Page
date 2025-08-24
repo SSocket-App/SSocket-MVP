@@ -1,3 +1,4 @@
+
 // ContractPage.js — same UI + small public-visibility note + Employers hint on Contractors→Mega
 import React, { useState } from "react";
 import {
@@ -87,7 +88,7 @@ export default function ContractPage() {
           {/* Employers account hint (only when Contractors → Mega) */}
           {activeTab === "contractors" && showMegaHint && (
             <Text style={styles.hintText}>
-              Open an <Text style={{ fontWeight: "900" }}>Employers</Text> account to use this
+              Open a <Text style={{ fontWeight: "900" }}>Business</Text> account to use this
               function (for big businesses & transfer-style workflows).
             </Text>
           )}
