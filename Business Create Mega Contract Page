@@ -1,8 +1,7 @@
-// SSocketContractForm.js
-// Full page with Termination Terms box integrated.
-// Title: "Create Mega Contract", clarified SSocket conditions, exact payment note,
-// updated Agreement text, working chat keyboard + red finalize warning.
-// Expo (React Native) compatible, no external libs.
+// SSocketContractForm.js 
+// Business-side "Create Mega Contract" page
+// - Agreement line now uses [business name] "agree to" format
+// - Everything else unchanged from your latest version
 
 import React, { useMemo, useRef, useState } from "react";
 import {
@@ -32,14 +31,14 @@ export default function SSocketContractForm() {
 
   const [workDescription, setWorkDescription] = useState("");
   const [workRules, setWorkRules] = useState("");
-  const [terminationTerms, setTerminationTerms] = useState(""); // NEW
+  const [terminationTerms, setTerminationTerms] = useState("");
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [probationDays, setProbationDays] = useState("7");
 
   const [currency] = useState("NGN"); // fixed
-  const [salary, setSalary] = useState(""); // single value (no min/max)
+  const [salary, setSalary] = useState("");
 
   const [paymentSchedule, setPaymentSchedule] = useState("on_completion"); // on_completion | weekly | monthly | milestones
   const [paymentDetails, setPaymentDetails] = useState(""); // required if on_completion or milestones
@@ -122,7 +121,7 @@ export default function SSocketContractForm() {
       `   Bonus: ${bonusEnabled ? bonusTerms || "Yes (terms not specified)" : "None"}\n` +
       `   Deductions: ${deductionEnabled ? deductionTerms || "Yes (terms not specified)" : "None"}\n\n` +
       `8) Agreement\n` +
-      `   • I agree to: deliver as described and to keep up with payment as promised.\n\n` +
+      `   • ${contracteeName || "The Business"} agree to: deliver as described and to keep up with payment as promised.\n\n` +
       `9) Negotiate Contract — Non-deletable Chat Log\n` +
       `${negotiationBlock}\n\n` +
       `   SSocket Conditions:\n` +
@@ -220,7 +219,7 @@ export default function SSocketContractForm() {
             />
           </Card>
 
-          {/* Termination Terms (NEW) */}
+          {/* Termination Terms */}
           <Card>
             <Text style={styles.cardTitle}>Termination Terms</Text>
             <MultilineField
@@ -353,13 +352,13 @@ export default function SSocketContractForm() {
             )}
           </Card>
 
-          {/* Agreement */}
+          {/* Agreement — dynamic business name */}
           <Card>
             <Text style={styles.cardTitle}>Agreement</Text>
             <CheckboxRow
               checked={acceptRules}
               onToggle={() => setAcceptRules(!acceptRules)}
-              label="I agree to: deliver as described and to keep up with payment as promised"
+              label={`${contracteeName || "The Business"} agree to: deliver as described and to keep up with payment as promised`}
             />
           </Card>
 
@@ -485,7 +484,7 @@ export default function SSocketContractForm() {
             )}
           </Card>
 
-          {/* Finalize (Signatures removed → two buttons) */}
+          {/* Finalize */}
           <Card>
             <Text style={styles.cardTitle}>Finalize</Text>
             <View style={styles.row}>
