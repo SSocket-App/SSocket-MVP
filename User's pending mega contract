@@ -1,0 +1,361 @@
+// SSocketPendingContractsList_Contractor.js
+// Contractor-side: Pending (ongoing + in-negotiation) mega contracts list.
+// Scrollable; tapping an item opens the Contractor View page for that contract.
+// Expo-compatible, no external libs. SSocket black/white/yellow UI.
+
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  FlatList,
+  TextInput,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+/**
+ * Props:
+ *  - contracts?: Array<ContractSummary>
+ *  - onOpen?: (contract: ContractSummary) => void   // navigate to Contractor View page with this contract
+ *
+ * ContractSummary example:
+ * {
+ *   id: "mc_123",
+ *   contracteeName: "Ada Ventures Ltd",   // business
+ *   contractorName: "You / current user",
+ *   workDescription: "4-page company website with contact form",
+ *   startDate: "2025-09-01",
+ *   endDate: "2025-10-01",
+ *   paymentRangeMin: 150000,
+ *   paymentRangeMax: 230000,
+ *   paymentPeriod: "month", // "project" | "week" | "month" | "milestone"
+ *   lastMessage: "Please confirm the milestone split we discussed...",
+ *   updatedAt: "2025-08-20",
+ *   unread: 2,
+ *   status: "Negotiation", // or "Pending Seal"
+ * }
+ */
+export default function SSocketPendingContractsList_Contractor({ contracts, onOpen }) {
+  // Demo data if not provided
+  const demoContracts = useMemo(
+    () => [
+      {
+        id: "mc_201",
+        contracteeName: "Ada Ventures Ltd",
+        contractorName: "John Doe",
+        workDescription: "4-page company website with contact form",
+        startDate: "2025-09-01",
+        endDate: "2025-10-01",
+        paymentRangeMin: 150000,
+        paymentRangeMax: 230000,
+        paymentPeriod: "month",
+        lastMessage: "We can do Friday demos at 4pm.",
+        updatedAt: "2025-08-20",
+        unread: 1,
+        status: "Negotiation",
+      },
+      {
+        id: "mc_202",
+        contracteeName: "Nova Foods",
+        contractorName: "John Doe",
+        workDescription: "Packaging design refresh + print-ready files",
+        startDate: "2025-08-12",
+        endDate: "2025-09-30",
+        paymentRangeMin: 500000,
+        paymentRangeMax: 650000,
+        paymentPeriod: "project",
+        lastMessage: "Please upload the dielines you prefer.",
+        updatedAt: "2025-08-18",
+        unread: 0,
+        status: "Pending Seal",
+      },
+      {
+        id: "mc_203",
+        contracteeName: "BrightLabs",
+        contractorName: "John Doe",
+        workDescription: "Mobile QA & weekly test reports",
+        startDate: "2025-08-05",
+        endDate: "2025-12-05",
+        paymentRangeMin: 80000,
+        paymentRangeMax: 120000,
+        paymentPeriod: "week",
+        lastMessage: "Draft test plan uploaded. Kindly review.",
+        updatedAt: "2025-08-17",
+        unread: 3,
+        status: "Negotiation",
+      },
+    ],
+    []
+  );
+
+  const data = contracts && contracts.length ? contracts : demoContracts;
+
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return data;
+    const q = query.toLowerCase();
+    return data.filter((c) => {
+      return (
+        (c.contracteeName || "").toLowerCase().includes(q) ||
+        (c.workDescription || "").toLowerCase().includes(q) ||
+        (c.status || "").toLowerCase().includes(q)
+      );
+    });
+  }, [data, query]);
+
+  const goBack = () => Alert.alert("Back", "Hook this into navigation.");
+  const openItem = (item) => {
+    if (typeof onOpen === "function") onOpen(item);
+    else Alert.alert("Open", `Open contract with ${item.contracteeName}`);
+  };
+
+  const renderItem = ({ item }) => {
+    return (
+      <View style={styles.row}>
+        {/* Avatar-ish block */}
+        <View style={styles.avatar}>
+          <View style={styles.avatarHead} />
+          <View style={styles.avatarBody} />
+        </View>
+
+        {/* Middle info */}
+        <View style={{ flex: 1 }}>
+          <Text style={styles.name} numberOfLines={1}>
+            {item.contracteeName}
+          </Text>
+
+          <Text style={styles.desc} numberOfLines={2}>
+            {item.workDescription}
+          </Text>
+
+          {/* Meta row: status + pay range */}
+          <View style={styles.metaRow}>
+            <View style={styles.badgeYellow}>
+              <Text style={styles.badgeYellowText}>{item.status || "Negotiation"}</Text>
+            </View>
+            <View style={styles.badgeOutline}>
+              <Text style={styles.badgeOutlineText}>
+                {formatRange(item.paymentRangeMin, item.paymentRangeMax, item.paymentPeriod || "project")}
+              </Text>
+            </View>
+            {item.unread > 0 && (
+              <View style={styles.badgeUnread}>
+                <Text style={styles.badgeUnreadText}>{item.unread}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Last message + updated */}
+          <Text style={styles.lastMsg} numberOfLines={1}>
+            <Text style={{ fontWeight: "900" }}>Last:</Text> {item.lastMessage || "No messages yet"}
+          </Text>
+          <Text style={styles.updatedAt}>Updated: {item.updatedAt || "—"}</Text>
+        </View>
+
+        {/* Action */}
+        <TouchableOpacity
+          activeOpacity={0.9}
+          style={styles.openBtn}
+          onPress={() => openItem(item)}
+        >
+          <Ionicons name="open-outline" size={16} color={BLACK} />
+          <Text style={styles.openBtnTxt}>Open</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.8} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>My Pending Mega Contracts</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Search */}
+      <View style={styles.searchWrap}>
+        <Ionicons name="search-outline" size={16} color={BLACK} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search by business, description, or status"
+          placeholderTextColor="#666"
+          style={styles.searchInput}
+        />
+        {!!query && (
+          <TouchableOpacity onPress={() => setQuery("")} style={styles.clearBtn} activeOpacity={0.8}>
+            <Ionicons name="close" size={16} color={BLACK} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* List */}
+      <FlatList
+        data={filtered}
+        keyExtractor={(i) => i.id}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 20 }}
+        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        renderItem={renderItem}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyText}>No pending contracts found.</Text>
+          </View>
+        }
+        showsVerticalScrollIndicator={false}
+      />
+    </SafeAreaView>
+  );
+}
+
+/* ===== Helpers ===== */
+function formatMoney(n) {
+  const amount = Number(n);
+  if (Number.isNaN(amount)) return "—";
+  return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+function formatRange(min, max, period) {
+  if (min == null || max == null) return "—";
+  const per = normPeriod(period);
+  return `NGN ${formatMoney(min)} - ${formatMoney(max)}${per ? ` per ${per}` : ""}`;
+}
+function normPeriod(p) {
+  if (!p) return "";
+  const v = String(p).toLowerCase();
+  if (v.startsWith("week")) return "week";
+  if (v.startsWith("mon")) return "month";
+  if (v.startsWith("proj")) return "project";
+  if (v.startsWith("mile")) return "milestone";
+  if (v === "on_completion") return "project";
+  return v;
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+    position: "relative",
+  },
+  backBtn: { position: "absolute", left: 16, bottom: 14, padding: 6 },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Search */
+  searchWrap: {
+    marginTop: 12,
+    marginHorizontal: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    color: BLACK,
+    fontSize: 13,
+  },
+  clearBtn: { padding: 6, marginLeft: 4, borderRadius: 8, borderWidth: 2, borderColor: BLACK },
+
+  /* Row card */
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 12,
+  },
+
+  avatar: {
+    width: 46, height: 46, borderRadius: 23,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+    alignItems: "center", justifyContent: "center",
+  },
+  avatarHead: {
+    width: 12, height: 12, borderRadius: 6,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE, marginBottom: 2,
+  },
+  avatarBody: {
+    width: 22, height: 10, borderRadius: 6,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+  },
+
+  name: { color: BLACK, fontSize: 16, fontWeight: "900" },
+  desc: { color: "#333", fontSize: 12, marginTop: 2 },
+
+  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 8 },
+
+  badgeYellow: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: YELLOW,
+    borderWidth: 2, borderColor: BLACK,
+  },
+  badgeYellowText: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  badgeOutline: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: WHITE,
+    borderWidth: 2, borderColor: BLACK,
+  },
+  badgeOutlineText: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  badgeUnread: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: WHITE,
+    borderWidth: 2, borderColor: BLACK, minWidth: 28, alignItems: "center",
+  },
+  badgeUnreadText: { color: BLACK, fontSize: 12, fontWeight: "900" },
+
+  lastMsg: { color: "#444", fontSize: 11, marginTop: 6 },
+  updatedAt: { color: "#777", fontSize: 10, marginTop: 2 },
+
+  openBtn: {
+    alignSelf: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: YELLOW,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  openBtnTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+
+  /* Empty */
+  emptyWrap: {
+    marginTop: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: { color: "#666", fontWeight: "600" },
+});
