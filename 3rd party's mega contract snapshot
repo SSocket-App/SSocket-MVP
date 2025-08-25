@@ -1,0 +1,239 @@
+// SSocketContractSnapshot.js
+// Third-party / Business profile viewer for a contractor’s contract snapshot.
+// Shows ONLY: Contractee & Contractor, Work Description, Duration, and Payment RANGE.
+// Expo-compatible, no external libs. Matches SSocket white/black/yellow look.
+
+import React, { useMemo } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+/**
+ * Usage:
+ * <SSocketContractSnapshot
+ *   contract={{
+ *     contracteeName: "Ada Ventures Ltd",
+ *     contractorName: "John Doe",
+ *     workDescription: "4-page company website with contact form",
+ *     startDate: "2025-09-01",
+ *     endDate: "2025-10-01",
+ *     paymentRangeMin: 100000,
+ *     paymentRangeMax: 200000,
+ *     paymentPeriod: "month", // "project" | "week" | "month"
+ *     currency: "NGN"
+ *   }}
+ *   onBack={() => nav.goBack()}
+ * />
+ *
+ * Notes:
+ * - If paymentRangeMin/Max are missing but `salary` exists, we show “salary - salary per <period>”.
+ * - If period is missing, we fall back to schedule → "project" | "week" | "month".
+ */
+export default function SSocketContractSnapshot({ contract, onBack }) {
+  // Demo fallback for development
+  const demo = {
+    contracteeName: "Ada Ventures Ltd",
+    contractorName: "John Doe",
+    workDescription: "4-page company website with contact form",
+    startDate: "2025-09-01",
+    endDate: "2025-10-01",
+    paymentRangeMin: 100000,
+    paymentRangeMax: 200000,
+    paymentPeriod: "month",
+    currency: "NGN",
+  };
+
+  const data = contract || demo;
+
+  const goBack = () => {
+    if (typeof onBack === "function") onBack();
+    else Alert.alert("Back", "Hook this into navigation.");
+  };
+
+  const currency = data.currency || "NGN";
+
+  // Compute payment range display
+  const paymentLabel = useMemo(() => {
+    // Preferred explicit range
+    let min = data.paymentRangeMin;
+    let max = data.paymentRangeMax;
+    let period = normalizePeriod(data.paymentPeriod || guessPeriodFromSchedule(data.paymentSchedule));
+
+    // Fallback: if only salary present
+    if ((min == null || max == null) && data.salary) {
+      min = Number(data.salary);
+      max = Number(data.salary);
+    }
+
+    if (min == null || max == null) return "—";
+
+    const minStr = formatMoney(min, currency);
+    const maxStr = formatMoney(max, currency);
+    const perStr = period ? ` per ${period}` : "";
+
+    return `${minStr} - ${maxStr}${perStr}`;
+  }, [data.paymentRangeMin, data.paymentRangeMax, data.paymentPeriod, data.salary, data.paymentSchedule, currency]);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.8} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Contract Snapshot</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 18 }}>
+        {/* Parties */}
+        <Card>
+          <Title>Parties</Title>
+          <RowKV label="Contractee" value={data.contracteeName} />
+          <RowKV label="Contractor" value={data.contractorName} />
+        </Card>
+
+        {/* Work Description */}
+        <Card>
+          <Title>Work Description</Title>
+          <RowKV label="Scope" value={data.workDescription} />
+        </Card>
+
+        {/* Duration */}
+        <Card>
+          <Title>Duration</Title>
+          <RowKV label="Start Date" value={data.startDate} />
+          <RowKV label="End / Deadline" value={data.endDate} />
+        </Card>
+
+        {/* Payment (Range only) */}
+        <Card>
+          <Title>Payment (Range)</Title>
+          <RowKV label="Estimated Range" value={paymentLabel} />
+          <Info text="Exact payment details are hidden in this public view." />
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ===== Helpers / Small UI ===== */
+function Card({ children }) {
+  return <View style={styles.card}>{children}</View>;
+}
+function Title({ children }) {
+  return <Text style={styles.cardTitle}>{children}</Text>;
+}
+function RowKV({ label, value }) {
+  return (
+    <View style={{ marginTop: 10 }}>
+      <Text style={styles.kvLabel}>{label}</Text>
+      <View style={styles.kvBox}>
+        <Text style={styles.kvText}>{value || "—"}</Text>
+      </View>
+    </View>
+  );
+}
+function Info({ text }) {
+  return (
+    <View style={styles.infoBox}>
+      <Text style={styles.infoText}>{text}</Text>
+    </View>
+  );
+}
+
+function formatMoney(n, currency) {
+  const amount = Number(n);
+  if (Number.isNaN(amount)) return "—";
+  // Basic NGN formatting without Intl to avoid locale issues in RN
+  const withSep = amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${currency} ${withSep}`;
+}
+function normalizePeriod(p) {
+  if (!p) return "";
+  const v = (p + "").toLowerCase();
+  if (v.startsWith("week")) return "week";
+  if (v.startsWith("mon")) return "month";
+  if (v.startsWith("proj")) return "project";
+  if (v === "milestones") return "milestone";
+  return v;
+}
+function guessPeriodFromSchedule(s) {
+  if (!s) return "";
+  const v = (s + "").toLowerCase();
+  if (v.includes("week")) return "week";
+  if (v.includes("month")) return "month";
+  if (v.includes("completion") || v.includes("project")) return "project";
+  if (v.includes("milestone")) return "milestone";
+  return "";
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+    position: "relative",
+  },
+  backBtn: { position: "absolute", left: 16, bottom: 14, padding: 6 },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Cards */
+  card: {
+    marginTop: 12,
+    marginHorizontal: 14,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+  },
+  cardTitle: { fontSize: 16, fontWeight: "900", color: BLACK },
+
+  kvLabel: { color: BLACK, fontSize: 12, fontWeight: "800", marginBottom: 6 },
+  kvBox: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 42,
+    justifyContent: "center",
+  },
+  kvText: { color: BLACK, fontSize: 14, lineHeight: 20 },
+
+  infoBox: {
+    marginTop: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    padding: 10,
+  },
+  infoText: { color: BLACK, fontSize: 12 },
+});
