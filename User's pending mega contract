@@ -1,6 +1,6 @@
 // SSocketPendingContractsList_Contractor.js
 // Contractor-side: Pending (ongoing + in-negotiation) mega contracts list.
-// Scrollable; tapping an item opens the Contractor View page for that contract.
+// Shows exact pay (not ranges) since contractor is inside their own account.
 // Expo-compatible, no external libs. SSocket black/white/yellow UI.
 
 import React, { useMemo, useState } from "react";
@@ -22,28 +22,6 @@ const YELLOW = "#FFD54A";
 const BLACK = "#000";
 const WHITE = "#FFF";
 
-/**
- * Props:
- *  - contracts?: Array<ContractSummary>
- *  - onOpen?: (contract: ContractSummary) => void   // navigate to Contractor View page with this contract
- *
- * ContractSummary example:
- * {
- *   id: "mc_123",
- *   contracteeName: "Ada Ventures Ltd",   // business
- *   contractorName: "You / current user",
- *   workDescription: "4-page company website with contact form",
- *   startDate: "2025-09-01",
- *   endDate: "2025-10-01",
- *   paymentRangeMin: 150000,
- *   paymentRangeMax: 230000,
- *   paymentPeriod: "month", // "project" | "week" | "month" | "milestone"
- *   lastMessage: "Please confirm the milestone split we discussed...",
- *   updatedAt: "2025-08-20",
- *   unread: 2,
- *   status: "Negotiation", // or "Pending Seal"
- * }
- */
 export default function SSocketPendingContractsList_Contractor({ contracts, onOpen }) {
   // Demo data if not provided
   const demoContracts = useMemo(
@@ -55,8 +33,7 @@ export default function SSocketPendingContractsList_Contractor({ contracts, onOp
         workDescription: "4-page company website with contact form",
         startDate: "2025-09-01",
         endDate: "2025-10-01",
-        paymentRangeMin: 150000,
-        paymentRangeMax: 230000,
+        salary: 200000,
         paymentPeriod: "month",
         lastMessage: "We can do Friday demos at 4pm.",
         updatedAt: "2025-08-20",
@@ -70,8 +47,7 @@ export default function SSocketPendingContractsList_Contractor({ contracts, onOp
         workDescription: "Packaging design refresh + print-ready files",
         startDate: "2025-08-12",
         endDate: "2025-09-30",
-        paymentRangeMin: 500000,
-        paymentRangeMax: 650000,
+        salary: 600000,
         paymentPeriod: "project",
         lastMessage: "Please upload the dielines you prefer.",
         updatedAt: "2025-08-18",
@@ -85,8 +61,7 @@ export default function SSocketPendingContractsList_Contractor({ contracts, onOp
         workDescription: "Mobile QA & weekly test reports",
         startDate: "2025-08-05",
         endDate: "2025-12-05",
-        paymentRangeMin: 80000,
-        paymentRangeMax: 120000,
+        salary: 100000,
         paymentPeriod: "week",
         lastMessage: "Draft test plan uploaded. Kindly review.",
         updatedAt: "2025-08-17",
@@ -98,7 +73,6 @@ export default function SSocketPendingContractsList_Contractor({ contracts, onOp
   );
 
   const data = contracts && contracts.length ? contracts : demoContracts;
-
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -138,14 +112,14 @@ export default function SSocketPendingContractsList_Contractor({ contracts, onOp
             {item.workDescription}
           </Text>
 
-          {/* Meta row: status + pay range */}
+          {/* Meta row: status + exact pay */}
           <View style={styles.metaRow}>
             <View style={styles.badgeYellow}>
               <Text style={styles.badgeYellowText}>{item.status || "Negotiation"}</Text>
             </View>
             <View style={styles.badgeOutline}>
               <Text style={styles.badgeOutlineText}>
-                {formatRange(item.paymentRangeMin, item.paymentRangeMax, item.paymentPeriod || "project")}
+                {formatExactPay(item.salary, item.paymentPeriod)}
               </Text>
             </View>
             {item.unread > 0 && (
@@ -230,10 +204,10 @@ function formatMoney(n) {
   if (Number.isNaN(amount)) return "—";
   return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
-function formatRange(min, max, period) {
-  if (min == null || max == null) return "—";
+function formatExactPay(salary, period) {
+  if (!salary) return "—";
   const per = normPeriod(period);
-  return `NGN ${formatMoney(min)} - ${formatMoney(max)}${per ? ` per ${per}` : ""}`;
+  return `NGN ${formatMoney(salary)}${per ? ` per ${per}` : ""}`;
 }
 function normPeriod(p) {
   if (!p) return "";
