@@ -1,6 +1,6 @@
 // SSocketPendingContractsList.js
 // Business-side: Pending (ongoing + in-negotiation) mega contracts list.
-// Scrollable list; tapping an item opens the "Create Mega Contract" page with that contract loaded.
+// Shows exact pay (not ranges) since business is inside their own account.
 // Expo-compatible, no external libs. SSocket black/white/yellow UI.
 
 import React, { useMemo, useState } from "react";
@@ -22,41 +22,18 @@ const YELLOW = "#FFD54A";
 const BLACK = "#000";
 const WHITE = "#FFF";
 
-/**
- * Props:
- *  - contracts?: Array<ContractSummary>
- *  - onOpen?: (contract: ContractSummary) => void   // navigate to "Create Mega Contract" page with this contract
- *
- * ContractSummary shape (example):
- * {
- *   id: "mc_123",
- *   contracteeName: "Ada Ventures Ltd", // business (you)
- *   contractorName: "John Doe",
- *   workDescription: "4-page company website with contact form",
- *   startDate: "2025-09-01",
- *   endDate: "2025-10-01",
- *   paymentRangeMin: 150000,
- *   paymentRangeMax: 230000,
- *   paymentPeriod: "month", // "project" | "week" | "month" | "milestone"
- *   lastMessage: "Please confirm the milestone split we discussed...",
- *   updatedAt: "2025-08-10",
- *   unread: 2, // unread negotiation messages
- *   status: "Negotiation", // or "Pending Seal"
- * }
- */
 export default function SSocketPendingContractsList({ contracts, onOpen }) {
   // Demo data (used if `contracts` prop not passed)
   const demoContracts = useMemo(
     () => [
       {
         id: "mc_001",
-        contracteeName: "Ada Ventures Ltd",
+        contracteeName: "Ada Ventures Ltd", // the business itself
         contractorName: "John Doe",
         workDescription: "4-page company website with contact form",
         startDate: "2025-09-01",
         endDate: "2025-10-01",
-        paymentRangeMin: 150000,
-        paymentRangeMax: 230000,
+        salary: 200000,
         paymentPeriod: "month",
         lastMessage: "Please confirm the milestone split we discussed...",
         updatedAt: "2025-08-20",
@@ -70,8 +47,7 @@ export default function SSocketPendingContractsList({ contracts, onOpen }) {
         workDescription: "Mobile app QA & weekly test reports",
         startDate: "2025-08-05",
         endDate: "2025-12-05",
-        paymentRangeMin: 80000,
-        paymentRangeMax: 120000,
+        salary: 100000,
         paymentPeriod: "week",
         lastMessage: "Uploading the draft test plan now.",
         updatedAt: "2025-08-18",
@@ -85,8 +61,7 @@ export default function SSocketPendingContractsList({ contracts, onOpen }) {
         workDescription: "Backend APIs for order processing",
         startDate: "2025-08-12",
         endDate: "2025-11-30",
-        paymentRangeMin: 1200000,
-        paymentRangeMax: 1600000,
+        salary: 1400000,
         paymentPeriod: "project",
         lastMessage: "We proposed 30/40/30 milestone schedule.",
         updatedAt: "2025-08-17",
@@ -98,7 +73,6 @@ export default function SSocketPendingContractsList({ contracts, onOpen }) {
   );
 
   const data = contracts && contracts.length ? contracts : demoContracts;
-
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -138,14 +112,14 @@ export default function SSocketPendingContractsList({ contracts, onOpen }) {
             {item.workDescription}
           </Text>
 
-          {/* Meta row: status + pay range */}
+          {/* Meta row: status + exact pay */}
           <View style={styles.metaRow}>
             <View style={styles.badgeYellow}>
               <Text style={styles.badgeYellowText}>{item.status || "Negotiation"}</Text>
             </View>
             <View style={styles.badgeOutline}>
               <Text style={styles.badgeOutlineText}>
-                {formatRange(item.paymentRangeMin, item.paymentRangeMax, item.paymentPeriod || "project")}
+                {formatExactPay(item.salary, item.paymentPeriod)}
               </Text>
             </View>
             {item.unread > 0 && (
@@ -215,9 +189,7 @@ export default function SSocketPendingContractsList({ contracts, onOpen }) {
         renderItem={renderItem}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
-            <Text style={styles.emptyText}>
-              No pending contracts found.
-            </Text>
+            <Text style={styles.emptyText}>No pending contracts found.</Text>
           </View>
         }
         showsVerticalScrollIndicator={false}
@@ -232,10 +204,10 @@ function formatMoney(n) {
   if (Number.isNaN(amount)) return "—";
   return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
-function formatRange(min, max, period) {
-  if (min == null || max == null) return "—";
+function formatExactPay(salary, period) {
+  if (!salary) return "—";
   const per = normPeriod(period);
-  return `NGN ${formatMoney(min)} - ${formatMoney(max)}${per ? ` per ${per}` : ""}`;
+  return `NGN ${formatMoney(salary)}${per ? ` per ${per}` : ""}`;
 }
 function normPeriod(p) {
   if (!p) return "";
