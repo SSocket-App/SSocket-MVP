@@ -169,7 +169,7 @@ export default function SSocketPendingContractsList({ contracts, onOpen }) {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Search by contractor, description, or status"
+          placeholder="Search by contractor, description, status or role"
           placeholderTextColor="#666"
           style={styles.searchInput}
         />
