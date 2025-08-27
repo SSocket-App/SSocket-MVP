@@ -1,6 +1,6 @@
 // SSocketContractSnapshot.js
 // Third-party / Business profile viewer for a contractor’s contract snapshot.
-// Shows ONLY: Contractee & Contractor, Work Description, Duration, and Payment RANGE.
+// Now includes Job Role (e.g., Marketing, Accounting).
 // Expo-compatible, no external libs. Matches SSocket white/black/yellow look.
 
 import React, { useMemo } from "react";
@@ -28,6 +28,7 @@ const WHITE = "#FFF";
  *     contracteeName: "Ada Ventures Ltd",
  *     contractorName: "John Doe",
  *     workDescription: "4-page company website with contact form",
+ *     role: "Frontend Developer", // NEW FIELD
  *     startDate: "2025-09-01",
  *     endDate: "2025-10-01",
  *     paymentRangeMin: 100000,
@@ -37,10 +38,6 @@ const WHITE = "#FFF";
  *   }}
  *   onBack={() => nav.goBack()}
  * />
- *
- * Notes:
- * - If paymentRangeMin/Max are missing but `salary` exists, we show “salary - salary per <period>”.
- * - If period is missing, we fall back to schedule → "project" | "week" | "month".
  */
 export default function SSocketContractSnapshot({ contract, onBack }) {
   // Demo fallback for development
@@ -48,6 +45,7 @@ export default function SSocketContractSnapshot({ contract, onBack }) {
     contracteeName: "Ada Ventures Ltd",
     contractorName: "John Doe",
     workDescription: "4-page company website with contact form",
+    role: "Frontend Developer", // DEMO job role
     startDate: "2025-09-01",
     endDate: "2025-10-01",
     paymentRangeMin: 100000,
@@ -67,12 +65,10 @@ export default function SSocketContractSnapshot({ contract, onBack }) {
 
   // Compute payment range display
   const paymentLabel = useMemo(() => {
-    // Preferred explicit range
     let min = data.paymentRangeMin;
     let max = data.paymentRangeMax;
     let period = normalizePeriod(data.paymentPeriod || guessPeriodFromSchedule(data.paymentSchedule));
 
-    // Fallback: if only salary present
     if ((min == null || max == null) && data.salary) {
       min = Number(data.salary);
       max = Number(data.salary);
@@ -111,8 +107,9 @@ export default function SSocketContractSnapshot({ contract, onBack }) {
 
         {/* Work Description */}
         <Card>
-          <Title>Work Description</Title>
+          <Title>Work</Title>
           <RowKV label="Scope" value={data.workDescription} />
+          <RowKV label="Role" value={data.role} /> {/* NEW */}
         </Card>
 
         {/* Duration */}
@@ -161,7 +158,6 @@ function Info({ text }) {
 function formatMoney(n, currency) {
   const amount = Number(n);
   if (Number.isNaN(amount)) return "—";
-  // Basic NGN formatting without Intl to avoid locale issues in RN
   const withSep = amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return `${currency} ${withSep}`;
 }
