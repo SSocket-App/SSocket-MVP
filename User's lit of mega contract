@@ -1,0 +1,375 @@
+// SSocketMyMegaContract_Contractor.js
+// Contractor-side: Single Mega Contract + yellow "Achievement List" button.
+// - Shows ONE ongoing mega contract (no composer/dropdown here).
+// - Button "Achievement List" opens a separate page (to build later).
+// - Past ENDED mega contracts also show a yellow "Achievement List" button.
+// - RN warning-safe: no "gap" usage; stable keys; no unused states.
+
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  Image,
+  Alert,
+  ScrollView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+export default function SSocketMyMegaContract_Contractor({
+  contract,               // current (single) mega contract
+  endedContracts,         // array of ended mega contracts
+  onOpenAchievementsPage, // (contractObj) => void
+  onBack,
+}) {
+  /* ===== Demo data fallbacks ===== */
+  const demoActive = useMemo(
+    () => ({
+      id: "sc_me_mine",
+      contracteeName: "Ada Ventures Ltd",
+      contractorName: "John Doe",
+      jobRole: "Marketing Specialist",
+      workDescription:
+        "Lead generation campaigns, weekly performance report, and monthly growth experiments.",
+      startDate: "2025-06-01",
+      endDate: "2025-12-01",
+      salary: 450000,
+      paymentPeriod: "month",
+      avatarUrl: "",
+      ongoing: true, // changed label from sealed -> ongoing
+    }),
+    []
+  );
+
+  const demoEnded = useMemo(
+    () => [
+      {
+        id: "sc_ended_01",
+        contracteeName: "BrightLabs",
+        contractorName: "John Doe",
+        jobRole: "QA Engineer",
+        workDescription: "Mobile QA with weekly reports and release certifications.",
+        startDate: "2024-01-10",
+        endDate: "2024-09-30",
+        salary: 300000,
+        paymentPeriod: "month",
+        avatarUrl: "",
+        ongoing: false,
+      },
+      {
+        id: "sc_ended_02",
+        contracteeName: "Nova Foods",
+        contractorName: "John Doe",
+        jobRole: "Brand Designer",
+        workDescription: "Packaging refresh across 4 SKUs + print-ready assets.",
+        startDate: "2023-02-01",
+        endDate: "2023-08-01",
+        salary: 500000,
+        paymentPeriod: "project",
+        avatarUrl: "",
+        ongoing: false,
+      },
+    ],
+    []
+  );
+
+  const active = contract || demoActive;
+  const [ended] = useState(endedContracts && endedContracts.length ? endedContracts : demoEnded);
+
+  const goBack = () => {
+    if (typeof onBack === "function") onBack();
+    else Alert.alert("Back", "Hook this into navigation.");
+  };
+
+  const openAchievementsPage = (c) => {
+    if (typeof onOpenAchievementsPage === "function") onOpenAchievementsPage(c || active);
+    else Alert.alert("Open", "Hook this into navigation to show the Achievements page.");
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>My Mega Contract</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+        {/* ACTIVE (ONGOING) CONTRACT */}
+        <View style={styles.barrier}>
+          <View style={styles.card}>
+            {/* Header: avatar + names + badge */}
+            <View style={styles.headerRow}>
+              <View style={styles.headerLeft}>
+                {active.avatarUrl ? (
+                  <Image source={{ uri: active.avatarUrl }} style={styles.avatarImg} />
+                ) : (
+                  <View style={styles.avatarMono}>
+                    <Text style={styles.avatarMonoTxt}>
+                      {(active.contractorName || "?").slice(0, 1).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <View style={{ marginLeft: 10 }}>
+                  <Text style={styles.name} numberOfLines={1}>
+                    {active.contractorName}
+                  </Text>
+                  <Text style={styles.subName} numberOfLines={1}>
+                    {active.contracteeName}
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.badgeChip, { backgroundColor: YELLOW }]}>
+                <Text style={styles.badgeChipTxt}>{active.ongoing ? "Ongoing" : "Pending"}</Text>
+              </View>
+            </View>
+
+            {/* Role */}
+            <View style={styles.roleBox}>
+              <Text style={styles.roleLabel}>Job Role</Text>
+              <Text style={styles.roleValue}>{active.jobRole || "—"}</Text>
+            </View>
+
+            {/* Description */}
+            <Text style={styles.desc}>{active.workDescription}</Text>
+
+            {/* Meta */}
+            <View style={styles.metaRow}>
+              <View style={styles.badgeOutline}>
+                <Text style={styles.badgeOutlineTxt}>
+                  {`NGN ${formatMoney(active.salary)} per ${readablePeriod(active.paymentPeriod)}`}
+                </Text>
+              </View>
+              <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+                <Text style={styles.badgeOutlineTxt}>Start: {active.startDate || "—"}</Text>
+              </View>
+              <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+                <Text style={styles.badgeOutlineTxt}>End: {active.endDate || "—"}</Text>
+              </View>
+            </View>
+
+            {/* Single yellow button to open the separate Achievements page */}
+            <TouchableOpacity
+              style={[styles.btn, styles.btnYellow, { alignSelf: "flex-start", marginTop: 10 }]}
+              activeOpacity={0.9}
+              onPress={() => openAchievementsPage(active)}
+            >
+              <Ionicons name="list-outline" size={16} color={BLACK} />
+              <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Achievement List</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ENDED CONTRACTS */}
+        <Text style={[styles.h2, { marginHorizontal: 12, marginTop: 16 }]}>Ended Mega Contracts</Text>
+
+        {ended.length === 0 ? (
+          <Text style={[styles.emptyText, { marginHorizontal: 12 }]}>No ended contracts.</Text>
+        ) : (
+          ended.map((c) => (
+            <View key={c.id} style={styles.barrier}>
+              <View style={styles.card}>
+                {/* Header */}
+                <View style={styles.headerRow}>
+                  <View style={styles.headerLeft}>
+                    {c.avatarUrl ? (
+                      <Image source={{ uri: c.avatarUrl }} style={styles.avatarImg} />
+                    ) : (
+                      <View style={styles.avatarMono}>
+                        <Text style={styles.avatarMonoTxt}>
+                          {(c.contractorName || "?").slice(0, 1).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={{ marginLeft: 10 }}>
+                      <Text style={styles.name} numberOfLines={1}>
+                        {c.contractorName}
+                      </Text>
+                      <Text style={styles.subName} numberOfLines={1}>
+                        {c.contracteeName}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[styles.badgeChip, { backgroundColor: "#EEE" }]}>
+                    <Text style={[styles.badgeChipTxt, { color: BLACK }]}>Ended</Text>
+                  </View>
+                </View>
+
+                {/* Role */}
+                <View style={styles.roleBox}>
+                  <Text style={styles.roleLabel}>Job Role</Text>
+                  <Text style={styles.roleValue}>{c.jobRole || "—"}</Text>
+                </View>
+
+                {/* Description */}
+                <Text style={styles.desc}>{c.workDescription}</Text>
+
+                {/* Meta */}
+                <View style={styles.metaRow}>
+                  <View style={styles.badgeOutline}>
+                    <Text style={styles.badgeOutlineTxt}>
+                      {`NGN ${formatMoney(c.salary)} per ${readablePeriod(c.paymentPeriod)}`}
+                    </Text>
+                  </View>
+                  <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+                    <Text style={styles.badgeOutlineTxt}>Start: {c.startDate || "—"}</Text>
+                  </View>
+                  <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+                    <Text style={styles.badgeOutlineTxt}>End: {c.endDate || "—"}</Text>
+                  </View>
+                </View>
+
+                {/* Yellow button to open Achievements page for ENDED contract */}
+                <TouchableOpacity
+                  style={[styles.btn, styles.btnYellow, { alignSelf: "flex-start", marginTop: 10 }]}
+                  activeOpacity={0.9}
+                  onPress={() => openAchievementsPage(c)}
+                >
+                  <Ionicons name="list-outline" size={16} color={BLACK} />
+                  <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Achievement List</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ===== Helpers ===== */
+function formatMoney(n) {
+  const x = Number(n);
+  if (Number.isNaN(x)) return "—";
+  return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+function readablePeriod(p) {
+  if (!p) return "";
+  const v = String(p).toLowerCase();
+  if (v.startsWith("week")) return "week";
+  if (v.startsWith("mon")) return "month";
+  if (v.startsWith("proj") || v === "on_completion") return "project";
+  if (v.startsWith("mile")) return "milestone";
+  return v;
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+    position: "relative",
+  },
+  backBtn: { position: "absolute", left: 12, bottom: 14, padding: 6 },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Yellow barrier */
+  barrier: {
+    marginTop: 12,
+    marginHorizontal: 12,
+    borderWidth: 3,
+    borderColor: YELLOW,
+    borderRadius: 16,
+    padding: 4,
+    backgroundColor: WHITE,
+  },
+
+  /* Card */
+  card: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 12,
+  },
+
+  /* Header */
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  headerLeft: { flexDirection: "row", alignItems: "center" },
+  avatarImg: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: BLACK },
+  avatarMono: {
+    width: 40, height: 40, borderRadius: 20,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+    alignItems: "center", justifyContent: "center",
+  },
+  avatarMonoTxt: { color: BLACK, fontWeight: "900", fontSize: 16 },
+  name: { color: BLACK, fontSize: 16, fontWeight: "900" },
+  subName: { color: "#444", fontSize: 12, marginTop: 2 },
+
+  badgeChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignSelf: "flex-start",
+  },
+  badgeChipTxt: { color: BLACK, fontSize: 12, fontWeight: "900" },
+
+  /* Role & Desc */
+  roleBox: {
+    marginTop: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignSelf: "flex-start",
+    backgroundColor: WHITE,
+  },
+  roleLabel: { color: "#444", fontSize: 10, fontWeight: "900" },
+  roleValue: { color: BLACK, fontSize: 13, fontWeight: "900", marginTop: 1 },
+  desc: { color: "#333", fontSize: 12, marginTop: 8 },
+
+  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginTop: 8 },
+  badgeOutline: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+  },
+  badgeOutlineTxt: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  /* Buttons */
+  btn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  btnYellow: { backgroundColor: YELLOW },
+  btnYellowTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+
+  /* Subheader */
+  h2: { color: BLACK, fontSize: 16, fontWeight: "900" },
+
+  /* Empty */
+  emptyText: { color: "#666", fontWeight: "600", marginTop: 6 },
+});
