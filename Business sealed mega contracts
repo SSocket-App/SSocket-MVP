@@ -1,16 +1,17 @@
 // SSocketSealedContracts_Business.js
 // Business-side: Sealed Mega Contracts list (read-only).
+// - Title: "List of Mega Contractors"
 // - Distinct cards with yellow barrier + avatar beside contractor name
 // - Search by contractor name, description, job role
 // - Red urgency badge: "N pending confirmations" (>=2). Confirmations hidden by default.
 // - "View Confirmations" toggles pending confirmations for that contractor
 // - Open/Close a confirmation without forcing a decision; actions appear only after "Decide"
 // - Once a decision is made (accepted/declined), the confirmation VANISHES (no edits/reversals)
-// - Accept button stays disabled until ALL fields are filled (green tag, red tag, rating, review/comment)
+// - Accept button disabled until ALL fields are filled (green tag, red tag, rating, review/comment)
 // - Green tags: hardworking, analytical, creative, strategic, flexible, leadership, collaborative, social, detail-oriented, trustworthy
 // - Red tags: short-sighted, rigid, ineffective, untrustworthy, conflict-prone, lazy, unsociable, disloyal, disorganized, slow
-// - Back button in the top bar
-// - Review section note: "Reviews are only visible to the system."
+// - Review note: "Reviews are only visible to the system."
+// - Removed `gap` from styles to avoid RN warning; replaced with margins.
 
 import React, { useMemo, useState } from "react";
 import {
@@ -37,7 +38,7 @@ const GREEN = "#2E7D32";
 /* ===== Small Bits ===== */
 function Money({ amount, period }) {
   return (
-    <View style={styles.badgeOutline}>
+    <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
       <Text style={styles.badgeOutlineTxt}>
         {`NGN ${formatMoney(amount)}${period ? ` per ${readablePeriod(period)}` : ""}`}
       </Text>
@@ -71,19 +72,19 @@ export default function SSocketSealedContracts_Business({ contracts, onOpenContr
         endDate: "2025-12-01",
         salary: 450000,
         paymentPeriod: "month",
-        avatarUrl: "", // empty -> shows monogram
+        avatarUrl: "",
         confirmations: [
           {
             id: "c1",
             text: "Did John Doe bring in 40 new customers this month?",
             opened: false,
-            status: "pending", // only pending items are kept; decided ones vanish
+            status: "pending",
             posTag: null,
             improveTag: null,
             rating: 0,
             comment: "",
-            _expanded: false,     // open/close the item
-            _showActions: false,  // hidden until 'Decide'
+            _expanded: false,
+            _showActions: false,
           },
           {
             id: "c1b",
@@ -98,7 +99,7 @@ export default function SSocketSealedContracts_Business({ contracts, onOpenContr
             _showActions: false,
           },
         ],
-        _showConfirms: false, // card-level toggle
+        _showConfirms: false,
       },
       {
         id: "sc_102",
@@ -110,7 +111,7 @@ export default function SSocketSealedContracts_Business({ contracts, onOpenContr
         salary: 380000,
         paymentPeriod: "month",
         avatarUrl: "",
-        confirmations: [], // none pending
+        confirmations: [],
         _showConfirms: false,
       },
     ],
@@ -193,22 +194,16 @@ export default function SSocketSealedContracts_Business({ contracts, onOpenContr
   };
 
   const decideAndVanish = (cid, fid, decision /* "accepted" | "declined" */) => {
-    // Remove the confirmation entirely (vanish), no edits/reversals
     setItems((prev) =>
       prev.map((c) =>
         c.id !== cid ? c : { ...c, confirmations: c.confirmations.filter((f) => f.id !== fid) }
       )
     );
-    if (decision === "accepted") {
-      Alert.alert("Saved", "Confirmation accepted.");
-    } else {
-      Alert.alert("Saved", "Confirmation declined.");
-    }
+    Alert.alert("Saved", decision === "accepted" ? "Confirmation accepted." : "Confirmation declined.");
   };
 
   /* ===== Renderers ===== */
   const renderConfirm = (contract) => (f) => {
-    // Collapsed pending pill
     if (!f._expanded) {
       return (
         <TouchableOpacity
@@ -235,7 +230,6 @@ export default function SSocketSealedContracts_Business({ contracts, onOpenContr
       );
     }
 
-    // Expanded view – actions still hidden until "Decide" is tapped
     const greenTags = [
       "hardworking",
       "analytical",
@@ -274,24 +268,22 @@ export default function SSocketSealedContracts_Business({ contracts, onOpenContr
         </View>
 
         {!f._showActions ? (
-          <>
-            <View style={styles.actionRow}>
-              <TouchableOpacity
-                style={[styles.btn, styles.btnGhost]}
-                onPress={() => toggleExpandConfirm(contract.id, f.id)}
-                activeOpacity={0.9}
-              >
-                <Text style={styles.btnGhostTxt}>Close</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.btn, styles.btnYellow]}
-                onPress={() => showActions(contract.id, f.id, true)}
-                activeOpacity={0.9}
-              >
-                <Text style={styles.btnYellowTxt}>Decide</Text>
-              </TouchableOpacity>
-            </View>
-          </>
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={[styles.btn, styles.btnGhost]}
+              onPress={() => toggleExpandConfirm(contract.id, f.id)}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.btnGhostTxt}>Close</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.btn, styles.btnYellow]}
+              onPress={() => showActions(contract.id, f.id, true)}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.btnYellowTxt}>Decide</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <>
             {/* Green (positive) tags */}
@@ -413,12 +405,12 @@ export default function SSocketSealedContracts_Business({ contracts, onOpenContr
                   </Text>
                 </View>
               )}
-              <Text style={styles.name} numberOfLines={1}>
+              <Text style={[styles.name, { marginLeft: 10 }]} numberOfLines={1}>
                 {item.contractorName}
               </Text>
             </View>
 
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <View style={styles.headerRightRow}>
               {pendingCount >= 2 && (
                 <View style={styles.pendingUrgentBadge}>
                   <Ionicons name="alert-circle-outline" size={14} color={WHITE} />
@@ -473,7 +465,13 @@ export default function SSocketSealedContracts_Business({ contracts, onOpenContr
                 <Text style={styles.toggleConfirmsTxt}>
                   {item._showConfirms ? "Hide Confirmations" : "View Confirmations"}
                 </Text>
-                <View style={[styles.counterPill, pendingCount >= 2 ? styles.counterPillUrgent : null]}>
+                <View
+                  style={[
+                    styles.counterPill,
+                    pendingCount >= 2 ? styles.counterPillUrgent : null,
+                    { marginLeft: 8 },
+                  ]}
+                >
                   <Text
                     style={[
                       styles.counterPillTxt,
@@ -486,7 +484,7 @@ export default function SSocketSealedContracts_Business({ contracts, onOpenContr
               </TouchableOpacity>
 
               {item._showConfirms && (
-                <View style={{ gap: 10 }}>
+                <View>
                   {item.confirmations
                     .filter((f) => f.status === "pending")
                     .map(renderConfirm(item))}
@@ -508,7 +506,7 @@ export default function SSocketSealedContracts_Business({ contracts, onOpenContr
         <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
           <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
         </TouchableOpacity>
-        <Text style={styles.topTitle}>Sealed Mega Contracts</Text>
+        <Text style={styles.topTitle}>List of Mega Contractors</Text>
         <View style={{ width: 40 }} />
       </View>
       <View style={styles.topAccent} />
@@ -616,7 +614,9 @@ const styles = StyleSheet.create({
   },
 
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+
+  headerLeft: { flexDirection: "row", alignItems: "center" },
+  headerRightRow: { flexDirection: "row", alignItems: "center" },
 
   /* Avatar */
   avatarImg: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: BLACK },
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
   name: { color: BLACK, fontSize: 16, fontWeight: "900" },
   desc: { color: "#333", fontSize: 12, marginTop: 6 },
 
-  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 8 },
+  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginTop: 8 },
 
   badgeYellow: {
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: YELLOW,
@@ -648,7 +648,6 @@ const styles = StyleSheet.create({
   pendingUrgentBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
     backgroundColor: RED,
     borderWidth: 2,
     borderColor: BLACK,
@@ -656,7 +655,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  pendingUrgentTxt: { color: WHITE, fontSize: 12, fontWeight: "900" },
+  pendingUrgentTxt: { color: WHITE, fontSize: 12, fontWeight: "900", marginLeft: 6 },
 
   /* Role */
   roleBox: {
@@ -688,7 +687,6 @@ const styles = StyleSheet.create({
   toggleConfirmsTxt: { color: BLACK, fontWeight: "900", fontSize: 12, marginLeft: 6 },
 
   counterPill: {
-    marginLeft: 8,
     minWidth: 22,
     borderWidth: 2,
     borderColor: BLACK,
@@ -718,8 +716,7 @@ const styles = StyleSheet.create({
   },
   unopenedTxt: { color: BLACK, fontSize: 10, fontWeight: "900" },
 
-  actionRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
-
+  actionRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
   btn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -728,6 +725,7 @@ const styles = StyleSheet.create({
     borderColor: BLACK,
     flexDirection: "row",
     alignItems: "center",
+    marginRight: 8,
   },
   btnYellow: { backgroundColor: YELLOW },
   btnYellowTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
