@@ -1,7 +1,7 @@
 // SSocketContractForm.js 
 // Business-side "Create Mega Contract" page
 // - Agreement line now uses [business name] "agree to" format
-// - Everything else unchanged from your latest version
+// - Added Job Role field (under Contractor name)
 
 import React, { useMemo, useRef, useState } from "react";
 import {
@@ -28,6 +28,7 @@ export default function SSocketContractForm() {
   /* ===== Form State ===== */
   const [contracteeName, setContracteeName] = useState("");
   const [contractorName, setContractorName] = useState("");
+  const [jobRole, setJobRole] = useState(""); // NEW
 
   const [workDescription, setWorkDescription] = useState("");
   const [workRules, setWorkRules] = useState("");
@@ -70,6 +71,7 @@ export default function SSocketContractForm() {
 
   const validate = () => {
     if (!contracteeName || !contractorName) return "Enter both party names.";
+    if (!jobRole.trim()) return "Enter the job role.";
     if (!workDescription) return "Add a work description.";
     if (!startDate) return "Provide a start date (YYYY-MM-DD).";
     if (!endDate) return "Provide an end date/deadline (YYYY-MM-DD).";
@@ -122,7 +124,9 @@ export default function SSocketContractForm() {
       `   Deductions: ${deductionEnabled ? deductionTerms || "Yes (terms not specified)" : "None"}\n\n` +
       `8) Agreement\n` +
       `   • ${contracteeName || "The Business"} agree to: deliver as described and to keep up with payment as promised.\n\n` +
-      `9) Negotiate Contract — Non-deletable Chat Log\n` +
+      `9) Role (Position)\n` + // show role as its own section so it stands out but keeps your UI text-only
+      `   ${jobRole}\n\n` +
+      `10) Negotiate Contract — Non-deletable Chat Log\n` +
       `${negotiationBlock}\n\n` +
       `   SSocket Conditions:\n` +
       `   1. Use this chat to agree on: work rules, termination terms, payments, bonuses/deductions, probation & duration, and the work description. The details you agree here must match the form. If there’s a mismatch, this chat is SSocket’s first reference.\n` +
@@ -191,6 +195,12 @@ export default function SSocketContractForm() {
               placeholder="e.g., John Doe"
               value={contractorName}
               onChangeText={setContractorName}
+            />
+            <Field
+              label="Job Role"
+              placeholder="e.g., Frontend Developer"
+              value={jobRole}
+              onChangeText={setJobRole}
             />
           </Card>
 
