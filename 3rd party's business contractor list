@@ -1,0 +1,314 @@
+// SSocketBusinessSnapshot_Public.js
+// PUBLIC VIEW: Business-side snapshot that lists all sealed mega contractors.
+// - Read-only for 3rd parties (no "Open Details", no "View Confirmations" dropdown).
+// - Search by contractor name, description, job role.
+// - Pay is shown as an ESTIMATED RANGE (e.g., "NGN 200,000–250,000").
+// - Removed the red "pending confirmations" warning/badge entirely.
+// - Distinct cards with a yellow barrier and avatar beside contractor name.
+// - Expo-compatible, pure JS, no external libs.
+
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  TextInput,
+  FlatList,
+  Image,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+/* ===== Small Bits ===== */
+function MoneyEstimated({ amount, period }) {
+  return (
+    <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+      <Text style={styles.badgeOutlineTxt}>
+        {`NGN ${estimateRange(amount)}${period ? ` per ${readablePeriod(period)}` : ""}`}
+      </Text>
+    </View>
+  );
+}
+
+/* ===== Main Component ===== */
+export default function SSocketBusinessSnapshot_Public({ contracts, onBack }) {
+  // Demo sealed contracts if none provided
+  const demo = useMemo(
+    () => [
+      {
+        id: "sc_101",
+        contractorName: "John Doe",
+        jobRole: "Marketing Specialist",
+        workDescription: "Lead gen campaigns, weekly report, and monthly growth experiments.",
+        startDate: "2025-06-01",
+        endDate: "2025-12-01",
+        salary: 450000,
+        paymentPeriod: "month",
+        avatarUrl: "",
+        confirmations: [
+          { id: "c1", status: "pending" },
+          { id: "c2", status: "pending" },
+        ],
+      },
+      {
+        id: "sc_102",
+        contractorName: "Amaka N.",
+        jobRole: "Accountant",
+        workDescription: "Monthly reconciliation, payroll, tax filings, and vendor payments.",
+        startDate: "2025-05-10",
+        endDate: "2025-11-10",
+        salary: 380000,
+        paymentPeriod: "month",
+        avatarUrl: "",
+        confirmations: [],
+      },
+    ],
+    []
+  );
+
+  const [items] = useState(contracts && contracts.length ? contracts : demo);
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((c) => {
+      return (
+        (c.contractorName || "").toLowerCase().includes(q) ||
+        (c.workDescription || "").toLowerCase().includes(q) ||
+        (c.jobRole || "").toLowerCase().includes(q)
+      );
+    });
+  }, [items, query]);
+
+  const goBack = () => {
+    if (typeof onBack === "function") onBack();
+    else Alert.alert("Back", "Hook this into navigation.");
+  };
+
+  const renderItem = ({ item }) => {
+    return (
+      <View style={styles.barrier}>
+        <View style={styles.card}>
+          {/* Header row: avatar + name */}
+          <View style={styles.headerRow}>
+            <View style={styles.headerLeft}>
+              {item.avatarUrl ? (
+                <Image source={{ uri: item.avatarUrl }} style={styles.avatarImg} />
+              ) : (
+                <View style={styles.avatarMono}>
+                  <Text style={styles.avatarMonoTxt}>
+                    {(item.contractorName || "?").trim().slice(0, 1).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <Text style={[styles.name, { marginLeft: 10 }]} numberOfLines={1}>
+                {item.contractorName}
+              </Text>
+            </View>
+            {/* Removed pending confirmations badge */}
+          </View>
+
+          {/* Job Role */}
+          <View style={styles.roleBox}>
+            <Text style={styles.roleLabel}>Job Role</Text>
+            <Text style={styles.roleValue}>{item.jobRole || "—"}</Text>
+          </View>
+
+          {/* Description */}
+          <Text style={styles.desc} numberOfLines={3}>
+            {item.workDescription}
+          </Text>
+
+          {/* Meta: Sealed + ESTIMATED Pay */}
+          <View style={styles.metaRow}>
+            <View style={styles.badgeYellow}>
+              <Text style={styles.badgeYellowTxt}>Sealed</Text>
+            </View>
+            <MoneyEstimated amount={item.salary} period={item.paymentPeriod} />
+          </View>
+
+          {/* NOTE: Public snapshot – no "Open Details" or "View Confirmations" controls */}
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar with Back */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>List of Mega Contractors</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Search */}
+      <View style={styles.searchWrap}>
+        <Ionicons name="search-outline" size={16} color={BLACK} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search by name, description, or job role"
+          placeholderTextColor="#666"
+          style={styles.searchInput}
+        />
+        {!!query && (
+          <TouchableOpacity onPress={() => setQuery("")} style={styles.clearBtn} activeOpacity={0.8}>
+            <Ionicons name="close" size={16} color={BLACK} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <FlatList
+        data={filtered}
+        keyExtractor={(i) => i.id}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 20 }}
+        ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
+        renderItem={renderItem}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyText}>No sealed contracts.</Text>
+          </View>
+        }
+        showsVerticalScrollIndicator={false}
+      />
+    </SafeAreaView>
+  );
+}
+
+/* ===== Helpers ===== */
+function formatMoney(n) {
+  const x = Number(n);
+  if (Number.isNaN(x)) return "—";
+  return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+function estimateRange(n, spread = 0.1, step = 10000) {
+  const base = Number(n) || 0;
+  const low = Math.max(0, Math.floor((base * (1 - spread)) / step) * step);
+  const high = Math.ceil((base * (1 + spread)) / step) * step;
+  return `${formatMoney(low)}–${formatMoney(high)}`;
+}
+function readablePeriod(p) {
+  if (!p) return "";
+  const v = String(p).toLowerCase();
+  if (v.startsWith("week")) return "week";
+  if (v.startsWith("mon")) return "month";
+  if (v.startsWith("proj") || v === "on_completion") return "project";
+  if (v.startsWith("mile")) return "milestone";
+  return v;
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+    position: "relative",
+  },
+  backBtn: { position: "absolute", left: 12, bottom: 14, padding: 6 },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Search */
+  searchWrap: {
+    marginTop: 12,
+    marginHorizontal: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  searchInput: { flex: 1, marginLeft: 8, color: BLACK, fontSize: 13 },
+  clearBtn: { padding: 6, marginLeft: 4, borderRadius: 8, borderWidth: 2, borderColor: BLACK },
+
+  /* Yellow barrier wrapper to separate cards clearly */
+  barrier: {
+    borderWidth: 3,
+    borderColor: YELLOW,
+    borderRadius: 16,
+    padding: 4,
+    backgroundColor: WHITE,
+  },
+
+  /* Cards */
+  card: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 12,
+  },
+
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+
+  headerLeft: { flexDirection: "row", alignItems: "center" },
+
+  /* Avatar */
+  avatarImg: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: BLACK },
+  avatarMono: {
+    width: 36, height: 36, borderRadius: 18,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+    alignItems: "center", justifyContent: "center",
+  },
+  avatarMonoTxt: { color: BLACK, fontWeight: "900", fontSize: 14 },
+
+  name: { color: BLACK, fontSize: 16, fontWeight: "900" },
+  desc: { color: "#333", fontSize: 12, marginTop: 6 },
+
+  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginTop: 8 },
+
+  badgeYellow: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: YELLOW,
+    borderWidth: 2, borderColor: BLACK,
+  },
+  badgeYellowTxt: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  badgeOutline: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: WHITE,
+    borderWidth: 2, borderColor: BLACK, alignSelf: "flex-start",
+  },
+  badgeOutlineTxt: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  /* Role */
+  roleBox: {
+    marginTop: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignSelf: "flex-start",
+    backgroundColor: WHITE,
+  },
+  roleLabel: { color: "#444", fontSize: 10, fontWeight: "900" },
+  roleValue: { color: BLACK, fontSize: 13, fontWeight: "900", marginTop: 1 },
+
+  /* Empty */
+  emptyWrap: { marginTop: 40, alignItems: "center", justifyContent: "center" },
+  emptyText: { color: "#666", fontWeight: "600" },
+});
