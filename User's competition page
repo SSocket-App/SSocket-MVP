@@ -1,0 +1,516 @@
+// SSocketCompetitionView_User.js
+// User-side: View & join a Competition, and submit answers per round.
+// - Shows competition basics (title, job role, cap, slots left, winners).
+// - Auto-locks when cap is reached (join disabled if full and you’re not joined).
+// - Round switcher (pills). Each round shows its questions with inputs.
+// - Save Draft (local) and Submit Answers for the selected round.
+// - Submit disabled until all answers are filled.
+// - Expo-compatible, no external libs beyond @expo/vector-icons.
+// - No "gap" style to avoid RN warnings.
+
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+const RED = "#D32F2F";
+const GREEN = "#2E7D32";
+
+export default function SSocketCompetitionView_User({
+  competition,
+  participantsCount,            // number (optional)
+  joined: joinedProp,            // boolean (optional)
+  currentRoundIndex: criProp,    // number (optional)
+  mySubmissions,                 // { [roundId]: { answers: string[], submittedOn: string } } (optional)
+  onBack,
+  onJoin,                        // () => void
+  onSaveDraft,                   // ({roundId, answers}) => void
+  onSubmitRound,                 // ({roundId, answers}) => void
+}) {
+  /* ===== Demo fallback ===== */
+  const demo = useMemo(
+    () => ({
+      id: "comp_demo_1",
+      title: "Marketing Hire – Q4 Funnel Sprint",
+      jobRole: "Marketing Specialist",
+      description:
+        "Compete across multiple rounds. We’re looking for creative, data-driven thinkers who can grow sign-ups.",
+      participantCap: 30,
+      winnersNeeded: 1,
+      startDate: "2025-09-05",
+      rounds: [
+        {
+          id: "r1",
+          name: "Round 1",
+          durationDays: 2,
+          questions: [
+            { id: "q1", text: "List 3 top-of-funnel ideas for our product." },
+            { id: "q2", text: "Suggest 2 metrics to judge success." },
+          ],
+        },
+        {
+          id: "r2",
+          name: "Round 2",
+          durationDays: 3,
+          questions: [{ id: "q3", text: "Draft a 7-day growth experiment plan." }],
+        },
+        {
+          id: "r3",
+          name: "Final Round",
+          durationDays: 2,
+          questions: [{ id: "q4", text: "Present a one-page campaign strategy." }],
+        },
+      ],
+      closed: false, // contractee closes when winners reached
+    }),
+    []
+  );
+
+  const comp = competition || demo;
+  const rounds = Array.isArray(comp.rounds) ? comp.rounds : [];
+
+  // Participation info
+  const cap = comp.participantCap || 0;
+  const count = typeof participantsCount === "number" ? participantsCount : 27; // demo
+  const slotsLeft = Math.max(0, cap - count);
+  const lockedByCap = slotsLeft === 0;
+  const [joined, setJoined] = useState(!!joinedProp || false);
+
+  // Round selection
+  const safeCRI = Number.isInteger(criProp) ? Math.max(0, Math.min(criProp, Math.max(0, rounds.length - 1))) : 0;
+  const [currentRoundIndex, setCurrentRoundIndex] = useState(safeCRI);
+
+  // Answers state: array of arrays (per round -> answers per question)
+  const initialAnswers = useMemo(() => {
+    return rounds.map((r) => {
+      const sub = mySubmissions && mySubmissions[r.id];
+      if (sub && Array.isArray(sub.answers)) {
+        // Pre-fill with submitted answers length; fallback to blanks for any extra questions
+        const base = r.questions.map((q, i) => (typeof sub.answers[i] === "string" ? sub.answers[i] : ""));
+        return base;
+      }
+      // brand new: blanks
+      return r.questions.map(() => "");
+    });
+  }, [rounds, mySubmissions]);
+
+  const [answers, setAnswers] = useState(initialAnswers);
+  const [submittedMap, setSubmittedMap] = useState(() => {
+    const m = {};
+    if (mySubmissions) {
+      Object.keys(mySubmissions).forEach((rid) => {
+        m[rid] = { submittedOn: mySubmissions[rid].submittedOn || "" };
+      });
+    }
+    return m;
+  });
+
+  const goBack = () => {
+    if (typeof onBack === "function") onBack();
+    else Alert.alert("Back", "Hook this into navigation.");
+  };
+
+  const handleJoin = () => {
+    if (joined) return;
+    if (lockedByCap) {
+      Alert.alert("Competition Full", "Slots are full. You can’t join this competition.");
+      return;
+    }
+    setJoined(true);
+    if (typeof onJoin === "function") onJoin();
+    Alert.alert("Joined", "You have joined this competition.");
+  };
+
+  const setAnswer = (rIndex, qIndex, text) => {
+    setAnswers((prev) => {
+      const next = prev.slice();
+      next[rIndex] = next[rIndex].slice();
+      next[rIndex][qIndex] = text;
+      return next;
+    });
+  };
+
+  const allFilledForRound = (rIndex) => {
+    const arr = answers[rIndex] || [];
+    return arr.length > 0 && arr.every((t) => typeof t === "string" && t.trim().length > 0);
+  };
+
+  const saveDraft = () => {
+    const r = rounds[currentRoundIndex];
+    if (!r) return;
+    const payload = { roundId: r.id, answers: answers[currentRoundIndex] || [] };
+    if (typeof onSaveDraft === "function") onSaveDraft(payload);
+    Alert.alert("Saved", "Your draft has been saved on this device.");
+  };
+
+  const submitRound = () => {
+    const r = rounds[currentRoundIndex];
+    if (!joined) {
+      Alert.alert("Join Required", "Please join the competition before submitting.");
+      return;
+    }
+    if (!r) return;
+
+    if (!allFilledForRound(currentRoundIndex)) {
+      Alert.alert("Missing answers", "Please fill in all answers before submitting.");
+      return;
+    }
+
+    const payload = { roundId: r.id, answers: answers[currentRoundIndex] };
+    if (typeof onSubmitRound === "function") onSubmitRound(payload);
+
+    setSubmittedMap((prev) => ({
+      ...prev,
+      [r.id]: { submittedOn: new Date().toISOString().slice(0, 10) },
+    }));
+    Alert.alert("Submitted", "Your answers were submitted for review.");
+  };
+
+  const statusBadge = () => {
+    if (comp.closed) return <Badge color="#EEE" text="Closed" dark />;
+    if (!joined && lockedByCap) return <Badge color={RED} text="Full" />;
+    if (joined) return <Badge color={GREEN} text="Joined" />;
+    return <Badge color={YELLOW} text="Open" />;
+  };
+
+  const currentRound = rounds[currentRoundIndex];
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Competition</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+        {/* Overview Card */}
+        <View style={styles.barrier}>
+          <View style={styles.card}>
+            <View style={styles.headerRow}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={styles.title} numberOfLines={2}>{comp.title}</Text>
+                <Text style={styles.role} numberOfLines={1}>{comp.jobRole}</Text>
+              </View>
+              {statusBadge()}
+            </View>
+
+            <Text style={styles.desc}>{comp.description}</Text>
+
+            <View style={[styles.metaRow, { marginTop: 8 }]}>
+              <View style={styles.badgeOutline}>
+                <Text style={styles.badgeOutlineTxt}>
+                  {`Cap: ${cap || 0}  •  Slots left: ${slotsLeft}`}
+                </Text>
+              </View>
+              <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+                <Text style={styles.badgeOutlineTxt}>
+                  {`Winners: ${comp.winnersNeeded || 1}`}
+                </Text>
+              </View>
+              {!!comp.startDate && (
+                <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+                  <Text style={styles.badgeOutlineTxt}>
+                    {`Starts: ${comp.startDate}`}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Join / Joined */}
+            {!joined ? (
+              <TouchableOpacity
+                style={[
+                  styles.btn,
+                  styles.btnYellow,
+                  { alignSelf: "flex-start", marginTop: 10 },
+                  lockedByCap && styles.btnDisabled,
+                ]}
+                activeOpacity={lockedByCap ? 1 : 0.9}
+                onPress={handleJoin}
+                disabled={lockedByCap}
+              >
+                <Ionicons name="log-in-outline" size={16} color={BLACK} />
+                <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>
+                  {lockedByCap ? "Slots Full" : "Join Competition"}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={[styles.btn, styles.btnGhost, { alignSelf: "flex-start", marginTop: 10 }]}>
+                <Ionicons name="checkmark-circle-outline" size={16} color={BLACK} />
+                <Text style={[styles.btnGhostTxt, { marginLeft: 6 }]}>You have joined</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Rounds: Switcher */}
+        <View style={[styles.barrier, { marginTop: 12 }]}>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Rounds</Text>
+            <View style={styles.pillWrap}>
+              {rounds.map((r, i) => {
+                const on = i === currentRoundIndex;
+                return (
+                  <TouchableOpacity
+                    key={r.id}
+                    onPress={() => setCurrentRoundIndex(i)}
+                    activeOpacity={0.9}
+                    style={[styles.pill, on ? styles.pillActive : styles.pillIdle]}
+                  >
+                    <Text style={[styles.pillTxt, on ? styles.pillTxtActive : styles.pillTxtIdle]}>
+                      {r.name || `Round ${i + 1}`}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Round summary */}
+            {currentRound ? (
+              <View style={styles.roundSummary}>
+                <View style={styles.badgeOutline}>
+                  <Text style={styles.badgeOutlineTxt}>
+                    Duration: {currentRound.durationDays || 1} day(s)
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.helperNote}>No rounds have been set yet.</Text>
+            )}
+          </View>
+        </View>
+
+        {/* Submit Answers for selected round */}
+        {currentRound && (
+          <View style={styles.barrier}>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Round Questions</Text>
+              <Text style={styles.helperNote}>
+                Fill every answer. You can save a draft before submitting.
+              </Text>
+
+              {currentRound.questions.map((q, qi) => (
+                <View key={q.id} style={{ marginTop: 10 }}>
+                  <Text style={styles.fieldLabel}>Q{qi + 1}. {q.text}</Text>
+                  <TextInput
+                    value={(answers[currentRoundIndex] && answers[currentRoundIndex][qi]) || ""}
+                    onChangeText={(t) => setAnswer(currentRoundIndex, qi, t)}
+                    placeholder="Type your answer..."
+                    placeholderTextColor="#666"
+                    multiline
+                    textAlignVertical="top"
+                    style={[styles.input, { minHeight: 96, paddingTop: 12 }]}
+                  />
+                </View>
+              ))}
+
+              {/* Submission State */}
+              {submittedMap[currentRound.id]?.submittedOn ? (
+                <View style={[styles.badgeOutline, { marginTop: 10 }]}>
+                  <Text style={styles.badgeOutlineTxt}>
+                    Submitted on {submittedMap[currentRound.id].submittedOn}
+                  </Text>
+                </View>
+              ) : (
+                <View style={[styles.row, { marginTop: 10 }]}>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.actionGhost]}
+                    activeOpacity={0.9}
+                    onPress={saveDraft}
+                  >
+                    <Text style={styles.actionGhostTxt}>Save Draft</Text>
+                  </TouchableOpacity>
+                  <View style={{ width: 10 }} />
+                  <TouchableOpacity
+                    style={[
+                      styles.actionBtn,
+                      styles.actionPrimary,
+                      (!joined || !allFilledForRound(currentRoundIndex)) && styles.btnDisabled,
+                    ]}
+                    activeOpacity={(!joined || !allFilledForRound(currentRoundIndex)) ? 1 : 0.9}
+                    onPress={submitRound}
+                    disabled={!joined || !allFilledForRound(currentRoundIndex)}
+                  >
+                    <Text style={styles.actionPrimaryTxt}>Submit Answers</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Mock Attach */}
+              {!submittedMap[currentRound.id]?.submittedOn && (
+                <TouchableOpacity
+                  onPress={() => Alert.alert("Attach", "Pick a file or image (mock).")}
+                  style={[styles.btn, styles.btnGhost, { alignSelf: "flex-start", marginTop: 10 }]}
+                  activeOpacity={0.9}
+                >
+                  <Ionicons name="attach-outline" size={16} color={BLACK} />
+                  <Text style={[styles.btnGhostTxt, { marginLeft: 6 }]}>Attach File/Image</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ===== Small UI bits ===== */
+function Badge({ color, text, dark }) {
+  return (
+    <View style={[styles.badgeChip, { backgroundColor: color || WHITE }]}>
+      <Text style={[styles.badgeChipTxt, dark ? { color: BLACK } : null]}>{text}</Text>
+    </View>
+  );
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+    position: "relative",
+  },
+  backBtn: { position: "absolute", left: 12, bottom: 14, padding: 6 },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Barrier & Card */
+  barrier: {
+    marginTop: 12,
+    marginHorizontal: 12,
+    borderWidth: 3,
+    borderColor: YELLOW,
+    borderRadius: 16,
+    padding: 4,
+    backgroundColor: WHITE,
+  },
+  card: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 12,
+  },
+
+  /* Header */
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  title: { color: BLACK, fontSize: 16, fontWeight: "900" },
+  role: { color: "#444", fontSize: 12, marginTop: 2 },
+
+  /* Meta */
+  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
+  badgeOutline: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+  },
+  badgeOutlineTxt: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  badgeChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignSelf: "flex-start",
+  },
+  badgeChipTxt: { color: WHITE, fontSize: 12, fontWeight: "900" },
+
+  /* Text */
+  desc: { color: "#333", fontSize: 12, marginTop: 8 },
+
+  /* Inputs & Labels */
+  fieldLabel: { color: BLACK, fontSize: 12, fontWeight: "800", marginBottom: 6 },
+  input: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    color: BLACK,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === "ios" ? 12 : 10,
+    fontSize: 14,
+  },
+  helperNote: { color: "#555", fontSize: 11, marginTop: 6 },
+
+  /* Buttons */
+  btn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  btnYellow: { backgroundColor: YELLOW },
+  btnYellowTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+  btnGhost: { backgroundColor: WHITE },
+  btnGhostTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+  btnDisabled: { opacity: 0.5 },
+
+  /* Round switcher */
+  pillWrap: { flexDirection: "row", flexWrap: "wrap", marginTop: 8 },
+  pill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 2,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  pillIdle: { backgroundColor: WHITE, borderColor: BLACK },
+  pillActive: { backgroundColor: YELLOW, borderColor: BLACK },
+  pillTxt: { fontSize: 12, fontWeight: "900" },
+  pillTxtIdle: { color: BLACK },
+  pillTxtActive: { color: BLACK },
+
+  roundSummary: { marginTop: 6 },
+
+  /* Actions row */
+  row: { flexDirection: "row", alignItems: "center" },
+
+  actionBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionGhost: { backgroundColor: WHITE, borderColor: BLACK },
+  actionGhostTxt: { color: BLACK, fontWeight: "900", fontSize: 14 },
+  actionPrimary: { backgroundColor: YELLOW, borderColor: BLACK },
+  actionPrimaryTxt: { color: BLACK, fontWeight: "900", fontSize: 14 },
+});
