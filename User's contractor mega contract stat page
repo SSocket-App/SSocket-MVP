@@ -1,4 +1,4 @@
-// HelpStats.js (Competition-focused; updated as requested)
+// HelpStats.js (Mega Contract Stat Page)
 import React, { useMemo, useState } from "react";
 import {
   SafeAreaView,
@@ -20,7 +20,7 @@ const YELLOW = "#FFD54A";
 const TOP_BAR_HEIGHT = 88;
 const TOP_ACCENT = 3;
 
-/* ===== PRNG + Mock data (unchanged base, used as stand-ins for competition history) ===== */
+/* ===== PRNG + Mock data ===== */
 function prng(n) { const x = Math.sin(n) * 10000; return x - Math.floor(x); }
 
 function buildDaily(seed = 1, days = 90) {
@@ -30,7 +30,7 @@ function buildDaily(seed = 1, days = 90) {
     const d = new Date(now);
     d.setDate(now.getDate() - i);
     const k = Number(`${d.getFullYear()}${d.getMonth()+1}${d.getDate()}`) * seed;
-    const helps = Math.max(0, Math.round(prng(k) * 4 + (d.getDay() % 2))); // using as attempts
+    const helps = Math.max(0, Math.round(prng(k) * 4 + (d.getDay() % 2))); // attempts
     const base = 3.6 + prng(k + 7) * 1.2;
     const rating = helps ? Math.min(5, base + Math.min(0.5, helps * 0.06)) : 0;
 
@@ -121,7 +121,7 @@ const W = Dimensions.get("window").width;
 const pad2 = (n) => (n < 10 ? `0${n}` : `${n}`);
 const fmt = (dt) => `${pad2(dt.getDate())}/${pad2(dt.getMonth()+1)}/${dt.getFullYear()}`;
 
-/* === STAR DISTRIBUTION (realistic, interval-aware) === */
+/* === STAR DISTRIBUTION === */
 function mergeCounts(acc, add) { for (let s = 1; s <= 5; s++) acc[s] = (acc[s] || 0) + (add[s] || 0); return acc; }
 function roundPreserve(total, floats, seedBase = 0) {
   const floors = floats.map(Math.floor);
@@ -161,9 +161,8 @@ function distForRange(days) {
   }, {1:0,2:0,3:0,4:0,5:0});
 }
 
-/* Interval-based GREEN tags (exact list you asked for) */
+/* GREEN tags (exact list) */
 function strengthsFromInterval(inRange, d) {
-  // Build synthetic weights from available tag telemetry
   const base = {
     creative: d.posTags.Creative || 40,
     analytical: d.posTags.Analytical || 40,
@@ -195,7 +194,7 @@ function strengthsFromInterval(inRange, d) {
   return pct;
 }
 
-/* Interval-based RED tags (exact list you asked for) */
+/* RED tags (exact list) */
 function improveFromInterval(inRange, d) {
   const base = {
     "undetailed explanation": (d.improve["More Detail"] || 0),
@@ -348,10 +347,6 @@ export default function App() {
   const [endIdx, setEndIdx] = useState(all.length - 1);
   const inRange = useMemo(() => all.slice(startIdx, endIdx + 1), [all, startIdx, endIdx]);
 
-  const shiftStart = (dir) => setStartIdx((s) => Math.min(endIdx, Math.max(0, s + dir)));
-  const shiftEnd   = (dir) => setEndIdx((e) => Math.max(startIdx, Math.min(all.length - 1, e + dir)));
-
-  /* Shared toggles kept only where needed */
   const [ratingDistScope, setRatingDistScope] = useState("interval"); // 'interval' | 'all'
   const [greenScope, setGreenScope] = useState("interval");
   const [redScope, setRedScope] = useState("interval");
@@ -386,26 +381,6 @@ export default function App() {
   const redInterval = useMemo(() => improveFromInterval(inRange, d), [inRange, d]);
   const redAll = useMemo(() => improveFromInterval(all, d), [all, d]);
 
-  const ToggleRow = ({ scope, setScope }) => (
-    <View style={styles.toggleRow}>
-      <TouchableOpacity
-        style={[styles.toggleBtn, scope === "interval" && styles.toggleActive]}
-        onPress={() => setScope("interval")}
-        activeOpacity={0.9}
-      >
-        <Text style={[styles.toggleTxt, scope === "interval" && styles.toggleTxtActive]}>This Interval</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.toggleBtn, scope === "all" && styles.toggleActive]}
-        onPress={() => setScope("all")}
-        activeOpacity={0.9}
-      >
-        <Text style={[styles.toggleTxt, scope === "all" && styles.toggleTxtActive]}>All-Time</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  /* Derived %s for the Proof Points donuts */
   const scopePack = proofScope === "interval" ? interval : allTime;
   const finalPct = (() => {
     const a = Math.max(1, scopePack.attempts);
@@ -421,18 +396,13 @@ export default function App() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={BLACK} />
 
-      {/* Top bar */}
+      {/* Top bar with new title */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backBtn} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={24} color={WHITE} />
         </TouchableOpacity>
 
-        <View style={styles.headerCenter}>
-          <View>
-            <Text style={styles.name}>John Doe</Text>
-            <Text style={styles.rank}>Level 5</Text>
-          </View>
-        </View>
+        <Text style={styles.topTitle}>Mega Contract Stat Page</Text>
 
         <View style={{ width: 40, height: 36 }} />
       </View>
@@ -440,7 +410,7 @@ export default function App() {
       <View style={styles.topAccent} />
 
       <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 24 }}>
-        {/* Niche (unchanged) */}
+        {/* Niche */}
         <Card>
           <TitleRow title="Niche" help="Pick a field. All numbers below use only COMPETITION data for that field (demo uses HELP stand-ins)." />
           <View style={styles.nicheRow}>
@@ -480,7 +450,22 @@ export default function App() {
           </View>
 
           {/* Shared toggle for Average Rating + Star Distribution */}
-          <ToggleRow scope={ratingDistScope} setScope={setRatingDistScope} />
+          <View style={styles.toggleRow}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, ratingDistScope === "interval" && styles.toggleActive]}
+              onPress={() => setRatingDistScope("interval")}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.toggleTxt, ratingDistScope === "interval" && styles.toggleTxtActive]}>This Interval</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, ratingDistScope === "all" && styles.toggleActive]}
+              onPress={() => setRatingDistScope("all")}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.toggleTxt, ratingDistScope === "all" && styles.toggleTxtActive]}>All-Time</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Average Rating */}
           <View style={styles.kpiBlock}>
@@ -516,17 +501,30 @@ export default function App() {
               Counts use real ratings when available; otherwise modeled per-day from average rating and attempts.
             </Text>
           </View>
-
-          {/* (Win Rate + Consistency blocks REMOVED as requested) */}
         </Card>
 
-        {/* Green Tags (exact set provided) */}
+        {/* Green Tags */}
         <Card>
           <TitleRow
             title="Green Tags"
             help="What your answers most frequently demonstrated."
           />
-          <ToggleRow scope={greenScope} setScope={setGreenScope} />
+          <View style={styles.toggleRow}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, greenScope === "interval" && styles.toggleActive]}
+              onPress={() => setGreenScope("interval")}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.toggleTxt, greenScope === "interval" && styles.toggleTxtActive]}>This Interval</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, greenScope === "all" && styles.toggleActive]}
+              onPress={() => setGreenScope("all")}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.toggleTxt, greenScope === "all" && styles.toggleTxtActive]}>All-Time</Text>
+            </TouchableOpacity>
+          </View>
           <View style={{ marginTop: 6 }}>
             {[
               ["💡 creative", (greenScope === "interval" ? greenInterval : greenAll)["creative"]],
@@ -545,13 +543,28 @@ export default function App() {
           </View>
         </Card>
 
-        {/* Red Tags (exact set provided) */}
+        {/* Red Tags */}
         <Card>
           <TitleRow
             title="Red Tags"
             help="Main reasons an answer didn’t score 5★."
           />
-          <ToggleRow scope={redScope} setScope={setRedScope} />
+          <View style={styles.toggleRow}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, redScope === "interval" && styles.toggleActive]}
+              onPress={() => setRedScope("interval")}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.toggleTxt, redScope === "interval" && styles.toggleTxtActive]}>This Interval</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, redScope === "all" && styles.toggleActive]}
+              onPress={() => setRedScope("all")}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.toggleTxt, redScope === "all" && styles.toggleTxtActive]}>All-Time</Text>
+            </TouchableOpacity>
+          </View>
           <View style={{ marginTop: 6 }}>
             {[
               ["🪫 undetailed explanation", (redScope === "interval" ? redInterval : redAll)["undetailed explanation"]],
@@ -567,13 +580,29 @@ export default function App() {
           </View>
         </Card>
 
-        {/* Proof points — ONLY donuts for final & semi-final qualification rate */}
+        {/* Proof points — donuts only */}
         <Card>
           <TitleRow
             title="Proof Points"
             help="Qualification rates for competitions. Final = picked as winner. Semi-final = advanced to later rounds (approx. 4★–5★)."
           />
-          <ToggleRow scope={proofScope} setScope={setProofScope} />
+          <View style={styles.toggleRow}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, proofScope === "interval" && styles.toggleActive]}
+              onPress={() => setProofScope("interval")}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.toggleTxt, proofScope === "interval" && styles.toggleTxtActive]}>This Interval</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, proofScope === "all" && styles.toggleActive]}
+              onPress={() => setProofScope("all")}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.toggleTxt, proofScope === "all" && styles.toggleTxtActive]}>All-Time</Text>
+            </TouchableOpacity>
+          </View>
+
           <View style={{ flexDirection: "row", justifyContent: "space-around", marginTop: 8 }}>
             <CirclePct pct={finalPct} size={100} thickness={10} color={YELLOW} label="Final qualification" />
             <CirclePct pct={semiPct} size={100} thickness={10} color={"#5AC8FA"} label="Semi-final qualification" />
@@ -601,10 +630,7 @@ const styles = StyleSheet.create({
   },
   topAccent: { height: TOP_ACCENT, backgroundColor: YELLOW },
   backBtn: { width: 40, height: 36, justifyContent: "center" },
-
-  headerCenter: { flexDirection: "row", alignItems: "center", gap: 10 },
-  name: { color: WHITE, fontWeight: "900", fontSize: 16, lineHeight: 16 },
-  rank: { color: "#DADADA", fontSize: 12, marginTop: 2 },
+  topTitle: { color: WHITE, fontWeight: "900", fontSize: 16 },
 
   /* Cards */
   card: { backgroundColor: WHITE, borderWidth: 2, borderColor: BLACK, borderRadius: 14, padding: 12, marginBottom: 12 },
