@@ -1,0 +1,684 @@
+// ContractsPool.js
+// Update: Mega card CTA box is BLACK (so yellow 🌟 is clear).
+// Added bottom nav bar exactly like the provided example.
+// Top bar = "Contracts Pool" with Back + Search.
+// Stories header slides away on scroll; cards are consistent across modes.
+
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  FlatList,
+  TextInput,
+  Alert,
+  Image,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+/* -------------------- Demo Data -------------------- */
+const EMPLOYERS = [
+  { id: "e1", name: "Acme Corp", rank: "Tier A" },
+  { id: "e2", name: "BrightLabs", rank: "Tier B" },
+  { id: "e3", name: "Nova Foods", rank: "Tier C" },
+  { id: "e4", name: "DigiSpace", rank: "Tier B" },
+  { id: "e5", name: "Ada Ventures", rank: "Tier A" },
+];
+
+/* MEGA: avatar+name, CONTRACT DATE, estimated pay per X, roles desc + competition stats */
+const MEGA_CONTRACTS = [
+  {
+    id: "m1",
+    employerName: "Acme Corp",
+    avatarUrl: "",
+    startDate: "2025-08-01",
+    endDate: "2026-01-31",
+    estMin: 350000,
+    estMax: 500000,
+    payPeriod: "month",
+    rolesDesc: "Operations lead, vendor coordination, team scheduling.",
+    roundsCurrent: 2,
+    roundsTotal: 5,
+    cap: 30,
+    joined: 22,
+    active: 18,
+    winnersNeeded: 1,
+  },
+  {
+    id: "m2",
+    employerName: "BrightLabs",
+    avatarUrl: "",
+    startDate: "2025-09-15",
+    endDate: "2026-03-01",
+    estMin: 700000,
+    estMax: 900000,
+    payPeriod: "month",
+    rolesDesc: "National rollout manager, regional training & reporting.",
+    roundsCurrent: 1,
+    roundsTotal: 4,
+    cap: 50,
+    joined: 50,
+    active: 50,
+    winnersNeeded: 2,
+  },
+  {
+    id: "m3",
+    employerName: "Nova Foods",
+    avatarUrl: "",
+    startDate: "2025-07-10",
+    endDate: "2025-12-20",
+    estMin: 250000,
+    estMax: 300000,
+    payPeriod: "month",
+    rolesDesc: "Brand growth strategist, promo planning, shelf audits.",
+    roundsCurrent: 3,
+    roundsTotal: 3,
+    cap: 12,
+    joined: 11,
+    active: 6,
+    winnersNeeded: 5,
+  },
+];
+
+/* MINI: avatar+name, role, needed, duration, nature, location, pay */
+const MINI_CONTRACTS = [
+  {
+    id: "s1",
+    employerName: "DigiSpace",
+    avatarUrl: "",
+    role: "Frontend Dev",
+    count: 2,
+    duration: "2 weeks",
+    nature: "Landing page revamp",
+    location: "Remote",
+    pay: "₦120,000 / week",
+  },
+  {
+    id: "s2",
+    employerName: "Nova Foods",
+    avatarUrl: "",
+    role: "POS Engineer",
+    count: 1,
+    duration: "5 days",
+    nature: "POS bug fix",
+    location: "Lagos",
+    pay: "₦40,000 / day",
+  },
+  {
+    id: "s3",
+    employerName: "Acme Corp",
+    avatarUrl: "",
+    role: "Graphic Designer",
+    count: 1,
+    duration: "1 week",
+    nature: "Logo refresh",
+    location: "Hybrid",
+    pay: "₦200,000 / project",
+  },
+];
+
+/* -------------------- Utils -------------------- */
+function moneyRange(min, max, period) {
+  const fmt = (n) => Number(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const per = readablePeriod(period);
+  return `₦${fmt(min)} - ₦${fmt(max)}${per ? ` / ${per}` : ""}`;
+}
+function readablePeriod(p) {
+  if (!p) return "";
+  const v = String(p).toLowerCase();
+  if (v.startsWith("week")) return "week";
+  if (v.startsWith("mon")) return "month";
+  if (v.startsWith("proj")) return "project";
+  if (v.startsWith("mile")) return "milestone";
+  if (v === "on_completion") return "project";
+  return v;
+}
+function Avatar({ name = "", uri = "", size = 36 }) {
+  if (uri) {
+    return (
+      <Image
+        source={{ uri }}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth: 2,
+          borderColor: BLACK,
+          backgroundColor: WHITE,
+        }}
+      />
+    );
+  }
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        borderWidth: 2,
+        borderColor: BLACK,
+        backgroundColor: WHITE,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Text style={{ color: BLACK, fontWeight: "900" }}>
+        {(name || "?").slice(0, 1).toUpperCase()}
+      </Text>
+    </View>
+  );
+}
+function StatBox({ label, value }) {
+  return (
+    <View style={styles.statBox}>
+      <Text style={styles.statLabel} numberOfLines={1}>{label}</Text>
+      <Text style={styles.statValue} numberOfLines={1}>{value}</Text>
+    </View>
+  );
+}
+
+/* -------------------- Component -------------------- */
+export default function ContractsPool() {
+  const [mode, setMode] = useState("mega"); // "mega" | "mini"
+  const [showSearch, setShowSearch] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const goBack = () => Alert.alert("Go Back", "Hook this into navigation.");
+
+  const filteredMega = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return MEGA_CONTRACTS;
+    return MEGA_CONTRACTS.filter(
+      (x) =>
+        (x.employerName || "").toLowerCase().includes(q) ||
+        (x.rolesDesc || "").toLowerCase().includes(q)
+    );
+  }, [query]);
+
+  const filteredMini = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return MINI_CONTRACTS;
+    return MINI_CONTRACTS.filter(
+      (x) =>
+        (x.employerName || "").toLowerCase().includes(q) ||
+        (x.role || "").toLowerCase().includes(q) ||
+        (x.nature || "").toLowerCase().includes(q) ||
+        (x.location || "").toLowerCase().includes(q)
+    );
+  }, [query]);
+
+  /* ---------- Stories header (scrolls away like Facebook Stories) ---------- */
+  const ListHeaderStories = () => (
+    <View style={styles.storiesWrap}>
+      <Text style={styles.sectionTitle}>Suggested Businesses to Track</Text>
+      <FlatList
+        data={EMPLOYERS}
+        keyExtractor={(i) => i.id}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8 }}
+        ItemSeparatorComponent={() => <View style={{ width: 10 }} />}
+        renderItem={({ item }) => (
+          <View style={styles.storyItem}>
+            <View style={styles.storyTile}>
+              <Text style={styles.storyInitial}>
+                {(item.name || "?").slice(0, 1).toUpperCase()}
+              </Text>
+            </View>
+            <Text style={styles.storyName} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <Text style={styles.storyRank}>{item.rank}</Text>
+          </View>
+        )}
+      />
+    </View>
+  );
+
+  /* ---------- Renderers ---------- */
+
+  // MEGA card (black 🌟 button)
+  const renderMega = ({ item }) => {
+    const toCap = Math.max(0, (item.cap || 0) - (item.joined || 0));
+    const roundsStr = item.roundsTotal
+      ? `${item.roundsCurrent || 1}/${item.roundsTotal}`
+      : `${item.roundsCurrent || 1}`;
+
+    return (
+      <View style={styles.barrier}>
+        <View style={styles.card}>
+          {/* Row 1: Avatar + Employer + CTA 🌟 */}
+          <View style={styles.rowBetween}>
+            <View style={styles.rowLeft}>
+              <Avatar name={item.employerName} uri={item.avatarUrl} size={40} />
+              <Text style={[styles.empName, { marginLeft: 10 }]} numberOfLines={1}>
+                {item.employerName}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.btn, styles.btnBlack]}
+              activeOpacity={0.9}
+              onPress={() => Alert.alert("Open", `${item.employerName} (Mega)`)}
+              accessibilityLabel="Open competition"
+            >
+              <Text style={styles.btnBlackTxt}>🌟</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* CONTRACT DATE (wrap-safe, full width) */}
+          <View style={[styles.dateBox, { marginTop: 8 }]}>
+            <Text style={styles.dateLabel}>Contract Date</Text>
+            <Text style={styles.dateValue} numberOfLines={3}>
+              {item.startDate} — {item.endDate}
+            </Text>
+          </View>
+
+          {/* Est. pay */}
+          <View style={[styles.rowLeft, { marginTop: 8 }]}>
+            <Ionicons name="cash-outline" size={16} color={BLACK} />
+            <Text style={[styles.metaStrong, { marginLeft: 6 }]}>
+              {moneyRange(item.estMin, item.estMax, item.payPeriod)}
+            </Text>
+          </View>
+
+          {/* Roles desc */}
+          <Text style={[styles.desc, { marginTop: 6 }]} numberOfLines={3}>
+            {item.rolesDesc}
+          </Text>
+
+          {/* Competition stats */}
+          <View style={[styles.statsRow, { marginTop: 10 }]}>
+            <StatBox label="Rounds" value={roundsStr} />
+            <StatBox label="Cap" value={`${item.cap || 0}`} />
+            <StatBox label="Joined" value={`${item.joined || 0}`} />
+          </View>
+          <View style={[styles.statsRow, { marginTop: 6 }]}>
+            <StatBox label="Left" value={`${item.active || 0}`} />
+            <StatBox label="Winners" value={`${item.winnersNeeded || 0}`} />
+            <StatBox label="To Cap" value={`${toCap}`} />
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  // MINI card (compact)
+  const renderMini = ({ item }) => (
+    <View style={styles.barrier}>
+      <View style={styles.card}>
+        {/* Row 1: Avatar + Employer + Pay chip */}
+        <View style={styles.rowBetween}>
+          <View style={styles.rowLeft}>
+            <Avatar name={item.employerName} uri={item.avatarUrl} size={40} />
+            <Text style={[styles.empName, { marginLeft: 10 }]} numberOfLines={1}>
+              {item.employerName}
+            </Text>
+          </View>
+          <View style={styles.payChip}>
+            <Ionicons name="cash-outline" size={14} color={BLACK} />
+            <Text style={[styles.payChipTxt, { marginLeft: 6 }]} numberOfLines={1}>
+              {item.pay}
+            </Text>
+          </View>
+        </View>
+
+        {/* Row 2: compact meta line with icons */}
+        <View style={[styles.metaWrap, { marginTop: 8 }]}>
+          <MetaIcon icon="briefcase-outline" label={item.role} />
+          <MetaIcon icon="people-outline" label={`${item.count} needed`} />
+          <MetaIcon icon="time-outline" label={item.duration} />
+        </View>
+
+        {/* Row 3: compact meta line 2 */}
+        <View style={[styles.metaWrap, { marginTop: 4 }]}>
+          <MetaIcon icon="construct-outline" label={item.nature} />
+          <MetaIcon icon="pin-outline" label={item.location} />
+        </View>
+
+        {/* CTA */}
+        <TouchableOpacity
+          style={[styles.btn, styles.btnYellow, { marginTop: 10, alignSelf: "flex-start" }]}
+          activeOpacity={0.9}
+          onPress={() => Alert.alert("Open", `${item.employerName} (Mini)`)}
+        >
+          <Ionicons name="open-outline" size={16} color={BLACK} />
+          <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Open</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const listData = mode === "mega" ? filteredMega : filteredMini;
+  const listRenderer = mode === "mega" ? renderMega : renderMini;
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar with Back + Search toggle */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.8} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Contracts Pool</Text>
+        <TouchableOpacity
+          style={[styles.iconBox, { alignItems: "flex-end" }]}
+          activeOpacity={0.8}
+          onPress={() => setShowSearch((s) => !s)}
+        >
+          <Ionicons name={showSearch ? "close" : "search-outline"} size={20} color={WHITE} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Inline Search (toggle) */}
+      {showSearch && (
+        <View style={styles.searchWrap}>
+          <Ionicons name="search-outline" size={16} color={BLACK} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={
+              mode === "mega"
+                ? "Search mega: employer, role description"
+                : "Search mini: employer, role, nature, location"
+            }
+            placeholderTextColor="#666"
+            style={styles.searchInput}
+          />
+          {!!query && (
+            <TouchableOpacity onPress={() => setQuery("")} style={styles.clearBtn} activeOpacity={0.8}>
+              <Ionicons name="close" size={16} color={BLACK} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Toggle */}
+      <View style={styles.toggleRow}>
+        <TouchableOpacity
+          style={[styles.toggleBtn, mode === "mega" ? styles.toggleOn : styles.toggleOff]}
+          activeOpacity={0.9}
+          onPress={() => setMode("mega")}
+        >
+          <Text style={[styles.toggleTxt, mode === "mega" ? styles.toggleTxtOn : styles.toggleTxtOff]}>
+            Mega Contracts
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleBtn, mode === "mini" ? styles.toggleOn : styles.toggleOff]}
+          activeOpacity={0.9}
+          onPress={() => setMode("mini")}
+        >
+          <Text style={[styles.toggleTxt, mode === "mini" ? styles.toggleTxtOn : styles.toggleTxtOff]}>
+            Mini Contracts
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Feed with Stories header (slides away on scroll) */}
+      <FlatList
+        data={listData}
+        keyExtractor={(i) => i.id}
+        renderItem={listRenderer}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 86 }}
+        ListHeaderComponent={<ListHeaderStories />}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Ionicons name="briefcase-outline" size={24} color="#777" />
+            <Text style={styles.emptyText}>No {mode === "mega" ? "mega" : "mini"} contracts found.</Text>
+          </View>
+        }
+        showsVerticalScrollIndicator={false}
+      />
+
+      {/* Bottom nav (exact as provided) */}
+      <View style={styles.bottomBar}>
+        <Ionicons name="home-outline" size={28} color={YELLOW} />
+        <Ionicons name="briefcase-outline" size={28} color={YELLOW} />
+        <Ionicons name="people-outline" size={28} color={YELLOW} />
+        <Ionicons name="notifications-outline" size={28} color={YELLOW} />
+        <Ionicons name="person-outline" size={28} color={YELLOW} />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+/* -------------------- Small Pieces -------------------- */
+function MetaIcon({ icon, label }) {
+  return (
+    <View style={styles.metaPiece}>
+      <Ionicons name={icon} size={13} color={BLACK} />
+      <Text style={styles.metaText} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+/* -------------------- Styles -------------------- */
+const TILE = 72; // story tile size
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top Bar */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Search */
+  searchWrap: {
+    marginTop: 10,
+    marginHorizontal: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  searchInput: { flex: 1, marginLeft: 8, color: BLACK, fontSize: 13 },
+  clearBtn: {
+    padding: 6,
+    marginLeft: 4,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+
+  /* Toggle */
+  toggleRow: { flexDirection: "row", paddingHorizontal: 12, marginTop: 10 },
+  toggleBtn: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: WHITE,
+  },
+  toggleOn: { backgroundColor: YELLOW },
+  toggleOff: { backgroundColor: WHITE },
+  toggleTxt: { fontSize: 13, fontWeight: "900" },
+  toggleTxtOn: { color: BLACK },
+  toggleTxtOff: { color: BLACK },
+
+  /* Stories */
+  storiesWrap: {
+    marginTop: 12,
+    marginBottom: 6,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: BLACK,
+    paddingTop: 8,
+    paddingHorizontal: 12,
+  },
+  storyItem: { width: TILE, alignItems: "center" },
+  storyTile: {
+    width: TILE,
+    height: TILE,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  storyInitial: { color: BLACK, fontSize: 18, fontWeight: "900" },
+  storyName: { color: BLACK, fontSize: 11, fontWeight: "800", marginTop: 6, textAlign: "center" },
+  storyRank: { color: "#666", fontSize: 10, marginTop: 2 },
+
+  /* Yellow Barrier + Card */
+  barrier: {
+    borderWidth: 3,
+    borderColor: YELLOW,
+    borderRadius: 16,
+    padding: 4,
+    backgroundColor: WHITE,
+  },
+  card: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    padding: 12,
+  },
+
+  /* Shared rows */
+  rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  rowLeft: { flexDirection: "row", alignItems: "center" },
+
+  /* Employer name */
+  empName: { color: BLACK, fontSize: 16, fontWeight: "900", maxWidth: 180 },
+
+  /* Contract Date box (wrap safe) */
+  dateBox: {
+    width: "100%",
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    backgroundColor: WHITE,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  dateLabel: { color: "#666", fontSize: 10, fontWeight: "900" },
+  dateValue: {
+    color: BLACK,
+    fontSize: 12,
+    fontWeight: "800",
+    marginTop: 2,
+    flexShrink: 1,
+  },
+
+  /* Mega specifics */
+  metaStrong: { color: BLACK, fontWeight: "900", fontSize: 13 },
+  desc: { color: "#333", fontSize: 12 },
+
+  statsRow: { flexDirection: "row", alignItems: "center" },
+  statBox: {
+    flex: 1,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    backgroundColor: WHITE,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginRight: 8,
+  },
+  statLabel: { color: "#666", fontSize: 10, fontWeight: "900" },
+  statValue: { color: BLACK, fontSize: 13, fontWeight: "900", marginTop: 2 },
+
+  /* Mini specifics */
+  payChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    flexDirection: "row",
+    alignItems: "center",
+    maxWidth: 170,
+  },
+  payChipTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+
+  metaWrap: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
+  metaPiece: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: BLACK,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 8,
+    marginBottom: 6,
+    backgroundColor: WHITE,
+    maxWidth: 180,
+  },
+  metaText: { color: BLACK, fontSize: 12, fontWeight: "800", marginLeft: 6 },
+
+  /* Buttons */
+  btn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  btnYellow: { backgroundColor: YELLOW },
+  btnYellowTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+
+  // NEW: black box for 🌟
+  btnBlack: { backgroundColor: BLACK, borderColor: BLACK },
+  btnBlackTxt: { fontSize: 16, color: WHITE, fontWeight: "900" },
+
+  /* Empty */
+  emptyWrap: { marginTop: 40, alignItems: "center", justifyContent: "center" },
+  emptyText: { color: "#666", fontWeight: "600", marginTop: 8 },
+
+  /* Bottom nav (exact) */
+  bottomBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 64,
+    backgroundColor: BLACK,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingHorizontal: 12,
+  },
+});
