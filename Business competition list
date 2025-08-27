@@ -1,7 +1,7 @@
-// SSocketCompetitions_BusinessList.js
+// SSocketCompetitions_BusinessList.js 
 // Business-side: List all competitions created by the contractee.
 // - Search by title, job role, or description
-// - Each card shows: status, cap, participants, winners, dates, rounds count
+// - Each card shows: status, cap, participants, winners, dates, rounds count, **estimated pay range**
 // - "Review" button to start reviewing answers (hook up onReview later)
 // - Yellow barrier around each card; avatar-less clean layout
 // - Expo-compatible, no external libs
@@ -27,6 +27,35 @@ const WHITE = "#FFF";
 const RED = "#D32F2F";
 const GREEN = "#2E7D32";
 
+/* ===== Helpers for pay formatting ===== */
+const CURRENCY = "₦";
+const comma = (n) =>
+  typeof n === "number"
+    ? n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+    : `${n}`;
+const unitLabel = (u) => {
+  if (!u) return "";
+  const map = { hour: "/ hr", day: "/ day", week: "/ week", month: "/ month", project: "/ project" };
+  return map[u] || `/ ${u}`;
+};
+const formatPayRange = (item) => {
+  // Supports either structured fields or a pre-baked label
+  if (item.estimatedPayLabel) return item.estimatedPayLabel;
+  const min = item.estimatedPayMin;
+  const max = item.estimatedPayMax;
+  const unit = unitLabel(item.payUnit || "month");
+  if (typeof min === "number" && typeof max === "number") {
+    return `${CURRENCY}${comma(min)}–${CURRENCY}${comma(max)} ${unit}`;
+  }
+  if (typeof min === "number") {
+    return `${CURRENCY}${comma(min)}+ ${unit}`;
+  }
+  if (typeof max === "number") {
+    return `Up to ${CURRENCY}${comma(max)} ${unit}`;
+  }
+  return "—";
+};
+
 export default function SSocketCompetitions_BusinessList({
   competitions,
   onBack,
@@ -39,8 +68,7 @@ export default function SSocketCompetitions_BusinessList({
         id: "cmp_001",
         title: "Marketing Hire – Q4 Funnel Sprint",
         jobRole: "Marketing Specialist",
-        description:
-          "Creative, data-driven growth tasks across 3 rounds.",
+        description: "Creative, data-driven growth tasks across 3 rounds.",
         participantCap: 30,
         participantsCount: 27,
         winnersNeeded: 1,
@@ -52,14 +80,17 @@ export default function SSocketCompetitions_BusinessList({
           { id: "r3", name: "Final", durationDays: 2, questions: [{ id: "q3", text: "Strategy?" }] },
         ],
         closed: false,
-        submissionsPending: 12, // pending answers to review
+        submissionsPending: 12,
+        // 🔶 Estimated pay (per month)
+        estimatedPayMin: 300000,
+        estimatedPayMax: 450000,
+        payUnit: "month",
       },
       {
         id: "cmp_002",
         title: "Accountant – Quarterly Close Drill",
         jobRole: "Accountant",
-        description:
-          "Practical reconciliation and reporting challenges.",
+        description: "Practical reconciliation and reporting challenges.",
         participantCap: 20,
         participantsCount: 20,
         winnersNeeded: 2,
@@ -71,13 +102,16 @@ export default function SSocketCompetitions_BusinessList({
         ],
         closed: false,
         submissionsPending: 5,
+        // 🔶 Estimated pay (per month)
+        estimatedPayMin: 250000,
+        estimatedPayMax: 350000,
+        payUnit: "month",
       },
       {
         id: "cmp_003",
         title: "Brand Designer – Packaging Sprint",
         jobRole: "Brand Designer",
-        description:
-          "Concept → mockups → final presentation.",
+        description: "Concept → mockups → final presentation.",
         participantCap: 15,
         participantsCount: 15,
         winnersNeeded: 1,
@@ -89,6 +123,10 @@ export default function SSocketCompetitions_BusinessList({
         ],
         closed: true,
         submissionsPending: 0,
+        // 🔶 Estimated pay (per project)
+        estimatedPayMin: 150000,
+        estimatedPayMax: 250000,
+        payUnit: "project",
       },
     ],
     []
@@ -136,6 +174,8 @@ export default function SSocketCompetitions_BusinessList({
       return <Badge color={YELLOW} text="Open" />;
     };
 
+    const payText = formatPayRange(item);
+
     return (
       <View style={styles.barrier}>
         <View style={styles.card}>
@@ -151,7 +191,7 @@ export default function SSocketCompetitions_BusinessList({
           {/* Description */}
           <Text style={styles.desc} numberOfLines={3}>{item.description}</Text>
 
-          {/* Meta */}
+          {/* Meta Row 1 */}
           <View style={[styles.metaRow, { marginTop: 8 }]}>
             <View style={styles.badgeOutline}>
               <Text style={styles.badgeOutlineTxt}>
@@ -164,8 +204,13 @@ export default function SSocketCompetitions_BusinessList({
             <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
               <Text style={styles.badgeOutlineTxt}>Rounds: {roundsCount}</Text>
             </View>
+            {/* 🔶 Estimated Pay Range */}
+            <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+              <Text style={styles.badgeOutlineTxt}>Est. Pay: {payText}</Text>
+            </View>
           </View>
 
+          {/* Meta Row 2 */}
           <View style={[styles.metaRow, { marginTop: 6 }]}>
             {!!item.startDate && (
               <View style={styles.badgeOutline}>
