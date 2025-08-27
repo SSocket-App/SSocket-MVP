@@ -1,0 +1,516 @@
+// SSocketCompetitionDetails_User.js
+// User-side: Competition Details view (opened from "Details" button).
+// - Shows overview (title, role, status, estimated pay, rounds count).
+// - Round progress pills: Completed / Current / Upcoming.
+// - Current Round card: duration, due date (if provided), questions, and NEXT QUESTION preview.
+// - "Open Current Round" button (disabled if ended or disqualified).
+// - Past Rounds card: quick view + "View Round" buttons.
+// - Disqualified competitions show a red banner and disable actions.
+// - Expo-compatible, no external libs. No "gap" usage.
+
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+const RED = "#D32F2F";
+const GREEN = "#2E7D32";
+const GRAY = "#999";
+
+function Pill({ label, tone = "idle", onPress }) {
+  const styleMap = {
+    idle: [styles.pill, styles.pillIdle],
+    current: [styles.pill, styles.pillCurrent],
+    done: [styles.pill, styles.pillDone],
+  };
+  const txtMap = {
+    idle: [styles.pillTxt, styles.pillTxtIdle],
+    current: [styles.pillTxt, styles.pillTxtCurrent],
+    done: [styles.pillTxt, styles.pillTxtDone],
+  };
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.9} style={styleMap[tone] || styleMap.idle}>
+      <Text style={txtMap[tone] || txtMap.idle}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function OutlineBadge({ text, style }) {
+  return (
+    <View style={[styles.badgeOutline, style]}>
+      <Text style={styles.badgeOutlineTxt}>{text}</Text>
+    </View>
+  );
+}
+
+function StatusBadge({ status }) {
+  if (status === "ongoing") {
+    return (
+      <View style={[styles.badgeSolid, { backgroundColor: GREEN }]}>
+        <Text style={styles.badgeSolidTxt}>Ongoing</Text>
+      </View>
+    );
+  }
+  if (status === "ended") {
+    return (
+      <View style={[styles.badgeSolid, { backgroundColor: GRAY }]}>
+        <Text style={styles.badgeSolidTxt}>Ended</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={[styles.badgeSolid, { backgroundColor: RED }]}>
+      <Text style={styles.badgeSolidTxt}>Disqualified</Text>
+    </View>
+  );
+}
+
+/* Helpers */
+function formatMoney(n) {
+  const x = Number(n);
+  if (Number.isNaN(x)) return "—";
+  return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+function readablePeriod(p) {
+  if (!p) return "";
+  const v = String(p).toLowerCase();
+  if (v.startsWith("week")) return "week";
+  if (v.startsWith("mon")) return "month";
+  if (v.startsWith("proj") || v === "on_completion") return "project";
+  if (v.startsWith("mile")) return "milestone";
+  return v;
+}
+
+export default function SSocketCompetitionDetails_User({
+  competition,
+  onBack,
+  onOpenCurrentRound, // (roundObj) => void
+  onViewRound,        // (roundObj) => void
+}) {
+  /* Demo fallback */
+  const demo = useMemo(
+    () => ({
+      id: "cmp_101",
+      title: "Marketing Hire – Q4 Funnel Sprint",
+      jobRole: "Marketing Specialist",
+      status: "ongoing", // ongoing | ended | disqualified
+      currentRoundIndex: 2, // 1-based
+      totalRounds: 4,
+      currency: "NGN",
+      estimatedPayMin: 350000,
+      estimatedPayMax: 500000,
+      paymentPeriod: "month",
+      rounds: [
+        {
+          id: "r1",
+          name: "Round 1",
+          durationDays: 2,
+          dueDate: "2025-09-05",
+          questions: [
+            { id: "q1", text: "List 3 top-of-funnel ideas." },
+            { id: "q2", text: "Suggest 2 success metrics." },
+          ],
+          myAnswers: { q1: "UGC, campus reps, referrals", q2: "CTR, sign-ups" },
+        },
+        {
+          id: "r2",
+          name: "Round 2",
+          durationDays: 3,
+          dueDate: "2025-09-10",
+          questions: [
+            { id: "q3", text: "Draft a 7-day growth experiment plan." },
+            { id: "q4", text: "Give 1 hypothesis and expected outcome." },
+          ],
+          myAnswers: { q3: "", q4: "" }, // not yet answered
+        },
+        {
+          id: "r3",
+          name: "Round 3",
+          durationDays: 3,
+          dueDate: "2025-09-14",
+          questions: [{ id: "q5", text: "Budget plan for channels." }],
+          myAnswers: {},
+        },
+        {
+          id: "r4",
+          name: "Final",
+          durationDays: 2,
+          dueDate: "2025-09-17",
+          questions: [{ id: "q6", text: "Present a pitch outline." }],
+          myAnswers: {},
+        },
+      ],
+    }),
+    []
+  );
+
+  const comp = competition || demo;
+  const [rounds] = useState(Array.isArray(comp.rounds) ? comp.rounds : []);
+  const currentIndex = Math.min(
+    Math.max(Number(comp.currentRoundIndex || 1) - 1, 0),
+    Math.max(rounds.length - 1, 0)
+  );
+  const currentRound = rounds[currentIndex];
+
+  const goBack = () => {
+    if (typeof onBack === "function") onBack();
+    else Alert.alert("Back", "Hook this into navigation.");
+  };
+
+  const openCurrentRound = () => {
+    if (comp.status !== "ongoing") return;
+    if (typeof onOpenCurrentRound === "function") onOpenCurrentRound(currentRound);
+    else Alert.alert("Open", `Open current round: ${currentRound?.name || "—"}`);
+  };
+
+  const viewRound = (r) => {
+    if (typeof onViewRound === "function") onViewRound(r);
+    else Alert.alert("Open", `View round: ${r?.name || "—"}`);
+  };
+
+  const payText = (() => {
+    const cur = comp.currency || "NGN";
+    const min = comp.estimatedPayMin;
+    const max = comp.estimatedPayMax;
+    const per = readablePeriod(comp.paymentPeriod || "");
+    if (min && max) return `${cur} ${formatMoney(min)}–${formatMoney(max)}${per ? ` per ${per}` : ""}`;
+    if (min) return `from ${cur} ${formatMoney(min)}${per ? ` per ${per}` : ""}`;
+    if (max) return `up to ${cur} ${formatMoney(max)}${per ? ` per ${per}` : ""}`;
+    return "—";
+  })();
+
+  // Compute next question preview in current round
+  const nextQuestion = (() => {
+    if (!currentRound || !Array.isArray(currentRound.questions)) return null;
+    const myA = currentRound.myAnswers || {};
+    const pending = currentRound.questions.find((q) => !myA[q.id] || !String(myA[q.id]).trim());
+    return pending || null;
+  })();
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Competition Details</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+        {/* Disqualified banner */}
+        {comp.status === "disqualified" && (
+          <View style={[styles.barrier, { marginTop: 12 }]}>
+            <View style={[styles.card, { backgroundColor: "#FFF7F7" }]}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Ionicons name="alert-circle-outline" size={18} color={RED} />
+                <Text style={[styles.disqTxt, { marginLeft: 8 }]}>
+                  You are disqualified from this competition. You can still view your past rounds.
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Overview */}
+        <View style={[styles.barrier, { marginTop: 12 }]}>
+          <View style={styles.card}>
+            <Text style={styles.title} numberOfLines={2}>{comp.title}</Text>
+            <Text style={styles.role} numberOfLines={1}>{comp.jobRole}</Text>
+
+            <View style={{ marginTop: 6 }}>
+              <StatusBadge status={comp.status} />
+            </View>
+
+            <View style={[styles.metaRow, { marginTop: 8 }]}>
+              <OutlineBadge text={`Rounds: ${comp.totalRounds || rounds.length || 0}`} />
+              <OutlineBadge text={`Estimated Pay: ${payText}`} style={{ marginLeft: 8 }} />
+            </View>
+          </View>
+        </View>
+
+        {/* Round Progress */}
+        <View style={[styles.barrier, { marginTop: 12 }]}>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Rounds</Text>
+            <View style={styles.pillWrap}>
+              {rounds.map((r, idx) => {
+                let tone = "idle";
+                if (idx < currentIndex) tone = "done";
+                else if (idx === currentIndex) tone = "current";
+                return (
+                  <Pill
+                    key={r.id}
+                    label={r.name || `Round ${idx + 1}`}
+                    tone={tone}
+                    onPress={() => viewRound(r)}
+                  />
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
+        {/* Current Round */}
+        {currentRound ? (
+          <View style={[styles.barrier, { marginTop: 12 }]}>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Current Round: {currentRound.name || `Round ${currentIndex + 1}`}</Text>
+              <View style={[styles.metaRow, { marginTop: 6 }]}>
+                {!!currentRound.durationDays && (
+                  <OutlineBadge text={`Duration: ${currentRound.durationDays} day(s)`} />
+                )}
+                {!!currentRound.dueDate && (
+                  <OutlineBadge text={`Due: ${currentRound.dueDate}`} style={{ marginLeft: 8 }} />
+                )}
+              </View>
+
+              {/* Next Question Preview */}
+              <View style={{ marginTop: 10 }}>
+                <Text style={styles.fieldLabel}>Next Question</Text>
+                <View style={styles.answerBox}>
+                  <Text style={styles.answerText}>
+                    {nextQuestion ? nextQuestion.text : "All questions in this round are submitted."}
+                  </Text>
+                </View>
+              </View>
+
+              {/* All Questions (read-only) */}
+              <View style={{ marginTop: 10 }}>
+                <Text style={styles.fieldLabel}>All Questions</Text>
+                {Array.isArray(currentRound.questions) && currentRound.questions.length > 0 ? (
+                  currentRound.questions.map((q, qi) => (
+                    <View key={`${currentRound.id}_${q.id}`} style={{ marginTop: qi === 0 ? 0 : 8 }}>
+                      <View style={styles.qRow}>
+                        <Text style={styles.qIndex}>Q{qi + 1}</Text>
+                        <Text style={[styles.answerText, { flex: 1 }]}>{q.text}</Text>
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.helperNote}>No questions found.</Text>
+                )}
+              </View>
+
+              {/* CTA */}
+              <TouchableOpacity
+                style={[
+                  styles.btn,
+                  styles.btnYellow,
+                  { marginTop: 12, alignSelf: "flex-start" },
+                  (comp.status !== "ongoing") && styles.btnDisabled,
+                ]}
+                activeOpacity={comp.status === "ongoing" ? 0.9 : 1}
+                disabled={comp.status !== "ongoing"}
+                onPress={openCurrentRound}
+              >
+                <Ionicons name="enter-outline" size={16} color={BLACK} />
+                <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>
+                  Open Current Round
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
+
+        {/* Past / Other Rounds */}
+        <View style={[styles.barrier, { marginTop: 12 }]}>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Other Rounds</Text>
+            {rounds.length <= 1 ? (
+              <Text style={styles.helperNote}>No other rounds.</Text>
+            ) : (
+              rounds.map((r, idx) => {
+                if (idx === currentIndex) return null;
+                const isPast = idx < currentIndex;
+                const badgeText = isPast ? "Completed" : "Upcoming";
+                const badgeColor = isPast ? GREEN : YELLOW;
+                return (
+                  <View key={r.id} style={styles.otherRoundBox}>
+                    <View style={styles.otherRoundHead}>
+                      <Text style={styles.otherRoundTitle} numberOfLines={1}>
+                        {r.name || `Round ${idx + 1}`}
+                      </Text>
+                      <View style={[styles.badgeSolid, { backgroundColor: badgeColor }]}>
+                        <Text style={styles.badgeSolidTxt}>{badgeText}</Text>
+                      </View>
+                    </View>
+                    <View style={[styles.metaRow, { marginTop: 6 }]}>
+                      {!!r.durationDays && <OutlineBadge text={`Duration: ${r.durationDays} day(s)`} />}
+                      {!!r.dueDate && <OutlineBadge text={`Due: ${r.dueDate}`} style={{ marginLeft: 8 }} />}
+                      <OutlineBadge
+                        text={`Questions: ${Array.isArray(r.questions) ? r.questions.length : 0}`}
+                        style={{ marginLeft: 8 }}
+                      />
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.btn, styles.btnGhost, { marginTop: 8, alignSelf: "flex-start" }]}
+                      activeOpacity={0.9}
+                      onPress={() => viewRound(r)}
+                    >
+                      <Ionicons name="eye-outline" size={16} color={BLACK} />
+                      <Text style={[styles.btnGhostTxt, { marginLeft: 6 }]}>View Round</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })
+            )}
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* Styles */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+    position: "relative",
+  },
+  backBtn: { position: "absolute", left: 12, bottom: 14, padding: 6 },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Barrier & Card */
+  barrier: {
+    marginHorizontal: 12,
+    marginTop: 8,
+    borderWidth: 3,
+    borderColor: YELLOW,
+    borderRadius: 16,
+    padding: 4,
+    backgroundColor: WHITE,
+  },
+  card: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 12,
+  },
+
+  /* Titles & text */
+  title: { color: BLACK, fontSize: 16, fontWeight: "900" },
+  role: { color: "#444", fontSize: 12, marginTop: 2 },
+  cardTitle: { color: BLACK, fontSize: 14, fontWeight: "900" },
+  disqTxt: { color: RED, fontSize: 12, fontWeight: "900" },
+
+  /* Meta */
+  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
+  badgeOutline: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignSelf: "flex-start",
+  },
+  badgeOutlineTxt: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  badgeSolid: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    alignSelf: "flex-start",
+  },
+  badgeSolidTxt: { color: WHITE, fontSize: 12, fontWeight: "900" },
+
+  /* Pills */
+  pillWrap: { flexDirection: "row", flexWrap: "wrap", marginTop: 8 },
+  pill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 2,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  pillIdle: { backgroundColor: WHITE, borderColor: BLACK },
+  pillCurrent: { backgroundColor: YELLOW, borderColor: BLACK },
+  pillDone: { backgroundColor: "#E6E6E6", borderColor: BLACK },
+
+  pillTxt: { fontSize: 12, fontWeight: "900" },
+  pillTxtIdle: { color: BLACK },
+  pillTxtCurrent: { color: BLACK },
+  pillTxtDone: { color: BLACK },
+
+  /* Questions & answers preview */
+  fieldLabel: { color: BLACK, fontSize: 12, fontWeight: "800", marginBottom: 4 },
+  answerBox: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    backgroundColor: WHITE,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  answerText: { color: BLACK, fontSize: 13, lineHeight: 18 },
+  qRow: { flexDirection: "row", alignItems: "flex-start" },
+  qIndex: {
+    color: BLACK,
+    fontSize: 11,
+    fontWeight: "900",
+    marginRight: 8,
+    marginTop: 2,
+    minWidth: 22,
+  },
+
+  /* Other rounds */
+  otherRoundBox: {
+    marginTop: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    padding: 10,
+  },
+  otherRoundHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  otherRoundTitle: { color: BLACK, fontSize: 13, fontWeight: "900" },
+
+  /* Buttons */
+  btn: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  btnYellow: { backgroundColor: YELLOW },
+  btnYellowTxt: { color: BLACK, fontSize: 12, fontWeight: "900" },
+  btnGhost: { backgroundColor: WHITE },
+  btnGhostTxt: { color: BLACK, fontSize: 12, fontWeight: "900" },
+  btnDisabled: { opacity: 0.5 },
+
+  /* Helpers */
+  helperNote: { color: "#555", fontSize: 11, marginTop: 4 },
+});
