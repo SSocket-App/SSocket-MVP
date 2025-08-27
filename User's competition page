@@ -1,6 +1,6 @@
 // SSocketCompetitionView_User.js
 // User-side: View & join a Competition, and submit answers per round.
-// - Shows competition basics (title, job role, cap, slots left, winners).
+// - Shows competition basics (title, job role, cap, slots left, winners, **estimated pay range**).
 // - Auto-locks when cap is reached (join disabled if full and you’re not joined).
 // - Round switcher (pills). Each round shows its questions with inputs.
 // - Save Draft (local) and Submit Answers for the selected round.
@@ -29,6 +29,27 @@ const WHITE = "#FFF";
 const RED = "#D32F2F";
 const GREEN = "#2E7D32";
 
+/* ===== Pay formatting helpers ===== */
+const CURRENCY_SYMBOL = { NGN: "₦", USD: "$", EUR: "€", GBP: "£" };
+const comma = (n) =>
+  typeof n === "number"
+    ? n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+    : `${n}`;
+const unitLabel = (u) => {
+  const map = { hour: "/ hr", day: "/ day", week: "/ week", month: "/ month", project: "/ project" };
+  return map[u] || (u ? `/ ${u}` : "");
+};
+const formatPayRange = (c) => {
+  const min = Number.isFinite(+c?.estimatedPayMin) ? +c.estimatedPayMin : null;
+  const max = Number.isFinite(+c?.estimatedPayMax) ? +c.estimatedPayMax : null;
+  const unit = unitLabel(c?.payUnit || "month");
+  const sym = CURRENCY_SYMBOL[c?.currency] || (c?.currency ? `${c.currency} ` : "");
+  if (min != null && max != null) return `${sym}${comma(min)}–${sym}${comma(max)} ${unit}`;
+  if (min != null) return `${sym}${comma(min)}+ ${unit}`;
+  if (max != null) return `Up to ${sym}${comma(max)} ${unit}`;
+  return "—";
+};
+
 export default function SSocketCompetitionView_User({
   competition,
   participantsCount,            // number (optional)
@@ -51,6 +72,11 @@ export default function SSocketCompetitionView_User({
       participantCap: 30,
       winnersNeeded: 1,
       startDate: "2025-09-05",
+      // 🔶 Demo Estimated Pay Range
+      currency: "NGN",
+      estimatedPayMin: 250000,
+      estimatedPayMax: 400000,
+      payUnit: "month",
       rounds: [
         {
           id: "r1",
@@ -98,11 +124,9 @@ export default function SSocketCompetitionView_User({
     return rounds.map((r) => {
       const sub = mySubmissions && mySubmissions[r.id];
       if (sub && Array.isArray(sub.answers)) {
-        // Pre-fill with submitted answers length; fallback to blanks for any extra questions
         const base = r.questions.map((q, i) => (typeof sub.answers[i] === "string" ? sub.answers[i] : ""));
         return base;
       }
-      // brand new: blanks
       return r.questions.map(() => "");
     });
   }, [rounds, mySubmissions]);
@@ -225,6 +249,12 @@ export default function SSocketCompetitionView_User({
               <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
                 <Text style={styles.badgeOutlineTxt}>
                   {`Winners: ${comp.winnersNeeded || 1}`}
+                </Text>
+              </View>
+              {/* 🔶 Estimated Pay Range */}
+              <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+                <Text style={styles.badgeOutlineTxt}>
+                  {`Est. Pay: ${formatPayRange(comp)}`}
                 </Text>
               </View>
               {!!comp.startDate && (
