@@ -1,0 +1,775 @@
+// SSocketSealedContracts_Business.js
+// Business-side: Sealed Mega Contracts list (read-only).
+// - Distinct cards with yellow barrier + avatar beside contractor name
+// - Search by contractor name, description, job role
+// - Red urgency badge: "N pending confirmations" (>=2). Confirmations hidden by default.
+// - "View Confirmations" toggles pending confirmations for that contractor
+// - Open/Close a confirmation without forcing a decision; actions appear only after "Decide"
+// - Once a decision is made (accepted/declined), the confirmation VANISHES (no edits/reversals)
+// - Accept button stays disabled until ALL fields are filled (green tag, red tag, rating, review/comment)
+// - Green tags: hardworking, analytical, creative, strategic, flexible, leadership, collaborative, social, detail-oriented, trustworthy
+// - Red tags: short-sighted, rigid, ineffective, untrustworthy, conflict-prone, lazy, unsociable, disloyal, disorganized, slow
+// - Back button in the top bar
+// - Review section note: "Reviews are only visible to the system."
+
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  TextInput,
+  FlatList,
+  Image,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+const RED = "#D32F2F";
+const GREEN = "#2E7D32";
+
+/* ===== Small Bits ===== */
+function Money({ amount, period }) {
+  return (
+    <View style={styles.badgeOutline}>
+      <Text style={styles.badgeOutlineTxt}>
+        {`NGN ${formatMoney(amount)}${period ? ` per ${readablePeriod(period)}` : ""}`}
+      </Text>
+    </View>
+  );
+}
+
+function StarRating({ value, onChange }) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <TouchableOpacity key={n} onPress={() => onChange(n)} style={{ padding: 4 }} activeOpacity={0.8}>
+          <Ionicons name={value >= n ? "star" : "star-outline"} size={18} color={BLACK} />
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
+/* ===== Main Component ===== */
+export default function SSocketSealedContracts_Business({ contracts, onOpenContract, onBack }) {
+  // Demo sealed contracts if none provided
+  const demo = useMemo(
+    () => [
+      {
+        id: "sc_101",
+        contractorName: "John Doe",
+        jobRole: "Marketing Specialist",
+        workDescription: "Lead gen campaigns, weekly report, and monthly growth experiments.",
+        startDate: "2025-06-01",
+        endDate: "2025-12-01",
+        salary: 450000,
+        paymentPeriod: "month",
+        avatarUrl: "", // empty -> shows monogram
+        confirmations: [
+          {
+            id: "c1",
+            text: "Did John Doe bring in 40 new customers this month?",
+            opened: false,
+            status: "pending", // only pending items are kept; decided ones vanish
+            posTag: null,
+            improveTag: null,
+            rating: 0,
+            comment: "",
+            _expanded: false,     // open/close the item
+            _showActions: false,  // hidden until 'Decide'
+          },
+          {
+            id: "c1b",
+            text: "Did John Doe publish the Q3 campaign report?",
+            opened: false,
+            status: "pending",
+            posTag: null,
+            improveTag: null,
+            rating: 0,
+            comment: "",
+            _expanded: false,
+            _showActions: false,
+          },
+        ],
+        _showConfirms: false, // card-level toggle
+      },
+      {
+        id: "sc_102",
+        contractorName: "Amaka N.",
+        jobRole: "Accountant",
+        workDescription: "Monthly reconciliation, payroll, tax filings, and vendor payments.",
+        startDate: "2025-05-10",
+        endDate: "2025-11-10",
+        salary: 380000,
+        paymentPeriod: "month",
+        avatarUrl: "",
+        confirmations: [], // none pending
+        _showConfirms: false,
+      },
+    ],
+    []
+  );
+
+  const [items, setItems] = useState(contracts && contracts.length ? contracts : demo);
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((c) => {
+      return (
+        (c.contractorName || "").toLowerCase().includes(q) ||
+        (c.workDescription || "").toLowerCase().includes(q) ||
+        (c.jobRole || "").toLowerCase().includes(q)
+      );
+    });
+  }, [items, query]);
+
+  const goBack = () => {
+    if (typeof onBack === "function") onBack();
+    else Alert.alert("Back", "Hook this into navigation.");
+  };
+
+  const openContract = (item) => {
+    if (typeof onOpenContract === "function") onOpenContract(item);
+    else Alert.alert("Open", `Open sealed contract for ${item.contractorName}`);
+  };
+
+  /* ===== Card & Confirmation helpers ===== */
+  const toggleShowConfirms = (cid) => {
+    setItems((prev) =>
+      prev.map((c) => (c.id === cid ? { ...c, _showConfirms: !c._showConfirms } : c))
+    );
+  };
+
+  const toggleExpandConfirm = (cid, fid) => {
+    setItems((prev) =>
+      prev.map((c) =>
+        c.id !== cid
+          ? c
+          : {
+              ...c,
+              confirmations: c.confirmations.map((f) =>
+                f.id === fid ? { ...f, _expanded: !f._expanded, opened: true } : f
+              ),
+            }
+      )
+    );
+  };
+
+  const showActions = (cid, fid, show) => {
+    setItems((prev) =>
+      prev.map((c) =>
+        c.id !== cid
+          ? c
+          : {
+              ...c,
+              confirmations: c.confirmations.map((f) =>
+                f.id === fid ? { ...f, _showActions: show } : f
+              ),
+            }
+      )
+    );
+  };
+
+  const setConfirmField = (cid, fid, patch) => {
+    setItems((prev) =>
+      prev.map((c) =>
+        c.id !== cid
+          ? c
+          : {
+              ...c,
+              confirmations: c.confirmations.map((f) => (f.id === fid ? { ...f, ...patch } : f)),
+            }
+      )
+    );
+  };
+
+  const decideAndVanish = (cid, fid, decision /* "accepted" | "declined" */) => {
+    // Remove the confirmation entirely (vanish), no edits/reversals
+    setItems((prev) =>
+      prev.map((c) =>
+        c.id !== cid ? c : { ...c, confirmations: c.confirmations.filter((f) => f.id !== fid) }
+      )
+    );
+    if (decision === "accepted") {
+      Alert.alert("Saved", "Confirmation accepted.");
+    } else {
+      Alert.alert("Saved", "Confirmation declined.");
+    }
+  };
+
+  /* ===== Renderers ===== */
+  const renderConfirm = (contract) => (f) => {
+    // Collapsed pending pill
+    if (!f._expanded) {
+      return (
+        <TouchableOpacity
+          key={f.id}
+          onPress={() => toggleExpandConfirm(contract.id, f.id)}
+          activeOpacity={0.9}
+        >
+          <View style={styles.confirmBox}>
+            <View style={styles.confirmHeader}>
+              <Text style={styles.confirmText}>{f.text}</Text>
+              {!f.opened && (
+                <View style={styles.unopenedDot}>
+                  <Text style={styles.unopenedTxt}>Unopened</Text>
+                </View>
+              )}
+            </View>
+            <View style={{ marginTop: 6, alignSelf: "flex-start" }}>
+              <View style={styles.badge}>
+                <Text style={styles.badgeTxt}>Pending</Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    // Expanded view – actions still hidden until "Decide" is tapped
+    const greenTags = [
+      "hardworking",
+      "analytical",
+      "creative",
+      "strategic",
+      "flexible",
+      "leadership",
+      "collaborative",
+      "social",
+      "detail-oriented",
+      "trustworthy",
+    ];
+    const redTags = [
+      "short-sighted",
+      "rigid",
+      "ineffective",
+      "untrustworthy",
+      "conflict-prone",
+      "lazy",
+      "unsociable",
+      "disloyal",
+      "disorganized",
+      "slow",
+    ];
+
+    const acceptEnabled =
+      !!f.posTag &&
+      !!f.improveTag &&
+      (f.rating || 0) > 0 &&
+      (f.comment || "").trim().length > 0;
+
+    return (
+      <View key={f.id} style={styles.confirmBox}>
+        <View style={styles.confirmHeader}>
+          <Text style={styles.confirmText}>{f.text}</Text>
+        </View>
+
+        {!f._showActions ? (
+          <>
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={[styles.btn, styles.btnGhost]}
+                onPress={() => toggleExpandConfirm(contract.id, f.id)}
+                activeOpacity={0.9}
+              >
+                <Text style={styles.btnGhostTxt}>Close</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btn, styles.btnYellow]}
+                onPress={() => showActions(contract.id, f.id, true)}
+                activeOpacity={0.9}
+              >
+                <Text style={styles.btnYellowTxt}>Decide</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <>
+            {/* Green (positive) tags */}
+            <Text style={styles.flowLabel}>This shows this person is…</Text>
+            <View style={styles.tagRow}>
+              {greenTags.map((t) => {
+                const on = f.posTag === t;
+                return (
+                  <TouchableOpacity
+                    key={t}
+                    onPress={() => setConfirmField(contract.id, f.id, { posTag: t })}
+                    style={[styles.tag, on ? styles.tagOnGreen : styles.tagOff]}
+                    activeOpacity={0.9}
+                  >
+                    <Text style={[styles.tagTxt, on ? styles.tagTxtOnDark : styles.tagTxtOff]}>
+                      {t}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Red (improve) tags */}
+            <Text style={[styles.flowLabel, { marginTop: 10 }]}>
+              Pick a tag this person needs to improve on
+            </Text>
+            <View style={styles.tagRow}>
+              {redTags.map((t) => {
+                const on = f.improveTag === t;
+                return (
+                  <TouchableOpacity
+                    key={t}
+                    onPress={() => setConfirmField(contract.id, f.id, { improveTag: t })}
+                    style={[styles.tag, on ? styles.tagOnRed : styles.tagOff]}
+                    activeOpacity={0.9}
+                  >
+                    <Text style={[styles.tagTxt, on ? styles.tagTxtOnDark : styles.tagTxtOff]}>
+                      {t}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Rating */}
+            <Text style={[styles.flowLabel, { marginTop: 10 }]}>Rate this person's work so far</Text>
+            <StarRating
+              value={f.rating || 0}
+              onChange={(n) => setConfirmField(contract.id, f.id, { rating: n })}
+            />
+
+            {/* Review (compulsory, but not labeled as required) */}
+            <View style={{ marginTop: 10 }}>
+              <Text style={styles.flowLabel}>Review</Text>
+              <Text style={styles.reviewNote}>Reviews are only visible to the system.</Text>
+              <TextInput
+                value={f.comment || ""}
+                onChangeText={(v) => setConfirmField(contract.id, f.id, { comment: v })}
+                placeholder="Write a short note…"
+                placeholderTextColor="#666"
+                style={styles.input}
+                multiline
+              />
+            </View>
+
+            <View style={[styles.actionRow, { marginTop: 10 }]}>
+              <TouchableOpacity
+                style={[styles.btn, styles.btnYellow, !acceptEnabled && styles.btnDisabled]}
+                onPress={() => acceptEnabled && decideAndVanish(contract.id, f.id, "accepted")}
+                activeOpacity={acceptEnabled ? 0.9 : 1}
+                disabled={!acceptEnabled}
+              >
+                <Text style={styles.btnYellowTxt}>Accept</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btn, styles.btnGhost]}
+                onPress={() => decideAndVanish(contract.id, f.id, "declined")}
+                activeOpacity={0.9}
+              >
+                <Text style={styles.btnGhostTxt}>Decline</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btn, styles.btnGhost]}
+                onPress={() => showActions(contract.id, f.id, false)}
+                activeOpacity={0.9}
+              >
+                <Text style={styles.btnGhostTxt}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => toggleExpandConfirm(contract.id, f.id)}
+              style={styles.collapseLink}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.collapseTxt}>Close</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    );
+  };
+
+  const renderItem = ({ item }) => {
+    const pendingCount = (item.confirmations || []).filter((f) => f.status === "pending").length;
+
+    return (
+      <View style={styles.barrier}>
+        <View style={styles.card}>
+          {/* Header row: avatar + name + urgency */}
+          <View style={styles.headerRow}>
+            <View style={styles.headerLeft}>
+              {item.avatarUrl ? (
+                <Image source={{ uri: item.avatarUrl }} style={styles.avatarImg} />
+              ) : (
+                <View style={styles.avatarMono}>
+                  <Text style={styles.avatarMonoTxt}>
+                    {(item.contractorName || "?").trim().slice(0, 1).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <Text style={styles.name} numberOfLines={1}>
+                {item.contractorName}
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              {pendingCount >= 2 && (
+                <View style={styles.pendingUrgentBadge}>
+                  <Ionicons name="alert-circle-outline" size={14} color={WHITE} />
+                  <Text style={styles.pendingUrgentTxt}>{pendingCount} pending confirmations</Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Job Role */}
+          <View style={styles.roleBox}>
+            <Text style={styles.roleLabel}>Job Role</Text>
+            <Text style={styles.roleValue}>{item.jobRole || "—"}</Text>
+          </View>
+
+          {/* Description */}
+          <Text style={styles.desc} numberOfLines={3}>
+            {item.workDescription}
+          </Text>
+
+          {/* Meta: Sealed + Pay */}
+          <View style={styles.metaRow}>
+            <View style={styles.badgeYellow}>
+              <Text style={styles.badgeYellowTxt}>Sealed</Text>
+            </View>
+            <Money amount={item.salary} period={item.paymentPeriod} />
+          </View>
+
+          {/* Open details */}
+          <TouchableOpacity
+            style={[styles.btn, styles.btnGhost, { alignSelf: "flex-start", marginTop: 8 }]}
+            activeOpacity={0.9}
+            onPress={() => openContract(item)}
+          >
+            <Ionicons name="open-outline" size={14} color={BLACK} />
+            <Text style={[styles.btnGhostTxt, { marginLeft: 6 }]}>Open Details</Text>
+          </TouchableOpacity>
+
+          {/* Confirmations toggle */}
+          {(item.confirmations || []).length > 0 && (
+            <>
+              <TouchableOpacity
+                style={[styles.toggleConfirmsBtn]}
+                activeOpacity={0.9}
+                onPress={() => toggleShowConfirms(item.id)}
+              >
+                <Ionicons
+                  name={item._showConfirms ? "chevron-up" : "chevron-down"}
+                  size={16}
+                  color={BLACK}
+                />
+                <Text style={styles.toggleConfirmsTxt}>
+                  {item._showConfirms ? "Hide Confirmations" : "View Confirmations"}
+                </Text>
+                <View style={[styles.counterPill, pendingCount >= 2 ? styles.counterPillUrgent : null]}>
+                  <Text
+                    style={[
+                      styles.counterPillTxt,
+                      pendingCount >= 2 ? styles.counterPillTxtUrgent : null,
+                    ]}
+                  >
+                    {pendingCount}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {item._showConfirms && (
+                <View style={{ gap: 10 }}>
+                  {item.confirmations
+                    .filter((f) => f.status === "pending")
+                    .map(renderConfirm(item))}
+                </View>
+              )}
+            </>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar with Back */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Sealed Mega Contracts</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Search */}
+      <View style={styles.searchWrap}>
+        <Ionicons name="search-outline" size={16} color={BLACK} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search by name, description, or job role"
+          placeholderTextColor="#666"
+          style={styles.searchInput}
+        />
+        {!!query && (
+          <TouchableOpacity onPress={() => setQuery("")} style={styles.clearBtn} activeOpacity={0.8}>
+            <Ionicons name="close" size={16} color={BLACK} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <FlatList
+        data={filtered}
+        keyExtractor={(i) => i.id}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 20 }}
+        ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
+        renderItem={renderItem}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyText}>No sealed contracts.</Text>
+          </View>
+        }
+        showsVerticalScrollIndicator={false}
+      />
+    </SafeAreaView>
+  );
+}
+
+/* ===== Helpers ===== */
+function formatMoney(n) {
+  const x = Number(n);
+  if (Number.isNaN(x)) return "—";
+  return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+function readablePeriod(p) {
+  if (!p) return "";
+  const v = String(p).toLowerCase();
+  if (v.startsWith("week")) return "week";
+  if (v.startsWith("mon")) return "month";
+  if (v.startsWith("proj") || v === "on_completion") return "project";
+  if (v.startsWith("mile")) return "milestone";
+  return v;
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+    position: "relative",
+  },
+  backBtn: { position: "absolute", left: 12, bottom: 14, padding: 6 },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Search */
+  searchWrap: {
+    marginTop: 12,
+    marginHorizontal: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  searchInput: { flex: 1, marginLeft: 8, color: BLACK, fontSize: 13 },
+  clearBtn: { padding: 6, marginLeft: 4, borderRadius: 8, borderWidth: 2, borderColor: BLACK },
+
+  /* Yellow barrier wrapper to separate cards clearly */
+  barrier: {
+    borderWidth: 3,
+    borderColor: YELLOW,
+    borderRadius: 16,
+    padding: 4,
+    backgroundColor: WHITE,
+  },
+
+  /* Cards */
+  card: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 12,
+  },
+
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+
+  /* Avatar */
+  avatarImg: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: BLACK },
+  avatarMono: {
+    width: 36, height: 36, borderRadius: 18,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+    alignItems: "center", justifyContent: "center",
+  },
+  avatarMonoTxt: { color: BLACK, fontWeight: "900", fontSize: 14 },
+
+  name: { color: BLACK, fontSize: 16, fontWeight: "900" },
+  desc: { color: "#333", fontSize: 12, marginTop: 6 },
+
+  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 8 },
+
+  badgeYellow: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: YELLOW,
+    borderWidth: 2, borderColor: BLACK,
+  },
+  badgeYellowTxt: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  badgeOutline: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: WHITE,
+    borderWidth: 2, borderColor: BLACK, alignSelf: "flex-start",
+  },
+  badgeOutlineTxt: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  /* Pending urgency badge */
+  pendingUrgentBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: RED,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  pendingUrgentTxt: { color: WHITE, fontSize: 12, fontWeight: "900" },
+
+  /* Role */
+  roleBox: {
+    marginTop: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignSelf: "flex-start",
+    backgroundColor: WHITE,
+  },
+  roleLabel: { color: "#444", fontSize: 10, fontWeight: "900" },
+  roleValue: { color: BLACK, fontSize: 13, fontWeight: "900", marginTop: 1 },
+
+  /* Confirmations */
+  toggleConfirmsBtn: {
+    marginTop: 12,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: WHITE,
+  },
+  toggleConfirmsTxt: { color: BLACK, fontWeight: "900", fontSize: 12, marginLeft: 6 },
+
+  counterPill: {
+    marginLeft: 8,
+    minWidth: 22,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    alignItems: "center",
+    backgroundColor: WHITE,
+  },
+  counterPillUrgent: { backgroundColor: RED },
+  counterPillTxt: { color: BLACK, fontSize: 12, fontWeight: "900" },
+  counterPillTxtUrgent: { color: WHITE },
+
+  confirmBox: {
+    marginTop: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    padding: 10,
+  },
+  confirmHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  confirmText: { color: BLACK, fontSize: 12, flex: 1, paddingRight: 8 },
+  unopenedDot: {
+    borderWidth: 2, borderColor: BLACK, borderRadius: 999,
+    paddingHorizontal: 8, paddingVertical: 3, backgroundColor: YELLOW,
+  },
+  unopenedTxt: { color: BLACK, fontSize: 10, fontWeight: "900" },
+
+  actionRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+
+  btn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  btnYellow: { backgroundColor: YELLOW },
+  btnYellowTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+  btnGhost: { backgroundColor: WHITE },
+  btnGhostTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+  btnDisabled: { opacity: 0.4 },
+
+  flowLabel: { color: BLACK, fontSize: 12, fontWeight: "900", marginTop: 6 },
+
+  tagRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 6 },
+  tag: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 2,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  tagOff: { backgroundColor: WHITE, borderColor: BLACK },
+  tagOnGreen: { backgroundColor: GREEN, borderColor: BLACK },
+  tagOnRed: { backgroundColor: RED, borderColor: BLACK },
+  tagTxt: { fontSize: 11, fontWeight: "900" },
+  tagTxtOff: { color: BLACK },
+  tagTxtOnDark: { color: WHITE },
+
+  input: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    color: BLACK,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    minHeight: 44,
+  },
+  reviewNote: { color: "#666", fontSize: 10, marginTop: 4 },
+
+  collapseLink: { marginTop: 6, alignSelf: "flex-start" },
+  collapseTxt: { color: BLACK, fontSize: 12, fontWeight: "900", textDecorationLine: "underline" },
+
+  /* Empty */
+  emptyWrap: { marginTop: 40, alignItems: "center", justifyContent: "center" },
+  emptyText: { color: "#666", fontWeight: "600" },
+});
