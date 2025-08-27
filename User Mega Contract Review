@@ -79,6 +79,7 @@ export default function SSocketContractorView({
   const demo = {
     contracteeName: "Ada Ventures Ltd",
     contractorName: "John Doe",
+    jobRole: "Frontend Developer", // ← added demo role
     workDescription: "4-page company website with contact form",
     workRules:
       "Daily check-in 9am; updates via SSocket chat; submit Figma + assets; get approval before deploying.",
@@ -90,7 +91,8 @@ export default function SSocketContractorView({
     currency: "NGN",
     salary: "200000",
     paymentSchedule: "milestones",
-    paymentDetails: "30% onboarding, 40% mid-way, 30% completion within 7 days of approval.",
+    paymentDetails:
+      "30% onboarding, 40% mid-way, 30% completion within 7 days of approval.",
     bonusEnabled: true,
     bonusTerms: "₦50,000 if delivered one week early or +10% for exceeding KPIs.",
     deductionEnabled: true,
@@ -168,12 +170,16 @@ export default function SSocketContractorView({
         behavior={Platform.select({ ios: "padding", android: undefined })}
         style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={{ paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 24 }}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Parties */}
           <Card>
             <SectionTitle>Parties</SectionTitle>
             <RowKV label="Contractee (Employer)" value={data.contracteeName} />
             <RowKV label="Contractor (You)" value={data.contractorName} />
+            <RowKV label="Job Role" value={data.jobRole} /> {/* read-only role */}
           </Card>
 
           {/* Work */}
@@ -209,9 +215,13 @@ export default function SSocketContractorView({
             <View style={{ marginTop: 6, flexDirection: "row" }}>
               <BadgeYellow text="NGN" />
             </View>
-            <RowKV label="Salary" value={`${data.currency || "NGN"} ${data.salary || "—"}`} />
+            <RowKV
+              label="Salary"
+              value={`${data.currency || "NGN"} ${data.salary || "—"}`}
+            />
             <RowKV label="Schedule" value={labelizeSchedule(data.paymentSchedule)} />
-            {(data.paymentSchedule === "on_completion" || data.paymentSchedule === "milestones") && (
+            {(data.paymentSchedule === "on_completion" ||
+              data.paymentSchedule === "milestones") && (
               <RowKV label="Payment Details" value={data.paymentDetails} />
             )}
           </Card>
@@ -221,11 +231,11 @@ export default function SSocketContractorView({
             <SectionTitle>Bonus & Deductions</SectionTitle>
             <RowKV
               label="Bonus"
-              value={data.bonusEnabled ? (data.bonusTerms || "Enabled") : "None"}
+              value={data.bonusEnabled ? data.bonusTerms || "Enabled" : "None"}
             />
             <RowKV
               label="Deductions"
-              value={data.deductionEnabled ? (data.deductionTerms || "Enabled") : "None"}
+              value={data.deductionEnabled ? data.deductionTerms || "Enabled" : "None"}
             />
           </Card>
 
@@ -234,7 +244,9 @@ export default function SSocketContractorView({
             <SectionTitle>Agreement</SectionTitle>
             <RowKV
               label="Statement"
-              value={`${data.contracteeName || "The Business"} agree to: deliver as described and to keep up with payment as promised.`}
+              value={`${
+                data.contracteeName || "The Business"
+              } agree to: deliver as described and to keep up with payment as promised.`}
             />
           </Card>
 
@@ -262,7 +274,7 @@ export default function SSocketContractorView({
             {negotiationOpen && (
               <>
                 <View style={styles.chatArea}>
-                  {(!msgs || msgs.length === 0) ? (
+                  {!msgs || msgs.length === 0 ? (
                     <Text style={styles.chatEmpty}>
                       No messages yet. Start the negotiation below.
                     </Text>
@@ -280,7 +292,10 @@ export default function SSocketContractorView({
                           <View
                             style={[
                               styles.bubble,
-                              { backgroundColor: mine ? YELLOW : WHITE, borderColor: BLACK },
+                              {
+                                backgroundColor: mine ? YELLOW : WHITE,
+                                borderColor: BLACK,
+                              },
                             ]}
                           >
                             <Text style={styles.bubbleBy}>[{m.by}]</Text>
@@ -299,7 +314,11 @@ export default function SSocketContractorView({
                     style={styles.kbBtn}
                     activeOpacity={0.85}
                   >
-                    <Ionicons name="document-attach-outline" size={18} color={BLACK} />
+                    <Ionicons
+                      name="document-attach-outline"
+                      size={18}
+                      color={BLACK}
+                    />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => Alert.alert("Image", "Pick an image (mock).")}
@@ -328,7 +347,14 @@ export default function SSocketContractorView({
                     activeOpacity={0.9}
                   >
                     <Ionicons name="send-outline" size={16} color={BLACK} />
-                    <Text style={{ color: BLACK, fontWeight: "900", fontSize: 12, marginLeft: 6 }}>
+                    <Text
+                      style={{
+                        color: BLACK,
+                        fontWeight: "900",
+                        fontSize: 12,
+                        marginLeft: 6,
+                      }}
+                    >
                       Send
                     </Text>
                   </TouchableOpacity>
