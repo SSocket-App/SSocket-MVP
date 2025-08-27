@@ -1,0 +1,369 @@
+// SSocketCompetitions_BusinessList.js
+// Business-side: List all competitions created by the contractee.
+// - Search by title, job role, or description
+// - Each card shows: status, cap, participants, winners, dates, rounds count
+// - "Review" button to start reviewing answers (hook up onReview later)
+// - Yellow barrier around each card; avatar-less clean layout
+// - Expo-compatible, no external libs
+
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  TextInput,
+  FlatList,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+const RED = "#D32F2F";
+const GREEN = "#2E7D32";
+
+export default function SSocketCompetitions_BusinessList({
+  competitions,
+  onBack,
+  onReview, // (competitionObj) => void
+}) {
+  // Demo data if none provided
+  const demo = useMemo(
+    () => [
+      {
+        id: "cmp_001",
+        title: "Marketing Hire – Q4 Funnel Sprint",
+        jobRole: "Marketing Specialist",
+        description:
+          "Creative, data-driven growth tasks across 3 rounds.",
+        participantCap: 30,
+        participantsCount: 27,
+        winnersNeeded: 1,
+        startDate: "2025-09-05",
+        createdOn: "2025-08-20",
+        rounds: [
+          { id: "r1", name: "Round 1", durationDays: 2, questions: [{ id: "q1", text: "Ideas?" }] },
+          { id: "r2", name: "Round 2", durationDays: 3, questions: [{ id: "q2", text: "Plan?" }] },
+          { id: "r3", name: "Final", durationDays: 2, questions: [{ id: "q3", text: "Strategy?" }] },
+        ],
+        closed: false,
+        submissionsPending: 12, // pending answers to review
+      },
+      {
+        id: "cmp_002",
+        title: "Accountant – Quarterly Close Drill",
+        jobRole: "Accountant",
+        description:
+          "Practical reconciliation and reporting challenges.",
+        participantCap: 20,
+        participantsCount: 20,
+        winnersNeeded: 2,
+        startDate: "2025-09-10",
+        createdOn: "2025-08-18",
+        rounds: [
+          { id: "r1", name: "Round 1", durationDays: 2, questions: [{ id: "q1", text: "Journal entries" }] },
+          { id: "r2", name: "Final", durationDays: 2, questions: [{ id: "q2", text: "Cash flow" }] },
+        ],
+        closed: false,
+        submissionsPending: 5,
+      },
+      {
+        id: "cmp_003",
+        title: "Brand Designer – Packaging Sprint",
+        jobRole: "Brand Designer",
+        description:
+          "Concept → mockups → final presentation.",
+        participantCap: 15,
+        participantsCount: 15,
+        winnersNeeded: 1,
+        startDate: "2025-08-15",
+        createdOn: "2025-08-01",
+        rounds: [
+          { id: "r1", name: "Round 1", durationDays: 2, questions: [{ id: "q1", text: "Concept" }] },
+          { id: "r2", name: "Final", durationDays: 2, questions: [{ id: "q2", text: "Mockups" }] },
+        ],
+        closed: true,
+        submissionsPending: 0,
+      },
+    ],
+    []
+  );
+
+  const [items] = useState(competitions && competitions.length ? competitions : demo);
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((c) => {
+      return (
+        (c.title || "").toLowerCase().includes(q) ||
+        (c.jobRole || "").toLowerCase().includes(q) ||
+        (c.description || "").toLowerCase().includes(q)
+      );
+    });
+  }, [items, query]);
+
+  const goBack = () => {
+    if (typeof onBack === "function") onBack();
+    else Alert.alert("Back", "Hook this into navigation.");
+  };
+
+  const reviewItem = (item) => {
+    if (typeof onReview === "function") onReview(item);
+    else Alert.alert("Review", `Start reviewing: ${item.title}`);
+  };
+
+  const keyExtractor = (i) => i.id;
+
+  const renderItem = ({ item }) => {
+    const cap = item.participantCap || 0;
+    const count = item.participantsCount || 0;
+    const slotsLeft = Math.max(0, cap - count);
+    const isFull = cap > 0 && count >= cap;
+    const isClosed = !!item.closed;
+    const pending = item.submissionsPending || 0;
+    const roundsCount = Array.isArray(item.rounds) ? item.rounds.length : 0;
+
+    const statusView = () => {
+      if (isClosed) return <Badge color="#EEE" text="Closed" dark />;
+      if (isFull) return <Badge color={RED} text="Full" />;
+      return <Badge color={YELLOW} text="Open" />;
+    };
+
+    return (
+      <View style={styles.barrier}>
+        <View style={styles.card}>
+          {/* Header */}
+          <View style={styles.headerRow}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+              <Text style={styles.role} numberOfLines={1}>{item.jobRole}</Text>
+            </View>
+            {statusView()}
+          </View>
+
+          {/* Description */}
+          <Text style={styles.desc} numberOfLines={3}>{item.description}</Text>
+
+          {/* Meta */}
+          <View style={[styles.metaRow, { marginTop: 8 }]}>
+            <View style={styles.badgeOutline}>
+              <Text style={styles.badgeOutlineTxt}>
+                {`Cap: ${cap} • Joined: ${count} • Left: ${slotsLeft}`}
+              </Text>
+            </View>
+            <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+              <Text style={styles.badgeOutlineTxt}>Winners: {item.winnersNeeded || 1}</Text>
+            </View>
+            <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+              <Text style={styles.badgeOutlineTxt}>Rounds: {roundsCount}</Text>
+            </View>
+          </View>
+
+          <View style={[styles.metaRow, { marginTop: 6 }]}>
+            {!!item.startDate && (
+              <View style={styles.badgeOutline}>
+                <Text style={styles.badgeOutlineTxt}>Starts: {item.startDate}</Text>
+              </View>
+            )}
+            {!!item.createdOn && (
+              <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+                <Text style={styles.badgeOutlineTxt}>Created: {item.createdOn}</Text>
+              </View>
+            )}
+            {pending > 0 && !isClosed && (
+              <View style={[styles.pendingBadge, { marginLeft: 8 }]}>
+                <Ionicons name="alert-circle-outline" size={14} color={WHITE} />
+                <Text style={styles.pendingBadgeTxt}>{pending} pending reviews</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Review button */}
+          <TouchableOpacity
+            style={[styles.btn, styles.btnYellow, { alignSelf: "flex-start", marginTop: 10 }]}
+            activeOpacity={0.9}
+            onPress={() => reviewItem(item)}
+          >
+            <Ionicons name="reader-outline" size={16} color={BLACK} />
+            <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Review</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Competition List</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Search */}
+      <View style={styles.searchWrap}>
+        <Ionicons name="search-outline" size={16} color={BLACK} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search by title, role, or description"
+          placeholderTextColor="#666"
+          style={styles.searchInput}
+        />
+        {!!query && (
+          <TouchableOpacity onPress={() => setQuery("")} style={styles.clearBtn} activeOpacity={0.8}>
+            <Ionicons name="close" size={16} color={BLACK} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* List */}
+      <FlatList
+        data={filtered}
+        keyExtractor={keyExtractor}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 20 }}
+        ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
+        renderItem={renderItem}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyText}>No competitions found.</Text>
+          </View>
+        }
+        showsVerticalScrollIndicator={false}
+      />
+    </SafeAreaView>
+  );
+}
+
+/* ===== Small UI bits ===== */
+function Badge({ color, text, dark }) {
+  return (
+    <View style={[styles.badgeChip, { backgroundColor: color || WHITE }]}>
+      <Text style={[styles.badgeChipTxt, dark ? { color: BLACK } : null]}>{text}</Text>
+    </View>
+  );
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+    position: "relative",
+  },
+  backBtn: { position: "absolute", left: 12, bottom: 14, padding: 6 },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Search */
+  searchWrap: {
+    marginTop: 12,
+    marginHorizontal: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  searchInput: { flex: 1, marginLeft: 8, color: BLACK, fontSize: 13 },
+  clearBtn: { padding: 6, marginLeft: 4, borderRadius: 8, borderWidth: 2, borderColor: BLACK },
+
+  /* Barrier & Card */
+  barrier: {
+    borderWidth: 3,
+    borderColor: YELLOW,
+    borderRadius: 16,
+    padding: 4,
+    backgroundColor: WHITE,
+  },
+  card: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 12,
+  },
+
+  /* Header */
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  title: { color: BLACK, fontSize: 16, fontWeight: "900" },
+  role: { color: "#444", fontSize: 12, marginTop: 2 },
+
+  /* Text */
+  desc: { color: "#333", fontSize: 12, marginTop: 6 },
+
+  /* Meta */
+  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
+  badgeOutline: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignSelf: "flex-start",
+  },
+  badgeOutlineTxt: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  badgeChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignSelf: "flex-start",
+  },
+  badgeChipTxt: { color: WHITE, fontSize: 12, fontWeight: "900" },
+
+  pendingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: RED,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  pendingBadgeTxt: { color: WHITE, fontSize: 12, fontWeight: "900", marginLeft: 6 },
+
+  /* Buttons */
+  btn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  btnYellow: { backgroundColor: YELLOW },
+  btnYellowTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+
+  /* Empty */
+  emptyWrap: { marginTop: 40, alignItems: "center", justifyContent: "center" },
+  emptyText: { color: "#666", fontWeight: "600" },
+});
