@@ -1,3 +1,4 @@
+
 // SSocketCompetitionReview_Business.js
 // Business-side: Review anonymous submissions per round for a competition.
 // - Participants shown as "Anonymous #N" (kept anonymous until final selection).
@@ -147,29 +148,28 @@ export default function SSocketCompetitionReview_Business({
   const [fbMap, setFbMap] = useState({});
 
   const greenTags = [
-    "hardworking",
-    "analytical",
-    "creative",
-    "strategic",
-    "flexible",
-    "leadership",
-    "collaborative",
-    "social",
-    "detail-oriented",
-    "trustworthy",
-  ];
-  const redTags = [
-    "short-sighted",
-    "rigid",
-    "ineffective",
-    "untrustworthy",
-    "conflict-prone",
-    "lazy",
-    "unsociable",
-    "disloyal",
-    "disorganized",
-    "slow",
-  ];
+  "creative",
+  "analytical",
+  "practical",
+  "detailed",
+  "clear",
+  "insightful",
+  "innovative",
+  "professional",
+  "high-impact",
+  "depth",
+];
+
+const redTags = [
+  "undetailed explanation",
+  "overcomplicated",
+  "unconcreted illustration",
+  "unclear solution",
+  "not actionable",
+  "messy explanation",
+  "misleading fact",
+];
+
 
   const goBack = () => {
     if (typeof onBack === "function") onBack();
