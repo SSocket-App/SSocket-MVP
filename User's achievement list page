@@ -1,0 +1,393 @@
+// SSocketAchievementList_Contractor.js
+// Contractor-side: Achievement List page with toggle between Pending and Approved
+// - Top bar title: "Achievement List" + Back button
+// - PENDING tab: composer at top (send new achievement) + list of pending achievements
+// - APPROVED tab: list of approved achievements + yellow "Share Approved List" button
+// - Profile fields REMOVED (no avatar, names, or job role). Only contract status badge remains.
+// - Expo-compatible, pure JS, RN-warning safe.
+
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  ScrollView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+const GREEN = "#2E7D32";
+
+export default function SSocketAchievementList_Contractor({
+  contract,
+  pendingAchievements,
+  approvedAchievements,
+  onSendAchievement,     // (confirmationObj, contractObj) => void
+  onShareApprovedList,   // ({approved, contractId}, contractObj) => void
+  onBack,
+}) {
+  /* ===== Demo fallbacks ===== */
+  const demoContract = {
+    id: "sc_me_mine",
+    contracteeName: "Ada Ventures Ltd",
+    contractorName: "John Doe",
+    ongoing: true, // we still keep/need status for the badge
+  };
+  const c = contract || demoContract;
+
+  /* ===== UI State ===== */
+  const [tab, setTab] = useState("pending"); // "pending" | "approved"
+
+  const [pending, setPending] = useState(
+    Array.isArray(pendingAchievements) && pendingAchievements.length
+      ? pendingAchievements.map((x) => ({ ...x }))
+      : [
+          {
+            id: "p1",
+            text: `Did ${c.contractorName} deliver 3 new campaigns this month?`,
+            status: "pending",
+          },
+        ]
+  );
+
+  const [approved, setApproved] = useState(
+    Array.isArray(approvedAchievements) && approvedAchievements.length
+      ? approvedAchievements.map((x) => ({ ...x }))
+      : [
+          {
+            id: "a1",
+            text: `Did ${c.contractorName} increase CTR by 12% in July?`,
+            status: "accepted",
+          },
+        ]
+  );
+
+  /* ===== Composer (Pending tab) ===== */
+  const [achievement, setAchievement] = useState("");
+  const preview = useMemo(() => {
+    const body = (achievement || "").trim();
+    if (!body) return "";
+    return `Did ${c.contractorName || "the contractor"} ${body}?`;
+  }, [achievement, c.contractorName]);
+
+  const sendAchievement = () => {
+    const body = (achievement || "").trim();
+    if (!body) {
+      Alert.alert("Add achievement", "Please type your achievement first.");
+      return;
+    }
+    const item = {
+      id: `p_${Date.now()}`,
+      text: preview,
+      status: "pending",
+    };
+    setPending((prev) => [item, ...prev]);
+    setAchievement("");
+    if (typeof onSendAchievement === "function") {
+      try {
+        onSendAchievement(
+          {
+            id: item.id,
+            text: item.text,
+            opened: false,
+            status: "pending",
+            posTag: null,
+            improveTag: null,
+            rating: 0,
+            comment: "",
+          },
+          c
+        );
+      } catch {}
+    }
+    Alert.alert("Sent", "Your achievement was sent to the contractee for confirmation.");
+  };
+
+  const shareApproved = () => {
+    if (!approved || approved.length === 0) {
+      Alert.alert("Nothing to share", "You have no approved achievements yet.");
+      return;
+    }
+    if (typeof onShareApprovedList === "function") {
+      try {
+        onShareApprovedList({ approved, contractId: c.id }, c);
+      } catch {}
+    }
+    Alert.alert("Shared", "Your approved achievements list was shared to the contractee.");
+  };
+
+  const goBack = () => {
+    if (typeof onBack === "function") onBack();
+    else Alert.alert("Back", "Hook this into navigation.");
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Achievement List</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+        {/* Status + Tabs + Body */}
+        <View style={styles.barrier}>
+          <View style={styles.card}>
+            {/* Status badge only (no names, no avatar, no role) */}
+            <View style={styles.statusRow}>
+              <View style={[styles.badgeChip, { backgroundColor: c.ongoing ? YELLOW : "#EEE" }]}>
+                <Text style={[styles.badgeChipTxt, { color: BLACK }]}>
+                  {c.ongoing ? "Ongoing" : "Ended"}
+                </Text>
+              </View>
+            </View>
+
+            {/* Toggle */}
+            <View style={styles.toggleRow}>
+              <SegmentPill label="Pending" active={tab === "pending"} onPress={() => setTab("pending")} />
+              <SegmentPill label="Approved" active={tab === "approved"} onPress={() => setTab("approved")} />
+            </View>
+
+            {/* ===== Pending Tab ===== */}
+            {tab === "pending" && (
+              <View>
+                {/* Composer */}
+                <Text style={styles.sectionTitle}>Send an Achievement</Text>
+                <Text style={styles.fieldLabel}>Describe your achievement</Text>
+                <TextInput
+                  value={achievement}
+                  onChangeText={setAchievement}
+                  placeholder='e.g., "brought in 40 new customers this month"'
+                  placeholderTextColor="#666"
+                  style={[styles.input, { minHeight: 80, textAlignVertical: "top" }]}
+                  multiline
+                />
+
+                {(achievement || "").trim().length > 0 && (
+                  <View style={styles.previewBox}>
+                    <Text style={styles.previewLabel}>Preview</Text>
+                    <Text style={styles.previewText}>{preview}</Text>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={[styles.btn, styles.btnYellow, { alignSelf: "flex-start", marginTop: 8 }]}
+                  activeOpacity={0.9}
+                  onPress={sendAchievement}
+                >
+                  <Ionicons name="send-outline" size={16} color={BLACK} />
+                  <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Send to Contractee</Text>
+                </TouchableOpacity>
+
+                <View style={styles.hr} />
+
+                {/* Pending list */}
+                <Text style={[styles.sectionTitle, { marginTop: 6 }]}>
+                  Pending Achievements ({pending.length})
+                </Text>
+                {pending.length === 0 ? (
+                  <Text style={styles.emptyText}>No pending achievements.</Text>
+                ) : (
+                  pending.map((p) => (
+                    <View key={p.id} style={styles.itemRow}>
+                      <Text style={styles.itemText}>{p.text}</Text>
+                      <View style={[styles.statusPill, { backgroundColor: YELLOW }]}>
+                        <Text style={[styles.statusTxt, { color: BLACK }]}>Pending</Text>
+                      </View>
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
+
+            {/* ===== Approved Tab ===== */}
+            {tab === "approved" && (
+              <View>
+                <Text style={styles.sectionTitle}>Approved Achievements ({approved.length})</Text>
+                {approved.length === 0 ? (
+                  <Text style={styles.emptyText}>No approved achievements yet.</Text>
+                ) : (
+                  approved.map((a) => (
+                    <View key={a.id} style={styles.itemRow}>
+                      <Text style={styles.itemText}>{a.text}</Text>
+                      <View style={[styles.statusPill, { backgroundColor: GREEN }]}>
+                        <Text style={styles.statusTxt}>Approved</Text>
+                      </View>
+                    </View>
+                  ))
+                )}
+
+                <TouchableOpacity
+                  style={[styles.btn, styles.btnYellow, { alignSelf: "flex-start", marginTop: 10 }]}
+                  activeOpacity={0.9}
+                  onPress={shareApproved}
+                >
+                  <Ionicons name="share-social-outline" size={16} color={BLACK} />
+                  <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Share Approved List</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ===== Small subcomponent ===== */
+function SegmentPill({ label, active, onPress }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.9}
+      style={[styles.segPill, active ? styles.segPillActive : styles.segPillIdle]}
+    >
+      <Text style={[styles.segPillTxt, active ? styles.segPillTxtActive : styles.segPillTxtIdle]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+    position: "relative",
+  },
+  backBtn: { position: "absolute", left: 12, bottom: 14, padding: 6 },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Barrier & Card */
+  barrier: {
+    marginTop: 12,
+    marginHorizontal: 12,
+    borderWidth: 3,
+    borderColor: YELLOW,
+    borderRadius: 16,
+    padding: 4,
+    backgroundColor: WHITE,
+  },
+  card: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 12,
+  },
+
+  /* Status only row */
+  statusRow: { flexDirection: "row", justifyContent: "flex-end" },
+  badgeChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignSelf: "flex-start",
+  },
+  badgeChipTxt: { color: BLACK, fontSize: 12, fontWeight: "900" },
+
+  /* Toggle */
+  toggleRow: { flexDirection: "row", alignItems: "center", marginTop: 10 },
+  segPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 2,
+    marginRight: 8,
+  },
+  segPillIdle: { backgroundColor: WHITE, borderColor: BLACK },
+  segPillActive: { backgroundColor: YELLOW, borderColor: BLACK },
+  segPillTxt: { fontSize: 12, fontWeight: "900" },
+  segPillTxtIdle: { color: BLACK },
+  segPillTxtActive: { color: BLACK },
+
+  /* Sections & Inputs */
+  sectionTitle: { color: BLACK, fontSize: 14, fontWeight: "900", marginTop: 12 },
+  fieldLabel: { color: BLACK, fontSize: 12, fontWeight: "800", marginTop: 10, marginBottom: 6 },
+  input: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    color: BLACK,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+  },
+  previewBox: {
+    marginTop: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    backgroundColor: WHITE,
+    padding: 10,
+  },
+  previewLabel: { color: "#444", fontSize: 11, marginBottom: 4, fontWeight: "900" },
+  previewText: { color: BLACK, fontSize: 12 },
+
+  /* Lists */
+  itemRow: {
+    marginTop: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    backgroundColor: WHITE,
+    padding: 10,
+  },
+  itemText: { color: BLACK, fontSize: 12 },
+
+  statusPill: {
+    alignSelf: "flex-start",
+    marginTop: 6,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  statusTxt: { color: WHITE, fontSize: 11, fontWeight: "900" },
+
+  /* Buttons */
+  btn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  btnYellow: { backgroundColor: YELLOW },
+  btnYellowTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+
+  /* Divider */
+  hr: { height: 1, backgroundColor: "#EEE", marginTop: 12, marginBottom: 6 },
+
+  /* Empty */
+  emptyText: { color: "#666", fontWeight: "600", marginTop: 6 },
+});
