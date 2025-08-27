@@ -1,9 +1,8 @@
 // SSocketPendingContractsList_Contractor.js
-// Contractor-side: Pending (ongoing + in-negotiation) mega contracts list.
-// Shows exact pay (not ranges) since contractor is inside their own account.
-// Expo-compatible, no external libs. SSocket black/white/yellow UI.
+// Contractor-side: Single pending mega contract (only one allowed).
+// Shows full details incl. Job Role. Expo-compatible, no external libs.
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import {
   SafeAreaView,
   StatusBar,
@@ -12,8 +11,6 @@ import {
   StyleSheet,
   Platform,
   TouchableOpacity,
-  FlatList,
-  TextInput,
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,131 +19,34 @@ const YELLOW = "#FFD54A";
 const BLACK = "#000";
 const WHITE = "#FFF";
 
-export default function SSocketPendingContractsList_Contractor({ contracts, onOpen }) {
-  // Demo data if not provided
-  const demoContracts = useMemo(
-    () => [
-      {
-        id: "mc_201",
-        contracteeName: "Ada Ventures Ltd",
-        contractorName: "John Doe",
-        workDescription: "4-page company website with contact form",
-        startDate: "2025-09-01",
-        endDate: "2025-10-01",
-        salary: 200000,
-        paymentPeriod: "month",
-        lastMessage: "We can do Friday demos at 4pm.",
-        updatedAt: "2025-08-20",
-        unread: 1,
-        status: "Negotiation",
-      },
-      {
-        id: "mc_202",
-        contracteeName: "Nova Foods",
-        contractorName: "John Doe",
-        workDescription: "Packaging design refresh + print-ready files",
-        startDate: "2025-08-12",
-        endDate: "2025-09-30",
-        salary: 600000,
-        paymentPeriod: "project",
-        lastMessage: "Please upload the dielines you prefer.",
-        updatedAt: "2025-08-18",
-        unread: 0,
-        status: "Pending Seal",
-      },
-      {
-        id: "mc_203",
-        contracteeName: "BrightLabs",
-        contractorName: "John Doe",
-        workDescription: "Mobile QA & weekly test reports",
-        startDate: "2025-08-05",
-        endDate: "2025-12-05",
-        salary: 100000,
-        paymentPeriod: "week",
-        lastMessage: "Draft test plan uploaded. Kindly review.",
-        updatedAt: "2025-08-17",
-        unread: 3,
-        status: "Negotiation",
-      },
-    ],
+export default function SSocketPendingContractsList_Contractor({ contract, onOpen }) {
+  // Demo fallback if not provided
+  const demo = useMemo(
+    () => ({
+      id: "mc_201",
+      contracteeName: "Ada Ventures Ltd",
+      contractorName: "John Doe",
+      jobRole: "Accountant", // ← Job Role
+      workDescription: "Monthly accounts reconciliation and payroll processing",
+      startDate: "2025-09-01",
+      endDate: "2025-12-01",
+      salary: 350000,
+      paymentPeriod: "month", // week | month | project | milestone | on_completion
+      lastMessage: "Please confirm Friday 4pm for weekly update.",
+      updatedAt: "2025-08-20",
+      unread: 2,
+      status: "Negotiation", // Negotiation | Pending Seal | ...
+    }),
     []
   );
 
-  const data = contracts && contracts.length ? contracts : demoContracts;
-  const [query, setQuery] = useState("");
-
-  const filtered = useMemo(() => {
-    if (!query.trim()) return data;
-    const q = query.toLowerCase();
-    return data.filter((c) => {
-      return (
-        (c.contracteeName || "").toLowerCase().includes(q) ||
-        (c.workDescription || "").toLowerCase().includes(q) ||
-        (c.status || "").toLowerCase().includes(q)
-      );
-    });
-  }, [data, query]);
+  // Only one pending mega contract allowed
+  const data = contract || demo;
 
   const goBack = () => Alert.alert("Back", "Hook this into navigation.");
-  const openItem = (item) => {
-    if (typeof onOpen === "function") onOpen(item);
-    else Alert.alert("Open", `Open contract with ${item.contracteeName}`);
-  };
-
-  const renderItem = ({ item }) => {
-    return (
-      <View style={styles.row}>
-        {/* Avatar-ish block */}
-        <View style={styles.avatar}>
-          <View style={styles.avatarHead} />
-          <View style={styles.avatarBody} />
-        </View>
-
-        {/* Middle info */}
-        <View style={{ flex: 1 }}>
-          <Text style={styles.name} numberOfLines={1}>
-            {item.contracteeName}
-          </Text>
-
-          <Text style={styles.desc} numberOfLines={2}>
-            {item.workDescription}
-          </Text>
-
-          {/* Meta row: status + exact pay */}
-          <View style={styles.metaRow}>
-            <View style={styles.badgeYellow}>
-              <Text style={styles.badgeYellowText}>{item.status || "Negotiation"}</Text>
-            </View>
-            <View style={styles.badgeOutline}>
-              <Text style={styles.badgeOutlineText}>
-                {formatExactPay(item.salary, item.paymentPeriod)}
-              </Text>
-            </View>
-            {item.unread > 0 && (
-              <View style={styles.badgeUnread}>
-                <Text style={styles.badgeUnreadText}>{item.unread}</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Last message + updated */}
-          <Text style={styles.lastMsg} numberOfLines={1}>
-            <Text style={{ fontWeight: "900" }}>Last:</Text> {item.lastMessage || "No messages yet"}
-          </Text>
-          <Text style={styles.updatedAt}>Updated: {item.updatedAt || "—"}</Text>
-        </View>
-
-        {/* Action */}
-        <TouchableOpacity
-          activeOpacity={0.9}
-          style={styles.openBtn}
-          onPress={() => openItem(item)}
-        >
-          <Ionicons name="open-outline" size={16} color={BLACK} />
-          <Text style={styles.openBtnTxt}>Open</Text>
-        </TouchableOpacity>
-      </View>
-    );
+  const openItem = () => {
+    if (typeof onOpen === "function") onOpen(data);
+    else Alert.alert("Open", `Open contract with ${data.contracteeName}`);
   };
 
   return (
@@ -158,43 +58,97 @@ export default function SSocketPendingContractsList_Contractor({ contracts, onOp
         <TouchableOpacity style={styles.backBtn} activeOpacity={0.8} onPress={goBack}>
           <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
         </TouchableOpacity>
-        <Text style={styles.topTitle}>My Pending Mega Contracts</Text>
+        <Text style={styles.topTitle}>My Pending Mega Contract</Text>
         <View style={{ width: 40 }} />
       </View>
       <View style={styles.topAccent} />
 
-      {/* Search */}
-      <View style={styles.searchWrap}>
-        <Ionicons name="search-outline" size={16} color={BLACK} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search by business, description, or status"
-          placeholderTextColor="#666"
-          style={styles.searchInput}
-        />
-        {!!query && (
-          <TouchableOpacity onPress={() => setQuery("")} style={styles.clearBtn} activeOpacity={0.8}>
-            <Ionicons name="close" size={16} color={BLACK} />
-          </TouchableOpacity>
-        )}
-      </View>
+      {/* If no pending contract, show empty */}
+      {!data ? (
+        <View style={[styles.emptyWrap, { paddingHorizontal: 12 }]}>
+          <Text style={styles.emptyText}>No pending mega contract.</Text>
+        </View>
+      ) : (
+        <View style={{ paddingHorizontal: 12, paddingBottom: 20 }}>
+          {/* Single Contract Card */}
+          <View style={[styles.card, styles.row]}>
+            {/* Avatar-ish block */}
+            <View style={styles.avatar}>
+              <View style={styles.avatarHead} />
+              <View style={styles.avatarBody} />
+            </View>
 
-      {/* List */}
-      <FlatList
-        data={filtered}
-        keyExtractor={(i) => i.id}
-        contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 20 }}
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        renderItem={renderItem}
-        ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            <Text style={styles.emptyText}>No pending contracts found.</Text>
+            {/* Details */}
+            <View style={{ flex: 1 }}>
+              {/* Company */}
+              <Text style={styles.name} numberOfLines={1}>
+                {data.contracteeName}
+              </Text>
+
+              {/* Role (prominent) */}
+              <View style={styles.roleBox}>
+                <Text style={styles.roleLabel}>Job Role</Text>
+                <Text style={styles.roleValue}>{data.jobRole || "—"}</Text>
+              </View>
+
+              {/* Scope */}
+              <Text style={styles.desc} numberOfLines={3}>
+                {data.workDescription}
+              </Text>
+
+              {/* Meta row: status + exact pay + unread */}
+              <View style={styles.metaRow}>
+                <View style={styles.badgeYellow}>
+                  <Text style={styles.badgeYellowText}>{data.status || "Negotiation"}</Text>
+                </View>
+                <View style={styles.badgeOutline}>
+                  <Text style={styles.badgeOutlineText}>
+                    {formatExactPay(data.salary, data.paymentPeriod)}
+                  </Text>
+                </View>
+                {data.unread > 0 && (
+                  <View style={styles.badgeUnread}>
+                    <Text style={styles.badgeUnreadText}>{data.unread}</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Key-Value grid */}
+              <View style={styles.kvGrid}>
+                <KV label="Contractor" value={data.contractorName} />
+                <KV label="Start Date" value={data.startDate} />
+                <KV label="End / Deadline" value={data.endDate} />
+                <KV label="Payment Period" value={readablePeriod(data.paymentPeriod)} />
+              </View>
+
+              {/* Last message + updated */}
+              <Text style={styles.lastMsg} numberOfLines={2}>
+                <Text style={{ fontWeight: "900" }}>Last:</Text> {data.lastMessage || "No messages yet"}
+              </Text>
+              <Text style={styles.updatedAt}>Updated: {data.updatedAt || "—"}</Text>
+            </View>
+
+            {/* Action */}
+            <TouchableOpacity activeOpacity={0.9} style={styles.openBtn} onPress={openItem}>
+              <Ionicons name="open-outline" size={16} color={BLACK} />
+              <Text style={styles.openBtnTxt}>Open</Text>
+            </TouchableOpacity>
           </View>
-        }
-        showsVerticalScrollIndicator={false}
-      />
+        </View>
+      )}
     </SafeAreaView>
+  );
+}
+
+/* ===== Small components ===== */
+function KV({ label, value }) {
+  return (
+    <View style={styles.kvItem}>
+      <Text style={styles.kvLabel}>{label}</Text>
+      <Text style={styles.kvValue} numberOfLines={1}>
+        {value || "—"}
+      </Text>
+    </View>
   );
 }
 
@@ -219,6 +173,11 @@ function normPeriod(p) {
   if (v === "on_completion") return "project";
   return v;
 }
+function readablePeriod(p) {
+  const v = normPeriod(p);
+  if (v === "mile") return "milestone";
+  return v || "—";
+}
 
 /* ===== Styles ===== */
 const styles = StyleSheet.create({
@@ -238,38 +197,15 @@ const styles = StyleSheet.create({
   topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
   topAccent: { height: 3, backgroundColor: YELLOW },
 
-  /* Search */
-  searchWrap: {
-    marginTop: 12,
-    marginHorizontal: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: BLACK,
-    backgroundColor: WHITE,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    color: BLACK,
-    fontSize: 13,
-  },
-  clearBtn: { padding: 6, marginLeft: 4, borderRadius: 8, borderWidth: 2, borderColor: BLACK },
-
-  /* Row card */
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
+  /* Single card */
+  card: {
     backgroundColor: WHITE,
     borderWidth: 2,
     borderColor: BLACK,
     borderRadius: 12,
     padding: 12,
   },
+  row: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
 
   avatar: {
     width: 46, height: 46, borderRadius: 23,
@@ -286,7 +222,20 @@ const styles = StyleSheet.create({
   },
 
   name: { color: BLACK, fontSize: 16, fontWeight: "900" },
-  desc: { color: "#333", fontSize: 12, marginTop: 2 },
+  desc: { color: "#333", fontSize: 12, marginTop: 6 },
+
+  roleBox: {
+    marginTop: 6,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignSelf: "flex-start",
+    backgroundColor: WHITE,
+  },
+  roleLabel: { color: "#444", fontSize: 10, fontWeight: "900" },
+  roleValue: { color: BLACK, fontSize: 13, fontWeight: "900", marginTop: 1 },
 
   metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 8 },
 
@@ -308,7 +257,20 @@ const styles = StyleSheet.create({
   },
   badgeUnreadText: { color: BLACK, fontSize: 12, fontWeight: "900" },
 
-  lastMsg: { color: "#444", fontSize: 11, marginTop: 6 },
+  kvGrid: {
+    marginTop: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    padding: 10,
+    backgroundColor: WHITE,
+    gap: 8,
+  },
+  kvItem: { flexDirection: "row", justifyContent: "space-between" },
+  kvLabel: { color: "#444", fontSize: 11, fontWeight: "900", marginRight: 10 },
+  kvValue: { color: BLACK, fontSize: 12, fontWeight: "700", flexShrink: 1, textAlign: "right" },
+
+  lastMsg: { color: "#444", fontSize: 11, marginTop: 8 },
   updatedAt: { color: "#777", fontSize: 10, marginTop: 2 },
 
   openBtn: {
@@ -326,10 +288,6 @@ const styles = StyleSheet.create({
   openBtnTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
 
   /* Empty */
-  emptyWrap: {
-    marginTop: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  emptyWrap: { marginTop: 40, alignItems: "center", justifyContent: "center" },
   emptyText: { color: "#666", fontWeight: "600" },
 });
