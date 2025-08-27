@@ -1,0 +1,634 @@
+// SSocketCompetitionReview_Business.js
+// Business-side: Review anonymous submissions per round for a competition.
+// - Participants shown as "Anonymous #N" (kept anonymous until final selection).
+// - Round switcher (pills) to review answers round-by-round.
+// - Overview shows job, winners needed, round duration, and ESTIMATED PAY RANGE.
+// - Each submission lists answers. "Give Feedback" toggles a panel:
+//     * Star rating (1–5), green tag, red tag, and a required review note.
+//     * "Save Feedback" is disabled until all fields are filled.
+//     * "Disqualify" button (also disabled until all fields are filled) removes the participant from this round.
+//     * Note: "Reviews are only visible to the system."
+// - Cancel/other buttons wrap on small screens (no overflow).
+// - Expo-compatible, no external libs besides @expo/vector-icons. No "gap" in styles.
+
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+const RED = "#D32F2F";
+const GREEN = "#2E7D32";
+
+/* ===== Small Bits ===== */
+function StarRating({ value, onChange }) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <TouchableOpacity key={n} onPress={() => onChange(n)} style={{ padding: 4 }} activeOpacity={0.8}>
+          <Ionicons name={value >= n ? "star" : "star-outline"} size={18} color={BLACK} />
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
+function Pill({ label, active, onPress }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.9}
+      style={[styles.pill, active ? styles.pillActive : styles.pillIdle]}
+    >
+      <Text style={[styles.pillTxt, active ? styles.pillTxtActive : styles.pillTxtIdle]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+/* ===== Helpers ===== */
+function formatMoney(n) {
+  const x = Number(n);
+  if (Number.isNaN(x)) return "—";
+  return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+function readablePeriod(p) {
+  if (!p) return "";
+  const v = String(p).toLowerCase();
+  if (v.startsWith("week")) return "week";
+  if (v.startsWith("mon")) return "month";
+  if (v.startsWith("proj")) return "project";
+  if (v.startsWith("mile")) return "milestone";
+  if (v === "on_completion") return "project";
+  return v;
+}
+
+export default function SSocketCompetitionReview_Business({
+  competition,
+  onBack,
+  onSaveFeedback, // ({roundId, submissionId, rating, posTag, improveTag, comment}) => void
+  onDisqualify,   // ({roundId, submissionId, rating, posTag, improveTag, comment}) => void
+}) {
+  /* ===== Demo Fallback ===== */
+  const demo = useMemo(
+    () => ({
+      id: "cmp_review_demo",
+      title: "Marketing Hire – Q4 Funnel Sprint",
+      jobRole: "Marketing Specialist",
+      winnersNeeded: 1,
+      // NEW: estimated pay range + period
+      currency: "NGN",
+      estimatedPayMin: 350000,
+      estimatedPayMax: 500000,
+      paymentPeriod: "month",
+      rounds: [
+        {
+          id: "r1",
+          name: "Round 1",
+          durationDays: 2,
+          questions: [
+            { id: "q1", text: "List 3 top-of-funnel ideas for our product." },
+            { id: "q2", text: "Suggest 2 metrics to judge success." },
+          ],
+          submissions: [
+            {
+              id: "s1",
+              participantAnonIndex: 1,
+              answers: [
+                "Run referral program, influencer UGC, and campus reps initiative.",
+                "CTR and new account sign-ups.",
+              ],
+            },
+            {
+              id: "s2",
+              participantAnonIndex: 2,
+              answers: ["SEO blog sprint, micro-partnerships, WhatsApp communities.", "CAC and activation rate."],
+            },
+          ],
+        },
+        {
+          id: "r2",
+          name: "Round 2",
+          durationDays: 3,
+          questions: [{ id: "q3", text: "Draft a 7-day growth experiment plan." }],
+          submissions: [
+            {
+              id: "s3",
+              participantAnonIndex: 1,
+              answers: ["Day1: Hypothesis & setup… Day2: Landing page test… Day3–7: channel split testing…"],
+            },
+          ],
+        },
+      ],
+    }),
+    []
+  );
+
+  const comp = competition || demo;
+
+  // Local copy so we can remove (disqualify) submissions in UI.
+  const initialRounds = Array.isArray(comp.rounds) ? comp.rounds : [];
+  const [localRounds, setLocalRounds] = useState(initialRounds);
+  const [currentRoundIndex, setCurrentRoundIndex] = useState(0);
+
+  // Feedback panel + fields per submission
+  // { [submissionId]: { open, rating, posTag, improveTag, comment } }
+  const [fbMap, setFbMap] = useState({});
+
+  const greenTags = [
+    "hardworking",
+    "analytical",
+    "creative",
+    "strategic",
+    "flexible",
+    "leadership",
+    "collaborative",
+    "social",
+    "detail-oriented",
+    "trustworthy",
+  ];
+  const redTags = [
+    "short-sighted",
+    "rigid",
+    "ineffective",
+    "untrustworthy",
+    "conflict-prone",
+    "lazy",
+    "unsociable",
+    "disloyal",
+    "disorganized",
+    "slow",
+  ];
+
+  const goBack = () => {
+    if (typeof onBack === "function") onBack();
+    else Alert.alert("Back", "Hook this into navigation.");
+  };
+
+  const togglePanel = (sid) => {
+    setFbMap((prev) => {
+      const curr = prev[sid] || { open: false, rating: 0, posTag: null, improveTag: null, comment: "" };
+      return { ...prev, [sid]: { ...curr, open: !curr.open } };
+    });
+  };
+
+  const setField = (sid, patch) => {
+    setFbMap((prev) => {
+      const curr = prev[sid] || { open: false, rating: 0, posTag: null, improveTag: null, comment: "" };
+      return { ...prev, [sid]: { ...curr, ...patch } };
+    });
+  };
+
+  const saveFeedback = (roundId, submissionId) => {
+    const f = fbMap[submissionId] || {};
+    const ok = !!f.posTag && !!f.improveTag && (f.rating || 0) > 0 && (f.comment || "").trim().length > 0;
+    if (!ok) {
+      Alert.alert("Missing info", "Pick a green tag, a red tag, a star rating, and write a short review.");
+      return;
+    }
+    if (typeof onSaveFeedback === "function") {
+      onSaveFeedback({
+        roundId,
+        submissionId,
+        rating: f.rating || 0,
+        posTag: f.posTag,
+        improveTag: f.improveTag,
+        comment: f.comment || "",
+      });
+    }
+    Alert.alert("Saved", "Feedback saved.");
+    setField(submissionId, { open: false });
+  };
+
+  const disqualifySubmission = (roundId, submissionId) => {
+    const f = fbMap[submissionId] || {};
+    const ok = !!f.posTag && !!f.improveTag && (f.rating || 0) > 0 && (f.comment || "").trim().length > 0;
+    if (!ok) {
+      Alert.alert("Feedback required", "Please provide rating, tags and a review before disqualifying.");
+      return;
+    }
+    Alert.alert(
+      "Disqualify participant?",
+      "This will remove this participant from this round.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Disqualify",
+          style: "destructive",
+          onPress: () => {
+            setLocalRounds((prev) =>
+              prev.map((r) =>
+                r.id === roundId
+                  ? { ...r, submissions: (r.submissions || []).filter((s) => s.id !== submissionId) }
+                  : r
+              )
+            );
+            if (typeof onDisqualify === "function") {
+              onDisqualify({
+                roundId,
+                submissionId,
+                rating: f.rating || 0,
+                posTag: f.posTag,
+                improveTag: f.improveTag,
+                comment: f.comment || "",
+              });
+            }
+            Alert.alert("Removed", "Participant disqualified for this round.");
+          },
+        },
+      ]
+    );
+  };
+
+  const currentRound = localRounds[currentRoundIndex];
+  const submissions =
+    (currentRound && Array.isArray(currentRound.submissions) && currentRound.submissions) || [];
+  const qs = (currentRound && Array.isArray(currentRound.questions) && currentRound.questions) || [];
+
+  // Build estimated pay badge text
+  const payText = (() => {
+    const cur = comp.currency || "NGN";
+    const min = comp.estimatedPayMin;
+    const max = comp.estimatedPayMax;
+    const per = readablePeriod(comp.paymentPeriod || "");
+    if (min && max) return `Estimated pay: ${cur} ${formatMoney(min)}–${formatMoney(max)}${per ? ` per ${per}` : ""}`;
+    if (min) return `Estimated pay: from ${cur} ${formatMoney(min)}${per ? ` per ${per}` : ""}`;
+    if (max) return `Estimated pay: up to ${cur} ${formatMoney(max)}${per ? ` per ${per}` : ""}`;
+    return null;
+  })();
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Review Submissions</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+        {/* Overview */}
+        <View style={styles.barrier}>
+          <View style={styles.card}>
+            <Text style={styles.title} numberOfLines={2}>{comp.title}</Text>
+            <Text style={styles.role} numberOfLines={1}>{comp.jobRole}</Text>
+
+            {/* Estimated Pay (added above) */}
+            {payText ? (
+              <View style={[styles.badgeOutline, { marginTop: 8 }]}>
+                <Text style={styles.badgeOutlineTxt}>{payText}</Text>
+              </View>
+            ) : null}
+
+            <View style={[styles.metaRow, { marginTop: 8 }]}>
+              <View style={styles.badgeOutline}>
+                <Text style={styles.badgeOutlineTxt}>Winners needed: {comp.winnersNeeded || 1}</Text>
+              </View>
+              {!!currentRound?.durationDays && (
+                <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+                  <Text style={styles.badgeOutlineTxt}>Current round: {currentRound.durationDays} day(s)</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+
+        {/* Round Switcher */}
+        <View style={[styles.barrier, { marginTop: 12 }]}>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Rounds</Text>
+            <View style={styles.pillWrap}>
+              {localRounds.map((r, i) => (
+                <Pill
+                  key={r.id}
+                  label={r.name || `Round ${i + 1}`}
+                  active={i === currentRoundIndex}
+                  onPress={() => setCurrentRoundIndex(i)}
+                />
+              ))}
+            </View>
+          </View>
+        </View>
+
+        {/* Submissions List */}
+        <View style={styles.barrier}>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Submissions ({submissions.length})</Text>
+            {submissions.length === 0 ? (
+              <Text style={styles.helperNote}>No submissions in this round yet.</Text>
+            ) : (
+              submissions.map((s) => {
+                const f = fbMap[s.id] || { open: false, rating: 0, posTag: null, improveTag: null, comment: "" };
+                const ready = !!f.posTag && !!f.improveTag && (f.rating || 0) > 0 && (f.comment || "").trim().length > 0;
+
+                return (
+                  <View key={s.id} style={styles.submissionBox}>
+                    {/* Header: Anonymous label */}
+                    <View style={styles.subHeader}>
+                      <Text style={styles.subTitle}>Anonymous #{s.participantAnonIndex || "—"}</Text>
+                      <TouchableOpacity
+                        onPress={() => togglePanel(s.id)}
+                        style={[styles.btn, f.open ? styles.btnGhost : styles.btnYellow]}
+                        activeOpacity={0.9}
+                      >
+                        <Ionicons name="chatbox-ellipses-outline" size={16} color={BLACK} />
+                        <Text style={[f.open ? styles.btnGhostTxt : styles.btnYellowTxt, { marginLeft: 6 }]}>
+                          {f.open ? "Close Feedback" : "Give Feedback"}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Answers */}
+                    <View style={{ marginTop: 8 }}>
+                      {qs.map((q, qi) => (
+                        <View key={`${s.id}_${q.id}`} style={{ marginTop: qi === 0 ? 0 : 8 }}>
+                          <Text style={styles.fieldLabel}>Q{qi + 1}. {q.text}</Text>
+                          <View style={styles.answerBox}>
+                            <Text style={styles.answerText}>
+                              {typeof s.answers?.[qi] === "string" && s.answers[qi].trim().length > 0
+                                ? s.answers[qi]
+                                : "—"}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+
+                    {/* Feedback Panel */}
+                    {f.open && (
+                      <View style={styles.feedbackPanel}>
+                        {/* Green Tag */}
+                        <Text style={styles.flowLabel}>This shows this person is…</Text>
+                        <View style={styles.tagRow}>
+                          {greenTags.map((t) => {
+                            const on = f.posTag === t;
+                            return (
+                              <TouchableOpacity
+                                key={`${s.id}_g_${t}`}
+                                onPress={() => setField(s.id, { posTag: t })}
+                                activeOpacity={0.9}
+                                style={[styles.tag, on ? styles.tagOnGreen : styles.tagOff]}
+                              >
+                                <Text style={[styles.tagTxt, on ? styles.tagTxtOnDark : styles.tagTxtOff]}>{t}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+
+                        {/* Red Tag */}
+                        <Text style={[styles.flowLabel, { marginTop: 10 }]}>
+                          Pick a tag this person needs to improve on
+                        </Text>
+                        <View style={styles.tagRow}>
+                          {redTags.map((t) => {
+                            const on = f.improveTag === t;
+                            return (
+                              <TouchableOpacity
+                                key={`${s.id}_r_${t}`}
+                                onPress={() => setField(s.id, { improveTag: t })}
+                                activeOpacity={0.9}
+                                style={[styles.tag, on ? styles.tagOnRed : styles.tagOff]}
+                              >
+                                <Text style={[styles.tagTxt, on ? styles.tagTxtOnDark : styles.tagTxtOff]}>{t}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+
+                        {/* Rating */}
+                        <Text style={[styles.flowLabel, { marginTop: 10 }]}>Rate this submission</Text>
+                        <StarRating value={f.rating || 0} onChange={(n) => setField(s.id, { rating: n })} />
+
+                        {/* Review (required, but not labeled as required) */}
+                        <View style={{ marginTop: 10 }}>
+                          <Text style={styles.flowLabel}>Review</Text>
+                          <Text style={styles.reviewNote}>Reviews are only visible to the system.</Text>
+                          <TextInput
+                            value={f.comment || ""}
+                            onChangeText={(v) => setField(s.id, { comment: v })}
+                            placeholder="Write a short note…"
+                            placeholderTextColor="#666"
+                            style={styles.input}
+                            multiline
+                          />
+                        </View>
+
+                        {/* Actions (wrapping row to prevent overflow) */}
+                        <View style={[styles.actionRow, { marginTop: 10 }]}>
+                          <TouchableOpacity
+                            style={[styles.btn, styles.btnYellow, !ready && styles.btnDisabled]}
+                            onPress={() => ready && saveFeedback(currentRound.id, s.id)}
+                            activeOpacity={ready ? 0.9 : 1}
+                            disabled={!ready}
+                          >
+                            <Ionicons name="save-outline" size={16} color={BLACK} />
+                            <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Save Feedback</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.btn, styles.btnDanger, !ready && styles.btnDisabled]}
+                            onPress={() => ready && disqualifySubmission(currentRound.id, s.id)}
+                            activeOpacity={ready ? 0.9 : 1}
+                            disabled={!ready}
+                          >
+                            <Ionicons name="ban-outline" size={16} color={WHITE} />
+                            <Text style={[styles.btnDangerTxt, { marginLeft: 6 }]}>Disqualify</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.btn, styles.btnGhost]}
+                            onPress={() => togglePanel(s.id)}
+                            activeOpacity={0.9}
+                          >
+                            <Ionicons name="close-circle-outline" size={16} color={BLACK} />
+                            <Text style={[styles.btnGhostTxt, { marginLeft: 6 }]}>Cancel</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              })
+            )}
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+    position: "relative",
+  },
+  backBtn: { position: "absolute", left: 12, bottom: 14, padding: 6 },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Barrier & Card */
+  barrier: {
+    marginTop: 12,
+    marginHorizontal: 12,
+    borderWidth: 3,
+    borderColor: YELLOW,
+    borderRadius: 16,
+    padding: 4,
+    backgroundColor: WHITE,
+  },
+  card: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 12,
+  },
+
+  /* Titles */
+  title: { color: BLACK, fontSize: 16, fontWeight: "900" },
+  role: { color: "#444", fontSize: 12, marginTop: 2 },
+  cardTitle: { color: BLACK, fontSize: 14, fontWeight: "900" },
+
+  /* Meta */
+  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
+  badgeOutline: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignSelf: "flex-start",
+  },
+  badgeOutlineTxt: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  /* Pills */
+  pillWrap: { flexDirection: "row", flexWrap: "wrap", marginTop: 8 },
+  pill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 2,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  pillIdle: { backgroundColor: WHITE, borderColor: BLACK },
+  pillActive: { backgroundColor: YELLOW, borderColor: BLACK },
+  pillTxt: { fontSize: 12, fontWeight: "900" },
+  pillTxtIdle: { color: BLACK },
+  pillTxtActive: { color: BLACK },
+
+  /* Submission */
+  submissionBox: {
+    marginTop: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    padding: 10,
+  },
+  subHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  subTitle: { color: BLACK, fontSize: 13, fontWeight: "900" },
+
+  fieldLabel: { color: BLACK, fontSize: 12, fontWeight: "800", marginBottom: 4 },
+  answerBox: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    backgroundColor: WHITE,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  answerText: { color: BLACK, fontSize: 13, lineHeight: 18 },
+
+  /* Feedback Panel */
+  feedbackPanel: {
+    marginTop: 10,
+    borderTopWidth: 2,
+    borderTopColor: BLACK,
+    paddingTop: 10,
+  },
+  flowLabel: { color: BLACK, fontSize: 12, fontWeight: "900" },
+  tagRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 6 },
+  tag: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 2,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  tagOff: { backgroundColor: WHITE, borderColor: BLACK },
+  tagOnGreen: { backgroundColor: GREEN, borderColor: BLACK },
+  tagOnRed: { backgroundColor: RED, borderColor: BLACK },
+  tagTxt: { fontSize: 11, fontWeight: "900" },
+  tagTxtOff: { color: BLACK },
+  tagTxtOnDark: { color: WHITE },
+
+  /* Inputs */
+  input: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    color: BLACK,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    minHeight: 44,
+  },
+  reviewNote: { color: "#666", fontSize: 10, marginTop: 4 },
+
+  /* Buttons */
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",       // allow wrapping so buttons don't overflow
+  },
+  btn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 8,         // spacing between buttons
+    marginBottom: 8,        // spacing for wrapped rows
+  },
+  btnYellow: { backgroundColor: YELLOW },
+  btnYellowTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+  btnGhost: { backgroundColor: WHITE },
+  btnGhostTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+  btnDisabled: { opacity: 0.4 },
+  btnDanger: { backgroundColor: RED, borderColor: BLACK },
+  btnDangerTxt: { color: WHITE, fontWeight: "900", fontSize: 12 },
+
+  /* Helpers */
+  helperNote: { color: "#555", fontSize: 11, marginTop: 6 },
+});
