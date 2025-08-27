@@ -1,6 +1,7 @@
 // SSocketPendingContractsList.js
 // Business-side: Pending (ongoing + in-negotiation) mega contracts list.
-// Shows exact pay (not ranges) since business is inside their own account.
+// Shows exact pay and supports search by contractor, description, status, and role.
+// Now includes a "Role" field for the job.
 // Expo-compatible, no external libs. SSocket black/white/yellow UI.
 
 import React, { useMemo, useState } from "react";
@@ -23,18 +24,20 @@ const BLACK = "#000";
 const WHITE = "#FFF";
 
 export default function SSocketPendingContractsList({ contracts, onOpen }) {
-  // Demo data (used if `contracts` prop not passed)
+  // Demo data
   const demoContracts = useMemo(
     () => [
       {
         id: "mc_001",
-        contracteeName: "Ada Ventures Ltd", // the business itself
+        contracteeName: "Ada Ventures Ltd",
         contractorName: "John Doe",
         workDescription: "4-page company website with contact form",
+        role: "Frontend Developer", // NEW
         startDate: "2025-09-01",
         endDate: "2025-10-01",
         salary: 200000,
         paymentPeriod: "month",
+        roles: ["Frontend", "React", "UI"],
         lastMessage: "Please confirm the milestone split we discussed...",
         updatedAt: "2025-08-20",
         unread: 2,
@@ -45,10 +48,12 @@ export default function SSocketPendingContractsList({ contracts, onOpen }) {
         contracteeName: "Ada Ventures Ltd",
         contractorName: "Maryam Bello",
         workDescription: "Mobile app QA & weekly test reports",
+        role: "QA Engineer", // NEW
         startDate: "2025-08-05",
         endDate: "2025-12-05",
         salary: 100000,
         paymentPeriod: "week",
+        roles: ["QA", "Mobile", "Automation"],
         lastMessage: "Uploading the draft test plan now.",
         updatedAt: "2025-08-18",
         unread: 0,
@@ -59,10 +64,12 @@ export default function SSocketPendingContractsList({ contracts, onOpen }) {
         contracteeName: "Ada Ventures Ltd",
         contractorName: "Bright Dev Studio",
         workDescription: "Backend APIs for order processing",
+        role: "Backend Engineer", // NEW
         startDate: "2025-08-12",
         endDate: "2025-11-30",
         salary: 1400000,
         paymentPeriod: "project",
+        roles: ["Backend", "Node", "DevOps"],
         lastMessage: "We proposed 30/40/30 milestone schedule.",
         updatedAt: "2025-08-17",
         unread: 5,
@@ -73,16 +80,24 @@ export default function SSocketPendingContractsList({ contracts, onOpen }) {
   );
 
   const data = contracts && contracts.length ? contracts : demoContracts;
+
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
     if (!query.trim()) return data;
     const q = query.toLowerCase();
     return data.filter((c) => {
+      const roleStr = Array.isArray(c.roles)
+        ? c.roles.join(", ")
+        : typeof c.roles === "string"
+        ? c.roles
+        : "";
       return (
         (c.contractorName || "").toLowerCase().includes(q) ||
         (c.workDescription || "").toLowerCase().includes(q) ||
-        (c.status || "").toLowerCase().includes(q)
+        (c.status || "").toLowerCase().includes(q) ||
+        (c.role || "").toLowerCase().includes(q) || // NEW search by job role
+        roleStr.toLowerCase().includes(q)
       );
     });
   }, [data, query]);
@@ -96,13 +111,13 @@ export default function SSocketPendingContractsList({ contracts, onOpen }) {
   const renderItem = ({ item }) => {
     return (
       <View style={styles.row}>
-        {/* Avatar-ish block */}
+        {/* Avatar */}
         <View style={styles.avatar}>
           <View style={styles.avatarHead} />
           <View style={styles.avatarBody} />
         </View>
 
-        {/* Middle info */}
+        {/* Middle */}
         <View style={{ flex: 1 }}>
           <Text style={styles.name} numberOfLines={1}>
             {item.contractorName}
@@ -112,7 +127,23 @@ export default function SSocketPendingContractsList({ contracts, onOpen }) {
             {item.workDescription}
           </Text>
 
-          {/* Meta row: status + exact pay */}
+          {/* Role (NEW) */}
+          {item.role ? (
+            <Text style={styles.roleText}>Role: {item.role}</Text>
+          ) : null}
+
+          {/* Extra roles (tags) */}
+          {item.roles?.length ? (
+            <View style={styles.rolesRow}>
+              {item.roles.map((r, idx) => (
+                <View key={`${item.id}_${idx}`} style={styles.roleBadge}>
+                  <Text style={styles.roleTxt}>{r}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {/* Meta row */}
           <View style={styles.metaRow}>
             <View style={styles.badgeYellow}>
               <Text style={styles.badgeYellowText}>{item.status || "Negotiation"}</Text>
@@ -129,7 +160,6 @@ export default function SSocketPendingContractsList({ contracts, onOpen }) {
             )}
           </View>
 
-          {/* Last message + updated */}
           <Text style={styles.lastMsg} numberOfLines={1}>
             <Text style={{ fontWeight: "900" }}>Last:</Text> {item.lastMessage || "No messages yet"}
           </Text>
@@ -169,7 +199,7 @@ export default function SSocketPendingContractsList({ contracts, onOpen }) {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Search by contractor, description, status or role"
+          placeholder="Search by contractor, description, status, or role"
           placeholderTextColor="#666"
           style={styles.searchInput}
         />
@@ -287,6 +317,19 @@ const styles = StyleSheet.create({
 
   name: { color: BLACK, fontSize: 16, fontWeight: "900" },
   desc: { color: "#333", fontSize: 12, marginTop: 2 },
+
+  roleText: { color: "#444", fontSize: 12, fontWeight: "700", marginTop: 2 }, // NEW
+
+  rolesRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
+  roleBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  roleTxt: { color: BLACK, fontSize: 11, fontWeight: "800" },
 
   metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 8 },
 
