@@ -1,10 +1,10 @@
 // SSocketCreateCompetition_Business.js
 // Business-side: Create a multi-round Competition to hire for a role.
 // CHANGES:
-// - Removed "Internal Notes" (competition-level) and "Short Note" (round-level).
-// - Removed Behavior toggle entirely (locking at cap + auto-close at winners is automatic).
-// - No "Advance Top N": contractee manually removes underqualified competitors each round.
-// - Simple English labels. Responsive UI. Expo-compatible (no external libs).
+// - Estimated Pay Range is REQUIRED (Min ₦, Max ₦, Unit chips).
+// - Validation enforces presence, numeric values, and Min ≤ Max.
+// - Removed helper text about "motivate competitors" visibility.
+// - Expo-compatible (no external libs).
 
 import React, { useMemo, useState } from "react";
 import {
@@ -32,6 +32,12 @@ export default function SSocketCreateCompetition_Business({
 }) {
   /* ===== Helpers ===== */
   const genId = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const toInt = (v) => {
+    if (typeof v !== "string") return NaN;
+    const s = v.replace(/,/g, "").trim();
+    const n = parseInt(s, 10);
+    return Number.isFinite(n) ? n : NaN;
+  };
 
   /* ===== Form State ===== */
   const [title, setTitle] = useState("");
@@ -42,6 +48,11 @@ export default function SSocketCreateCompetition_Business({
   const [winnersNeeded, setWinnersNeeded] = useState("1");
 
   const [startDate, setStartDate] = useState(""); // YYYY-MM-DD (optional)
+
+  // 🔶 Estimated Pay Range (REQUIRED)
+  const [payMin, setPayMin] = useState(""); // e.g., 300000
+  const [payMax, setPayMax] = useState(""); // e.g., 450000
+  const [payUnit, setPayUnit] = useState("month"); // "hour" | "day" | "week" | "month" | "project"
 
   // Rounds: [{id, name, durationDays, questions:[{id,text}], _expanded}]
   const [rounds, setRounds] = useState(() => [
@@ -129,29 +140,52 @@ export default function SSocketCreateCompetition_Business({
         if (!q.text || !q.text.trim()) return "Question text cannot be empty.";
       }
     }
-    // No behavior toggles. No "Advance Top N". Contractee removes participants manually.
+
+    // 🔶 Pay validation (REQUIRED)
+    if (!payMin.trim()) return "Enter minimum estimated pay.";
+    if (!payMax.trim()) return "Enter maximum estimated pay.";
+    const minNum = toInt(payMin);
+    const maxNum = toInt(payMax);
+    if (Number.isNaN(minNum)) return "Minimum pay must be a valid number.";
+    if (Number.isNaN(maxNum)) return "Maximum pay must be a valid number.";
+    if (minNum > maxNum) return "Minimum pay cannot be greater than maximum pay.";
+    if (!["hour", "day", "week", "month", "project"].includes(payUnit))
+      return "Select a valid pay unit.";
+
     return null;
   };
 
-  const buildDraft = () => ({
-    title: title.trim(),
-    jobRole: jobRole.trim(),
-    description: description.trim(),
-    participantCap: parseInt(participantCap, 10),
-    winnersNeeded: parseInt(winnersNeeded, 10),
-    // Auto-lock at cap and auto-close at final winners are implicit (no toggles stored)
-    startDate: startDate.trim(),
-    rounds: rounds.map((r, i) => ({
-      id: r.id,
-      index: i + 1,
-      name: r.name.trim(),
-      durationDays: parseInt(r.durationDays, 10),
-      questions: r.questions.map((q, qi) => ({ id: q.id, index: qi + 1, text: q.text.trim() })),
-    })),
-    createdOn: today,
-  });
+  const buildDraft = () => {
+    const minNum = toInt(payMin);
+    const maxNum = toInt(payMax);
+    return {
+      title: title.trim(),
+      jobRole: jobRole.trim(),
+      description: description.trim(),
+      participantCap: parseInt(participantCap, 10),
+      winnersNeeded: parseInt(winnersNeeded, 10),
+      startDate: startDate.trim(),
+      // 🔶 Required estimated pay range
+      estimatedPayMin: minNum,
+      estimatedPayMax: maxNum,
+      payUnit: (payUnit || "month").trim(),
+      rounds: rounds.map((r, i) => ({
+        id: r.id,
+        index: i + 1,
+        name: r.name.trim(),
+        durationDays: parseInt(r.durationDays, 10),
+        questions: r.questions.map((q, qi) => ({ id: q.id, index: qi + 1, text: q.text.trim() })),
+      })),
+      createdOn: today,
+    };
+  };
 
   const saveDraft = () => {
+    const err = validate();
+    if (err) {
+      Alert.alert("Missing info", err);
+      return;
+    }
     const draft = buildDraft();
     if (typeof onSaveDraft === "function") onSaveDraft(draft);
     Alert.alert("Saved", "Competition draft saved.");
@@ -242,6 +276,50 @@ export default function SSocketCreateCompetition_Business({
               <View style={{ flex: 1 }} />
             </View>
 
+            {/* 🔶 Estimated Pay Range (REQUIRED) */}
+            <Text style={[styles.cardTitle, { marginTop: 12 }]}>Estimated Pay Range (required)</Text>
+
+            <View style={styles.row}>
+              <FieldHalf
+                label="Min (₦)"
+                value={payMin}
+                onChangeText={setPayMin}
+                placeholder="300000"
+                keyboardType="numeric"
+              />
+              <View style={{ width: 10 }} />
+              <FieldHalf
+                label="Max (₦)"
+                value={payMax}
+                onChangeText={setPayMax}
+                placeholder="450000"
+                keyboardType="numeric"
+              />
+            </View>
+
+            <Text style={[styles.fieldLabel, { marginTop: 10 }]}>Pay Unit</Text>
+            <View style={styles.unitRow}>
+              {["hour", "day", "week", "month", "project"].map((u) => {
+                const selected = payUnit === u;
+                return (
+                  <TouchableOpacity
+                    key={u}
+                    onPress={() => setPayUnit(u)}
+                    activeOpacity={0.9}
+                    style={[styles.unitChip, selected && styles.unitChipSelected]}
+                  >
+                    <Text style={[styles.unitChipTxt, selected && styles.unitChipTxtSelected]}>
+                      {u.charAt(0).toUpperCase() + u.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={styles.helperNote}>
+              Examples: ₦3,000–₦5,000 / day • ₦250,000–₦400,000 / month • ₦150,000 / project
+            </Text>
+
             <Text style={styles.helperNote}>
               Sign-ups stop automatically when the cap is reached. The competition closes
               automatically when the final winners are reached.
@@ -307,7 +385,6 @@ export default function SSocketCreateCompetition_Business({
                         keyboardType="numeric"
                       />
                       <View style={{ width: 10 }} />
-                      {/* Short Note removed */}
                       <View style={{ flex: 1 }} />
                     </View>
 
@@ -505,6 +582,22 @@ const styles = StyleSheet.create({
 
   smallLabel: { fontSize: 12, color: "#444", marginTop: 12, marginBottom: 4, fontWeight: "900" },
 
+  /* Unit chips */
+  unitRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 6 },
+  unitChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    marginRight: 8,
+    marginTop: 6,
+  },
+  unitChipSelected: { backgroundColor: YELLOW },
+  unitChipTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+  unitChipTxtSelected: { color: BLACK },
+
   /* Rounds */
   roundBox: {
     marginTop: 12,
@@ -542,6 +635,21 @@ const styles = StyleSheet.create({
 
   /* Helper text */
   helperNote: { color: "#555", fontSize: 11, marginTop: 6 },
+
+  /* Buttons */
+  btn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  btnYellow: { backgroundColor: YELLOW },
+  btnYellowTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+  btnGhost: { backgroundColor: WHITE, borderColor: BLACK },
+  btnGhostTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
 
   /* Actions */
   actionBtn: {
