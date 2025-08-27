@@ -1,0 +1,559 @@
+// SSocketCreateCompetition_Business.js
+// Business-side: Create a multi-round Competition to hire for a role.
+// CHANGES:
+// - Removed "Internal Notes" (competition-level) and "Short Note" (round-level).
+// - Removed Behavior toggle entirely (locking at cap + auto-close at winners is automatic).
+// - No "Advance Top N": contractee manually removes underqualified competitors each round.
+// - Simple English labels. Responsive UI. Expo-compatible (no external libs).
+
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  ScrollView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+export default function SSocketCreateCompetition_Business({
+  onBack,
+  onPublish,   // (competitionDraft) => void
+  onSaveDraft, // (competitionDraft) => void
+}) {
+  /* ===== Helpers ===== */
+  const genId = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+  /* ===== Form State ===== */
+  const [title, setTitle] = useState("");
+  const [jobRole, setJobRole] = useState("");
+  const [description, setDescription] = useState("");
+
+  const [participantCap, setParticipantCap] = useState("30"); // slots
+  const [winnersNeeded, setWinnersNeeded] = useState("1");
+
+  const [startDate, setStartDate] = useState(""); // YYYY-MM-DD (optional)
+
+  // Rounds: [{id, name, durationDays, questions:[{id,text}], _expanded}]
+  const [rounds, setRounds] = useState(() => [
+    {
+      id: genId(),
+      name: "Round 1",
+      durationDays: "2",
+      questions: [{ id: genId(), text: "" }],
+      _expanded: true,
+    },
+  ]);
+
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  /* ===== Round Mutations ===== */
+  const addRound = () => {
+    const idx = rounds.length + 1;
+    setRounds((prev) => [
+      ...prev,
+      {
+        id: genId(),
+        name: `Round ${idx}`,
+        durationDays: "2",
+        questions: [{ id: genId(), text: "" }],
+        _expanded: true,
+      },
+    ]);
+  };
+
+  const removeRound = (rid) => {
+    setRounds((prev) => prev.filter((r) => r.id !== rid));
+  };
+
+  const setRoundField = (rid, patch) => {
+    setRounds((prev) => prev.map((r) => (r.id === rid ? { ...r, ...patch } : r)));
+  };
+
+  const addQuestion = (rid) => {
+    setRounds((prev) =>
+      prev.map((r) =>
+        r.id === rid ? { ...r, questions: [...r.questions, { id: genId(), text: "" }] } : r
+      )
+    );
+  };
+
+  const removeQuestion = (rid, qid) => {
+    setRounds((prev) =>
+      prev.map((r) =>
+        r.id === rid ? { ...r, questions: r.questions.filter((q) => q.id !== qid) } : r
+      )
+    );
+  };
+
+  const setQuestionText = (rid, qid, text) => {
+    setRounds((prev) =>
+      prev.map((r) =>
+        r.id === rid
+          ? {
+              ...r,
+              questions: r.questions.map((q) => (q.id === qid ? { ...q, text } : q)),
+            }
+          : r
+      )
+    );
+  };
+
+  /* ===== Validation & Publish ===== */
+  const validate = () => {
+    const cap = parseInt(participantCap, 10);
+    const winners = parseInt(winnersNeeded, 10);
+
+    if (!title.trim()) return "Enter a competition title.";
+    if (!jobRole.trim()) return "Enter the job role (e.g., Accountant, Marketer).";
+    if (!cap || cap < 1) return "Participant cap must be at least 1.";
+    if (!winners || winners < 1) return "Winners needed must be at least 1.";
+    if (winners > cap) return "Winners needed cannot be more than the participant cap.";
+    if (rounds.length === 0) return "Add at least one round.";
+
+    for (const r of rounds) {
+      if (!r.name.trim()) return "Each round needs a name.";
+      if (!r.durationDays || parseInt(r.durationDays, 10) < 1)
+        return "Each round needs at least 1 day.";
+      if (r.questions.length === 0) return "Each round must have at least one question.";
+      for (const q of r.questions) {
+        if (!q.text || !q.text.trim()) return "Question text cannot be empty.";
+      }
+    }
+    // No behavior toggles. No "Advance Top N". Contractee removes participants manually.
+    return null;
+  };
+
+  const buildDraft = () => ({
+    title: title.trim(),
+    jobRole: jobRole.trim(),
+    description: description.trim(),
+    participantCap: parseInt(participantCap, 10),
+    winnersNeeded: parseInt(winnersNeeded, 10),
+    // Auto-lock at cap and auto-close at final winners are implicit (no toggles stored)
+    startDate: startDate.trim(),
+    rounds: rounds.map((r, i) => ({
+      id: r.id,
+      index: i + 1,
+      name: r.name.trim(),
+      durationDays: parseInt(r.durationDays, 10),
+      questions: r.questions.map((q, qi) => ({ id: q.id, index: qi + 1, text: q.text.trim() })),
+    })),
+    createdOn: today,
+  });
+
+  const saveDraft = () => {
+    const draft = buildDraft();
+    if (typeof onSaveDraft === "function") onSaveDraft(draft);
+    Alert.alert("Saved", "Competition draft saved.");
+  };
+
+  const publish = () => {
+    const err = validate();
+    if (err) {
+      Alert.alert("Missing info", err);
+      return;
+    }
+    const draft = buildDraft();
+    if (typeof onPublish === "function") onPublish(draft);
+    Alert.alert("Published", "Competition created and published.");
+  };
+
+  const goBack = () => {
+    if (typeof onBack === "function") onBack();
+    else Alert.alert("Back", "Hook this into navigation.");
+  };
+
+  /* ===== UI ===== */
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Create Competition</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+        {/* Basics */}
+        <View style={styles.barrier}>
+          <Card>
+            <Text style={styles.cardTitle}>Basics</Text>
+            <Field
+              label="Competition Title"
+              value={title}
+              onChangeText={setTitle}
+              placeholder="e.g., Marketing Hire – Q4 Funnel Sprint"
+            />
+            <Field
+              label="Job Role"
+              value={jobRole}
+              onChangeText={setJobRole}
+              placeholder="e.g., Marketing Specialist"
+            />
+            <MultilineField
+              label="Description"
+              value={description}
+              onChangeText={setDescription}
+              placeholder="What this competition will test"
+            />
+
+            <View style={styles.row}>
+              <FieldHalf
+                label="Participant Cap (slots)"
+                value={participantCap}
+                onChangeText={setParticipantCap}
+                placeholder="30"
+                keyboardType="numeric"
+              />
+              <View style={{ width: 10 }} />
+              <FieldHalf
+                label="Winners Needed"
+                value={winnersNeeded}
+                onChangeText={setWinnersNeeded}
+                placeholder="1"
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.row}>
+              <FieldHalf
+                label="Start Date (YYYY-MM-DD)"
+                value={startDate}
+                onChangeText={setStartDate}
+                placeholder="2025-09-05"
+                keyboardType="numbers-and-punctuation"
+              />
+              <View style={{ width: 10 }} />
+              <View style={{ flex: 1 }} />
+            </View>
+
+            <Text style={styles.helperNote}>
+              Sign-ups stop automatically when the cap is reached. The competition closes
+              automatically when the final winners are reached.
+            </Text>
+          </Card>
+        </View>
+
+        {/* Rounds */}
+        <View style={styles.barrier}>
+          <Card>
+            <Text style={styles.cardTitle}>Rounds & Questions</Text>
+            <Text style={styles.helperNote}>
+              Remove underqualified competitors manually after each round.
+            </Text>
+
+            {rounds.map((r, idx) => (
+              <View key={r.id} style={styles.roundBox}>
+                <View style={styles.roundHeader}>
+                  <TouchableOpacity
+                    onPress={() => setRoundField(r.id, { _expanded: !r._expanded })}
+                    activeOpacity={0.85}
+                    style={styles.roundToggle}
+                  >
+                    <Ionicons
+                      name={r._expanded ? "chevron-up" : "chevron-down"}
+                      size={16}
+                      color={BLACK}
+                    />
+                    <Text style={styles.roundTitle}>
+                      {r.name || `Round ${idx + 1}`} {idx === rounds.length - 1 ? "(Final)" : ""}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    {rounds.length > 1 && (
+                      <TouchableOpacity
+                        onPress={() => removeRound(r.id)}
+                        style={[styles.btn, styles.btnGhost, { marginRight: 8 }]}
+                        activeOpacity={0.9}
+                      >
+                        <Ionicons name="trash-outline" size={14} color={BLACK} />
+                        <Text style={[styles.btnGhostTxt, { marginLeft: 6 }]}>Remove</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+
+                {r._expanded && (
+                  <>
+                    <Field
+                      label="Round Name"
+                      value={r.name}
+                      onChangeText={(v) => setRoundField(r.id, { name: v })}
+                      placeholder={`Round ${idx + 1}`}
+                    />
+
+                    <View style={styles.row}>
+                      <FieldHalf
+                        label="Duration (days)"
+                        value={r.durationDays}
+                        onChangeText={(v) => setRoundField(r.id, { durationDays: v })}
+                        placeholder="2"
+                        keyboardType="numeric"
+                      />
+                      <View style={{ width: 10 }} />
+                      {/* Short Note removed */}
+                      <View style={{ flex: 1 }} />
+                    </View>
+
+                    <SmallLabel text="Questions" />
+                    {r.questions.map((q, qi) => (
+                      <View key={q.id} style={styles.qRow}>
+                        <TextInput
+                          value={q.text}
+                          onChangeText={(t) => setQuestionText(r.id, q.id, t)}
+                          placeholder={`Question ${qi + 1}`}
+                          placeholderTextColor="#666"
+                          style={[styles.input, { flex: 1 }]}
+                          multiline
+                        />
+                        <TouchableOpacity
+                          onPress={() => removeQuestion(r.id, q.id)}
+                          style={[styles.iconBtn, { marginLeft: 8 }]}
+                          activeOpacity={0.85}
+                        >
+                          <Ionicons name="remove-circle-outline" size={20} color={BLACK} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+
+                    <TouchableOpacity
+                      onPress={() => addQuestion(r.id)}
+                      style={[styles.btn, styles.btnYellow, { alignSelf: "flex-start", marginTop: 8 }]}
+                      activeOpacity={0.9}
+                    >
+                      <Ionicons name="add-outline" size={16} color={BLACK} />
+                      <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Add Question</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            ))}
+
+            <TouchableOpacity
+              onPress={addRound}
+              style={[styles.btn, styles.btnYellow, { alignSelf: "flex-start", marginTop: 8 }]}
+              activeOpacity={0.9}
+            >
+              <Ionicons name="add-outline" size={16} color={BLACK} />
+              <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Add Round</Text>
+            </TouchableOpacity>
+          </Card>
+        </View>
+
+        {/* Actions */}
+        <View style={styles.barrier}>
+          <Card>
+            <Text style={styles.cardTitle}>Finalize</Text>
+            <View style={styles.row}>
+              <TouchableOpacity
+                onPress={saveDraft}
+                style={[styles.actionBtn, styles.actionGhost]}
+                activeOpacity={0.9}
+              >
+                <Text style={styles.actionGhostTxt}>Save Draft</Text>
+              </TouchableOpacity>
+              <View style={{ width: 10 }} />
+              <TouchableOpacity
+                onPress={publish}
+                style={[styles.actionBtn, styles.actionPrimary]}
+                activeOpacity={0.9}
+              >
+                <Text style={styles.actionPrimaryTxt}>Publish Competition</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.helperNote}>
+              Sign-ups stop automatically at the cap. Competition closes automatically when
+              the winners you set are reached.
+            </Text>
+          </Card>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ================= Reusable bits ================= */
+
+function Card({ children }) {
+  return <View style={styles.card}>{children}</View>;
+}
+
+function Field({ label, value, onChangeText, placeholder, keyboardType = "default" }) {
+  return (
+    <View style={{ marginTop: 10 }}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="#666"
+        keyboardType={keyboardType}
+        style={styles.input}
+      />
+    </View>
+  );
+}
+
+function FieldHalf({ label, value, onChangeText, placeholder, keyboardType = "default" }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="#666"
+        keyboardType={keyboardType}
+        style={styles.input}
+      />
+    </View>
+  );
+}
+
+function MultilineField({ label, value, onChangeText, placeholder }) {
+  return (
+    <View style={{ marginTop: 10 }}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="#666"
+        multiline
+        textAlignVertical="top"
+        style={[styles.input, { height: 96, paddingTop: 12 }]}
+      />
+    </View>
+  );
+}
+
+function SmallLabel({ text }) {
+  return <Text style={styles.smallLabel}>{text}</Text>;
+}
+
+/* ================= Styles ================= */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+    position: "relative",
+  },
+  backBtn: { position: "absolute", left: 12, bottom: 14, padding: 6 },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Yellow barrier */
+  barrier: {
+    marginTop: 12,
+    marginHorizontal: 12,
+    borderWidth: 3,
+    borderColor: YELLOW,
+    borderRadius: 16,
+    padding: 4,
+    backgroundColor: WHITE,
+  },
+
+  /* Cards */
+  card: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 12,
+  },
+  cardTitle: { fontSize: 16, fontWeight: "900", color: BLACK },
+
+  /* Inputs */
+  fieldLabel: { color: BLACK, fontSize: 12, fontWeight: "800", marginBottom: 6, marginTop: 2 },
+  input: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    color: BLACK,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === "ios" ? 12 : 10,
+    fontSize: 14,
+  },
+
+  /* Rows */
+  row: { flexDirection: "row", alignItems: "center", marginTop: 10 },
+
+  smallLabel: { fontSize: 12, color: "#444", marginTop: 12, marginBottom: 4, fontWeight: "900" },
+
+  /* Rounds */
+  roundBox: {
+    marginTop: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: WHITE,
+  },
+  roundHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  roundToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  roundTitle: { color: BLACK, fontWeight: "900", fontSize: 12, marginLeft: 6 },
+
+  qRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
+  iconBtn: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    padding: 6,
+    backgroundColor: WHITE,
+  },
+
+  /* Helper text */
+  helperNote: { color: "#555", fontSize: 11, marginTop: 6 },
+
+  /* Actions */
+  actionBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionGhost: { backgroundColor: WHITE, borderColor: BLACK },
+  actionGhostTxt: { color: BLACK, fontWeight: "900", fontSize: 14 },
+  actionPrimary: { backgroundColor: YELLOW, borderColor: BLACK },
+  actionPrimaryTxt: { color: BLACK, fontWeight: "900", fontSize: 14 },
+});
