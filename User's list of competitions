@@ -1,0 +1,290 @@
+// SSocketMyCompetitions_User.js
+// User-side: List of competitions they have joined.
+// - Each competition shows title, role, STATUS (Ongoing / Ended / Disqualified).
+// - Added details: CURRENT ROUND and ESTIMATED PAY RANGE.
+// - "Details" button opens the competition details (rounds, next questions, etc).
+// - Disqualified competitions show red badge "Disqualified".
+// - Expo-compatible, no external libs.
+
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  FlatList,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+const RED = "#D32F2F";
+const GREEN = "#2E7D32";
+
+export default function SSocketMyCompetitions_User({ competitions, onOpenDetails, onBack }) {
+  // Demo fallback
+  const demo = useMemo(
+    () => [
+      {
+        id: "cmp_101",
+        title: "Marketing Hire – Q4 Funnel Sprint",
+        jobRole: "Marketing Specialist",
+        status: "ongoing", // ongoing | ended | disqualified
+        currentRoundIndex: 2, // 1-based
+        totalRounds: 4,
+        currency: "NGN",
+        estimatedPayMin: 350000,
+        estimatedPayMax: 500000,
+        paymentPeriod: "month",
+      },
+      {
+        id: "cmp_102",
+        title: "UI/UX Design Contest",
+        jobRole: "Product Designer",
+        status: "disqualified",
+        currentRoundIndex: 1,
+        totalRounds: 3,
+        currency: "NGN",
+        estimatedPayMin: 400000,
+        estimatedPayMax: 600000,
+        paymentPeriod: "month",
+      },
+      {
+        id: "cmp_103",
+        title: "Accounting Challenge 2025",
+        jobRole: "Accountant",
+        status: "ended",
+        currentRoundIndex: 3,
+        totalRounds: 3,
+        currency: "NGN",
+        estimatedPayMin: 300000,
+        estimatedPayMax: 450000,
+        paymentPeriod: "month",
+      },
+    ],
+    []
+  );
+
+  const [items] = useState(competitions && competitions.length ? competitions : demo);
+
+  const goBack = () => {
+    if (typeof onBack === "function") onBack();
+    else Alert.alert("Back", "Hook this into navigation.");
+  };
+
+  const openDetails = (item) => {
+    if (typeof onOpenDetails === "function") onOpenDetails(item);
+    else Alert.alert("Open", `Open competition details for ${item.title}`);
+  };
+
+  const renderStatusBadge = (status) => {
+    if (status === "ongoing") {
+      return (
+        <View style={[styles.badge, { backgroundColor: GREEN }]}>
+          <Text style={styles.badgeTxt}>Ongoing</Text>
+        </View>
+      );
+    }
+    if (status === "ended") {
+      return (
+        <View style={[styles.badge, { backgroundColor: "#999" }]}>
+          <Text style={styles.badgeTxt}>Ended</Text>
+        </View>
+      );
+    }
+    return (
+      <View style={[styles.badge, { backgroundColor: RED }]}>
+        <Text style={styles.badgeTxt}>Disqualified</Text>
+      </View>
+    );
+  };
+
+  const currentRoundText = (item) => {
+    const ci = Number(item.currentRoundIndex);
+    const tr = Number(item.totalRounds);
+    if (item.status === "ongoing" && ci && tr) return `Current: Round ${ci} of ${tr}`;
+    if (item.status === "ended" && tr) return `Final Round: ${tr} of ${tr}`;
+    if (item.status === "disqualified" && ci && tr) return `Left at Round ${ci} of ${tr}`;
+    return "—";
+  };
+
+  const estimatedPayText = (item) => {
+    const cur = item.currency || "NGN";
+    const min = item.estimatedPayMin;
+    const max = item.estimatedPayMax;
+    const per = readablePeriod(item.paymentPeriod || "");
+    if (min && max) return `${cur} ${formatMoney(min)}–${formatMoney(max)}${per ? ` per ${per}` : ""}`;
+    if (min) return `from ${cur} ${formatMoney(min)}${per ? ` per ${per}` : ""}`;
+    if (max) return `up to ${cur} ${formatMoney(max)}${per ? ` per ${per}` : ""}`;
+    return "—";
+  };
+
+  const renderItem = ({ item }) => {
+    return (
+      <View style={styles.barrier}>
+        <View style={styles.card}>
+          {/* Title + Role */}
+          <Text style={styles.title} numberOfLines={2}>
+            {item.title}
+          </Text>
+          <Text style={styles.role} numberOfLines={1}>
+            {item.jobRole}
+          </Text>
+
+          {/* Status */}
+          <View style={{ marginTop: 6 }}>{renderStatusBadge(item.status)}</View>
+
+          {/* Meta: Current Round + Estimated Pay */}
+          <View style={[styles.metaRow, { marginTop: 8 }]}>
+            <View style={styles.badgeOutline}>
+              <Text style={styles.badgeOutlineTxt}>{currentRoundText(item)}</Text>
+            </View>
+            <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+              <Text style={styles.badgeOutlineTxt}>Estimated Pay: {estimatedPayText(item)}</Text>
+            </View>
+          </View>
+
+          {/* Action button */}
+          <TouchableOpacity
+            style={[styles.btn, styles.btnYellow, { marginTop: 10, alignSelf: "flex-start" }]}
+            activeOpacity={0.9}
+            onPress={() => openDetails(item)}
+          >
+            <Ionicons name="open-outline" size={16} color={BLACK} />
+            <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Details</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>My Competitions</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <FlatList
+        data={items}
+        keyExtractor={(i) => i.id}
+        contentContainerStyle={{ padding: 12, paddingBottom: 24 }}
+        ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
+        renderItem={renderItem}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyText}>You have not joined any competitions yet.</Text>
+          </View>
+        }
+        showsVerticalScrollIndicator={false}
+      />
+    </SafeAreaView>
+  );
+}
+
+/* ===== Helpers ===== */
+function formatMoney(n) {
+  const x = Number(n);
+  if (Number.isNaN(x)) return "—";
+  return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+function readablePeriod(p) {
+  if (!p) return "";
+  const v = String(p).toLowerCase();
+  if (v.startsWith("week")) return "week";
+  if (v.startsWith("mon")) return "month";
+  if (v.startsWith("proj") || v === "on_completion") return "project";
+  if (v.startsWith("mile")) return "milestone";
+  return v;
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top Bar */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+    position: "relative",
+  },
+  backBtn: { position: "absolute", left: 12, bottom: 14, padding: 6 },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Competition card */
+  barrier: {
+    borderWidth: 3,
+    borderColor: YELLOW,
+    borderRadius: 16,
+    backgroundColor: WHITE,
+    padding: 4,
+  },
+  card: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    padding: 12,
+  },
+
+  title: { color: BLACK, fontSize: 15, fontWeight: "900" },
+  role: { color: "#444", fontSize: 12, marginTop: 2 },
+
+  /* Status badge */
+  badge: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    alignSelf: "flex-start",
+  },
+  badgeTxt: { color: WHITE, fontSize: 12, fontWeight: "900" },
+
+  /* Meta row + outline badges */
+  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
+  badgeOutline: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignSelf: "flex-start",
+  },
+  badgeOutlineTxt: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  /* Button */
+  btn: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  btnYellow: { backgroundColor: YELLOW },
+  btnYellowTxt: { color: BLACK, fontSize: 12, fontWeight: "900" },
+
+  /* Empty */
+  emptyWrap: { marginTop: 40, alignItems: "center", justifyContent: "center" },
+  emptyText: { color: "#666", fontWeight: "600" },
+});
