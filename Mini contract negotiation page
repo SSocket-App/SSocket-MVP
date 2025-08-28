@@ -1,0 +1,464 @@
+// MiniContractReview_Negotiate.js
+// Read-only Mini Contract summary + Negotiation (drop-down) as requested.
+// FIXES:
+// - Top bar layout so the back button no longer overlaps the title
+// UPDATES:
+// - Top bar title set to "Mini Contract Negotiation Page"
+// - Added 4th SSocket condition: "For remote work contractor will demand for half payment before commencing contract"
+// - Action buttons below negotiation: "Edit", "Leave", "Seal Contract"
+
+import React, { useMemo, useRef, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  KeyboardAvoidingView,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+const RED = "#D32F2F";
+
+export default function MiniContractReview_Negotiate({
+  contract,      // optional: pass the mini contract data object
+  onBack,        // optional: navigation handler
+  onEdit,        // optional: edit handler
+  onLeave,       // optional: leave handler
+  onSeal,        // optional: seal handler
+}) {
+  // Demo fallback if no contract passed in
+  const demo = {
+    title: "Build my house",
+    role: "Bricklayer",
+    nature: "Building foundation walls",
+    extra: "Work starts at 8am; provide safety boots and helmet.",
+    count: "4",
+    projectType: "duration", // "duration" | "value"
+    duration: "2 weeks",     // used when projectType = "duration"
+    deliverable: "",         // used when projectType = "value"
+    location: "Lagos, Nigeria",
+    pay: "₦50,000",
+  };
+
+  const data = contract || demo;
+
+  // Negotiation state (drop-down style + controls)
+  const [negotiationOpen, setNegotiationOpen] = useState(true);
+  const [msgs, setMsgs] = useState([
+    { by: "Contractee", text: "Can you start on Monday next week?" },
+    { by: "You", text: "Yes, Monday works. Please confirm cement availability." },
+  ]);
+  const [input, setInput] = useState("");
+  const inputRef = useRef(null);
+
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const goBack = () => {
+    if (typeof onBack === "function") onBack();
+    else Alert.alert("Back", "Hook this into navigation.");
+  };
+
+  const sendMsg = () => {
+    const t = input.trim();
+    if (!t) return;
+    setMsgs((prev) => [...prev, { by: "You", text: t }]);
+    setInput("");
+  };
+
+  const handleEdit = () => {
+    if (typeof onEdit === "function") return onEdit();
+    Alert.alert("Edit", "Open the contract editor (hook this to navigation).");
+  };
+  const handleLeave = () => {
+    if (typeof onLeave === "function") return onLeave();
+    Alert.alert("Leave", "This view will be closed.");
+  };
+  const handleSeal = () => {
+    if (typeof onSeal === "function") return onSeal();
+    Alert.alert("Seal Contract", "Both parties must accept to seal. (Hook action here.)");
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar — fixed layout (no overlap) */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.8} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle} numberOfLines={1}>Mini Contract Negotiation Page</Text>
+        {/* Right spacer to balance the back button width */}
+        <View style={styles.iconBox} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <KeyboardAvoidingView
+        behavior={Platform.select({ ios: "padding", android: undefined })}
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+          {/* Overview: Read-only details */}
+          <Card>
+            <Text style={styles.cardTitle}>Overview</Text>
+            <RowKV label="Job Title" value={data.title} />
+            <RowKV label="Role" value={data.role} />
+            <RowKV label="Nature of Job" value={data.nature} />
+            <RowKV label="Extra Notes / Details" value={data.extra || "—"} />
+            <RowKV label="Number of People Needed" value={String(data.count || "—")} />
+            <RowKV
+              label="Project Type"
+              value={
+                data.projectType === "duration"
+                  ? "Duration"
+                  : data.projectType === "value"
+                  ? "Value"
+                  : "—"
+              }
+            />
+            {data.projectType === "duration" ? (
+              <RowKV label="How many days or weeks?" value={data.duration || "—"} />
+            ) : null}
+            {data.projectType === "value" ? (
+              <RowKV label="What should be done?" value={data.deliverable || "—"} />
+            ) : null}
+            <RowKV label="Location" value={data.location} />
+            <RowKV label="Amount of Pay" value={data.pay} />
+          </Card>
+
+          {/* Negotiate Contract (drop-down style + attach buttons + conditions) */}
+          <Card>
+            <Text style={styles.cardTitle}>Negotiate Contract</Text>
+
+            {/* Toggle open/close (drop-down style) */}
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={styles.chatToggle}
+              onPress={() => {
+                setNegotiationOpen((s) => !s);
+                setTimeout(() => inputRef.current?.focus(), 50);
+              }}
+            >
+              <Ionicons
+                name={negotiationOpen ? "chevron-up" : "chevron-down"}
+                size={18}
+                color={BLACK}
+              />
+              <Text style={[styles.chatToggleTxt, { marginLeft: 8 }]}>
+                {negotiationOpen ? "Hide Chat" : "Open Chat"}
+              </Text>
+            </TouchableOpacity>
+
+            {negotiationOpen && (
+              <>
+                {/* Chat area */}
+                <View style={styles.chatArea}>
+                  {!msgs || msgs.length === 0 ? (
+                    <Text style={styles.chatEmpty}>No messages yet. Start the negotiation below.</Text>
+                  ) : (
+                    msgs.map((m, idx) => {
+                      const mine = m.by === "You";
+                      return (
+                        <View
+                          key={idx}
+                          style={[styles.bubbleWrap, { alignItems: mine ? "flex-end" : "flex-start" }]}
+                        >
+                          <View
+                            style={[
+                              styles.bubble,
+                              { backgroundColor: mine ? YELLOW : WHITE, borderColor: BLACK },
+                            ]}
+                          >
+                            <Text style={styles.bubbleBy}>[{m.by}]</Text>
+                            <Text style={styles.bubbleTxt}>{m.text}</Text>
+                          </View>
+                        </View>
+                      );
+                    })
+                  )}
+                </View>
+
+                {/* Input bar with attach buttons (file + image) */}
+                <View style={styles.inputBar}>
+                  <TouchableOpacity
+                    onPress={() => Alert.alert("Attach", "Pick a file (mock).")}
+                    style={styles.kbBtn}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="document-attach-outline" size={18} color={BLACK} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => Alert.alert("Image", "Pick an image (mock).")}
+                    style={[styles.kbBtn, { marginLeft: 6 }]}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="image-outline" size={18} color={BLACK} />
+                  </TouchableOpacity>
+
+                  <TextInput
+                    ref={inputRef}
+                    value={input}
+                    onChangeText={setInput}
+                    placeholder="Type a message..."
+                    placeholderTextColor="#666"
+                    style={[styles.kbInput, { marginLeft: 6 }]}
+                    multiline
+                    onFocus={() => setNegotiationOpen(true)}
+                    returnKeyType="send"
+                    onSubmitEditing={sendMsg}
+                    blurOnSubmit={false}
+                  />
+                  <TouchableOpacity
+                    onPress={sendMsg}
+                    style={[styles.sendBtn, { marginLeft: 6 }]}
+                    activeOpacity={0.9}
+                  >
+                    <Ionicons name="send-outline" size={16} color={BLACK} />
+                    <Text style={{ color: BLACK, fontWeight: "900", fontSize: 12, marginLeft: 6 }}>
+                      Send
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* SSocket Conditions (added #4 as requested) */}
+                <View style={styles.conditionsBox}>
+                  <Text style={styles.conditionItem}>
+                    1. Use this chat to agree on: work rules, termination terms, payments,
+                    bonuses/deductions, probation & duration, and the work description.
+                    What you agree here must match the form. If there’s a mismatch, this chat
+                    is SSocket’s first reference.
+                  </Text>
+                  <Text style={styles.conditionItem}>
+                    2. During probation, either party may terminate the contract without penalty.
+                  </Text>
+                  <Text style={styles.conditionItem}>
+                    3. If probation ends early, the contractor is paid for work already
+                    completed. Agree the probation payment structure here before probation starts.
+                  </Text>
+                  <Text style={styles.conditionItem}>
+                    4. For remote work contractor will demand for half payment before commencing contract.
+                  </Text>
+                </View>
+
+                <Text style={styles.reviewDate}>Review date: {today}</Text>
+
+                {/* Action buttons below */}
+                <View style={[styles.actionRow, { marginTop: 10 }]}>
+                  <TouchableOpacity
+                    style={[styles.btn, styles.btnGhost]}
+                    activeOpacity={0.9}
+                    onPress={handleEdit}
+                  >
+                    <Ionicons name="create-outline" size={16} color={BLACK} />
+                    <Text style={[styles.btnGhostTxt, { marginLeft: 6 }]}>Edit</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.btn, styles.btnDanger]}
+                    activeOpacity={0.9}
+                    onPress={handleLeave}
+                  >
+                    <Ionicons name="exit-outline" size={16} color={WHITE} />
+                    <Text style={[styles.btnDangerTxt, { marginLeft: 6 }]}>Leave</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.btn, styles.btnYellow]}
+                    activeOpacity={0.9}
+                    onPress={handleSeal}
+                  >
+                    <Ionicons name="lock-closed-outline" size={16} color={BLACK} />
+                    <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Seal Contract</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+/* ---------- Small UI pieces ---------- */
+function Card({ children }) {
+  return <View style={styles.card}>{children}</View>;
+}
+function RowKV({ label, value }) {
+  return (
+    <View style={{ marginTop: 8 }}>
+      <Text style={styles.kvLabel}>{label}</Text>
+      <View style={styles.kvBox}>
+        <Text style={styles.kvText}>{String(value ?? "—") || "—"}</Text>
+      </View>
+    </View>
+  );
+}
+
+/* ---------- Styles ---------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 18, fontWeight: "900", maxWidth: "70%", textAlign: "center" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Cards */
+  card: {
+    marginTop: 12,
+    marginHorizontal: 14,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+  },
+  cardTitle: { fontSize: 16, fontWeight: "900", color: BLACK },
+
+  /* Read-only rows */
+  kvLabel: { color: BLACK, fontSize: 12, fontWeight: "800", marginBottom: 6 },
+  kvBox: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 42,
+    justifyContent: "center",
+  },
+  kvText: { color: BLACK, fontSize: 14, lineHeight: 20 },
+
+  /* Chat (drop-down style) */
+  chatToggle: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  chatToggleTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+
+  chatArea: {
+    marginTop: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    padding: 10,
+    maxHeight: 280,
+  },
+  chatEmpty: { color: "#666", fontSize: 12 },
+  bubbleWrap: { marginVertical: 6 },
+  bubble: {
+    maxWidth: "84%",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 2,
+  },
+  bubbleBy: { fontSize: 10, fontWeight: "900", marginBottom: 2, color: BLACK },
+  bubbleTxt: { fontSize: 13, lineHeight: 18, color: BLACK },
+
+  inputBar: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 6,
+    backgroundColor: WHITE,
+  },
+  kbBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: WHITE,
+  },
+  kbInput: {
+    flex: 1,
+    minHeight: 34,
+    maxHeight: 100,
+    paddingHorizontal: 10,
+    color: BLACK,
+    borderWidth: 0,
+  },
+  sendBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: YELLOW,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  conditionsBox: {
+    marginTop: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    padding: 10,
+  },
+  conditionItem: { color: BLACK, fontSize: 12, lineHeight: 18, marginBottom: 6 },
+
+  reviewDate: { marginTop: 6, color: "#666", fontSize: 11 },
+
+  /* Action buttons row & styles */
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+  btn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  btnGhost: { backgroundColor: WHITE },
+  btnGhostTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+
+  btnDanger: { backgroundColor: RED, borderColor: BLACK },
+  btnDangerTxt: { color: WHITE, fontWeight: "900", fontSize: 12 },
+
+  btnYellow: { backgroundColor: YELLOW },
+  btnYellowTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+});
