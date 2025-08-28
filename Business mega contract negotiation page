@@ -1,9 +1,11 @@
 // SSocketContractNegotiationPage.js
 // Contract already filled by the contractee — this page is for negotiation only.
-// - Read-only contract summary (all fields filled).
-// - Live negotiation chat (both sides can post).
-// - Quick proposal chips to prefill negotiation text.
-// - "Accept & Seal" to finalize. Expo-compatible, no external libs.
+// ✨ Negotiation card now matches EXACTLY the dropdown style from SSocketContractForm:
+// - Toggle open/close
+// - Chat area with bubbles
+// - Image/File attach buttons
+// - SSocket Conditions block
+// Expo-compatible, no external libs.
 
 import React, { useMemo, useRef, useState } from "react";
 import {
@@ -26,6 +28,7 @@ const BLACK = "#000";
 const WHITE = "#FFF";
 const RED = "#D32F2F";
 
+/* ---------- Small UI pieces ---------- */
 function Card({ children }) {
   return <View style={styles.card}>{children}</View>;
 }
@@ -51,28 +54,35 @@ function Badge({ text }) {
 }
 function readableSchedule(v) {
   switch (v) {
-    case "on_completion": return "On Completion";
-    case "weekly": return "Weekly";
-    case "monthly": return "Monthly";
-    case "milestones": return "Milestones";
-    default: return v || "—";
+    case "on_completion":
+      return "On Completion";
+    case "weekly":
+      return "Weekly";
+    case "monthly":
+      return "Monthly";
+    case "milestones":
+      return "Milestones";
+    default:
+      return v || "—";
   }
 }
 
+/* ---------- Page ---------- */
 export default function SSocketContractNegotiationPage({
   contract,
-  role = "Contractor",          // "Contractor" | "Contractee" (for message sender default)
+  role = "Contractor", // sender label for your messages in chat
   onBack,
-  onAcceptSeal,                 // () => void
-  onSendMessage,                // (msg) => void
+  onAcceptSeal,
+  onSendMessage,
 }) {
-  // ===== Demo filled contract (used if no prop passed) =====
+  // Prefilled contract (used if none passed)
   const demo = {
     contracteeName: "Ada Ventures Ltd",
     contractorName: "John Doe",
     jobRole: "Frontend Developer",
     workDescription: "4-page company website with contact form, responsive layout.",
-    workRules: "Daily 9am check-in, weekly demo Fri 4pm, share Figma + repo access.",
+    workRules:
+      "Daily 9am check-in; weekly demo Friday 4pm; share Figma and repository access.",
     terminationTerms:
       "Either party may terminate with 14 days written notice after probation. Early termination requires payment for work done.",
     startDate: "2025-09-01",
@@ -81,27 +91,26 @@ export default function SSocketContractNegotiationPage({
     currency: "NGN",
     salary: "200000",
     paymentSchedule: "milestones",
-    paymentDetails: "30% kickoff, 40% mid-way, 30% on completion (7 days).",
+    paymentDetails: "30% kickoff, 40% mid-way, 30% completion within 7 days.",
     bonusEnabled: true,
-    bonusTerms: "₦50,000 if delivered one week early or +10% for exceeding KPIs.",
+    bonusTerms: "₦50,000 if delivered a week early or +10% for exceeding KPIs.",
     deductionEnabled: true,
     deductionTerms: "−10% if late without notice; −₦20,000 per missed milestone.",
-    // From competition context (optional)
     estimatedPayMin: 180000,
     estimatedPayMax: 250000,
     paymentPeriod: "month",
     negotiationMsgs: [
-      { by: "Contractee", text: "Welcome aboard! Please review and suggest changes." },
-      { by: "Contractor", text: "Thanks! Can we adjust start date to 5th and clarify hosting?" },
+      { by: "Contractee", text: "Welcome! Please review and suggest changes." },
+      { by: "Contractor", text: "Thanks! Can we move start to 5th and confirm hosting?" },
     ],
   };
 
   const data = contract || demo;
 
-  // ===== Chat state =====
+  /* ---- Negotiation state (IDENTICAL UX to SSocketContractForm) ---- */
+  const [negotiationOpen, setNegotiationOpen] = useState(true);
   const [msgs, setMsgs] = useState(data.negotiationMsgs || []);
   const [input, setInput] = useState("");
-  const [chipsOpen, setChipsOpen] = useState(true);
   const inputRef = useRef(null);
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -111,8 +120,8 @@ export default function SSocketContractNegotiationPage({
     else Alert.alert("Back", "Hook this into navigation.");
   };
 
-  const sendMsg = (prefill) => {
-    const t = (prefill ?? input).trim();
+  const sendMsg = () => {
+    const t = input.trim();
     if (!t) return;
     const msg = { by: role, text: t };
     setMsgs((prev) => [...prev, msg]);
@@ -123,12 +132,11 @@ export default function SSocketContractNegotiationPage({
   const acceptAndSeal = () => {
     Alert.alert(
       "Accept & Seal",
-      "Once sealed by both parties, no further changes can be made.",
+      "Once sealed by both parties, no adjustment can be made.",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Seal",
-          style: "default",
           onPress: () => {
             if (typeof onAcceptSeal === "function") onAcceptSeal();
             Alert.alert("Sealed", "Contract sealed successfully.");
@@ -148,17 +156,6 @@ export default function SSocketContractNegotiationPage({
     if (max) return `Est. pay: up to ${cur} ${max.toLocaleString()}${per}`;
     return null;
   })();
-
-  const quickChips = [
-    { icon: "cash-outline", text: "Propose new salary", draft: `Proposal: Adjust salary to ${data.currency || "NGN"} ______ per ${data.paymentPeriod || "month"} due to scope.` },
-    { icon: "calendar-outline", text: "Shift start/end", draft: "Proposal: Move start to ____ and end to ____ (no change to milestones)." },
-    { icon: "layers-outline", text: "Clarify milestones", draft: "Request: Break down milestones with dates & deliverables." },
-    { icon: "document-text-outline", text: "Revise scope", draft: "Request: Add hosting + basic SEO to scope, budget impact?" },
-    { icon: "time-outline", text: "Probation terms", draft: "Proposal: Probation 5 days with proportional payment if early termination." },
-    { icon: "gift-outline", text: "Bonus trigger", draft: "Proposal: Bonus if Lighthouse perf ≥ 90 and delivery ≤ 3 weeks." },
-    { icon: "alert-circle-outline", text: "Deductions", draft: "Request: Replace flat deductions with milestone-based penalties." },
-    { icon: "shield-checkmark-outline", text: "Payment schedule", draft: "Proposal: 40% kickoff, 30% mid-way, 30% completion." },
-  ];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -215,10 +212,14 @@ export default function SSocketContractNegotiationPage({
           {/* Payment */}
           <Card>
             <SectionTitle>Payment</SectionTitle>
-            <RowKV label="Currency" value={data.currency || "—"} />
-            <RowKV label="Salary / Base Pay" value={`${data.currency || ""} ${data.salary ? Number(data.salary).toLocaleString() : "—"}`} />
+            <RowKV
+              label="Salary / Base Pay"
+              value={`${data.currency || ""} ${data.salary ? Number(data.salary).toLocaleString() : "—"}`}
+            />
             <RowKV label="Schedule" value={readableSchedule(data.paymentSchedule)} />
-            {(data.paymentSchedule === "on_completion" || data.paymentSchedule === "milestones" || data.paymentDetails) && (
+            {(data.paymentSchedule === "on_completion" ||
+              data.paymentSchedule === "milestones" ||
+              data.paymentDetails) && (
               <RowKV label="Payment Details" value={data.paymentDetails} />
             )}
           </Card>
@@ -226,8 +227,11 @@ export default function SSocketContractNegotiationPage({
           {/* Bonus & Deductions */}
           <Card>
             <SectionTitle>Bonus & Deductions</SectionTitle>
-            <RowKV label="Bonus" value={data.bonusEnabled ? (data.bonusTerms || "Enabled") : "None"} />
-            <RowKV label="Deductions" value={data.deductionEnabled ? (data.deductionTerms || "Enabled") : "None"} />
+            <RowKV label="Bonus" value={data.bonusEnabled ? data.bonusTerms || "Enabled" : "None"} />
+            <RowKV
+              label="Deductions"
+              value={data.deductionEnabled ? data.deductionTerms || "Enabled" : "None"}
+            />
           </Card>
 
           {/* Termination */}
@@ -245,101 +249,123 @@ export default function SSocketContractNegotiationPage({
             />
           </Card>
 
-          {/* Negotiation Chat */}
+          {/* ---------- NEGOTIATION (EXACT DROPDOWN STYLE) ---------- */}
           <Card>
-            <SectionTitle>Negotiate</SectionTitle>
+            <Text style={styles.cardTitle}>Negotiate Contract</Text>
 
-            {/* Quick Proposals */}
+            {/* Toggle open/close */}
             <TouchableOpacity
-              onPress={() => setChipsOpen((s) => !s)}
-              style={styles.chipsToggle}
-              activeOpacity={0.85}
+              activeOpacity={0.9}
+              style={styles.chatToggle}
+              onPress={() => {
+                setNegotiationOpen((s) => !s);
+                setTimeout(() => inputRef.current?.focus(), 50);
+              }}
             >
               <Ionicons
-                name={chipsOpen ? "chevron-up" : "chevron-down"}
+                name={negotiationOpen ? "chevron-up" : "chevron-down"}
                 size={18}
                 color={BLACK}
               />
-              <Text style={[styles.chipsToggleTxt, { marginLeft: 8 }]}>
-                {chipsOpen ? "Hide quick proposals" : "Show quick proposals"}
+              <Text style={[styles.chatToggleTxt, { marginLeft: 8 }]}>
+                {negotiationOpen ? "Hide Chat" : "Open Chat"}
               </Text>
             </TouchableOpacity>
 
-            {chipsOpen && (
-              <View style={styles.chipsWrap}>
-                {quickChips.map((c, idx) => (
+            {negotiationOpen && (
+              <>
+                {/* Chat area */}
+                <View style={styles.chatArea}>
+                  {!msgs || msgs.length === 0 ? (
+                    <Text style={styles.chatEmpty}>No messages yet. Start the negotiation below.</Text>
+                  ) : (
+                    msgs.map((m, idx) => {
+                      const mine = m.by === role;
+                      return (
+                        <View
+                          key={idx}
+                          style={[
+                            styles.bubbleWrap,
+                            { alignItems: mine ? "flex-end" : "flex-start" },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.bubble,
+                              { backgroundColor: mine ? YELLOW : WHITE, borderColor: BLACK },
+                            ]}
+                          >
+                            <Text style={styles.bubbleBy}>[{m.by}]</Text>
+                            <Text style={styles.bubbleTxt}>{m.text}</Text>
+                          </View>
+                        </View>
+                      );
+                    })
+                  )}
+                </View>
+
+                {/* Input bar with attach buttons (document + image) */}
+                <View style={styles.inputBar}>
                   <TouchableOpacity
-                    key={idx}
-                    style={styles.chip}
-                    activeOpacity={0.9}
-                    onPress={() => {
-                      setInput(c.draft);
-                      setTimeout(() => inputRef.current?.focus(), 40);
-                    }}
+                    onPress={() => Alert.alert("Attach", "Pick a file (mock).")}
+                    style={styles.kbBtn}
+                    activeOpacity={0.85}
                   >
-                    <Ionicons name={c.icon} size={14} color={BLACK} />
-                    <Text style={styles.chipTxt}>{c.text}</Text>
+                    <Ionicons name="document-attach-outline" size={18} color={BLACK} />
                   </TouchableOpacity>
-                ))}
-              </View>
+                  <TouchableOpacity
+                    onPress={() => Alert.alert("Image", "Pick an image (mock).")}
+                    style={[styles.kbBtn, { marginLeft: 6 }]}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="image-outline" size={18} color={BLACK} />
+                  </TouchableOpacity>
+
+                  <TextInput
+                    ref={inputRef}
+                    value={input}
+                    onChangeText={setInput}
+                    placeholder="Type a message..."
+                    placeholderTextColor="#666"
+                    style={[styles.kbInput, { marginLeft: 6 }]}
+                    multiline
+                    onFocus={() => setNegotiationOpen(true)}
+                    returnKeyType="send"
+                    onSubmitEditing={sendMsg}
+                    blurOnSubmit={false}
+                  />
+                  <TouchableOpacity
+                    onPress={sendMsg}
+                    style={[styles.sendBtn, { marginLeft: 6 }]}
+                    activeOpacity={0.9}
+                  >
+                    <Ionicons name="send-outline" size={16} color={BLACK} />
+                    <Text style={{ color: BLACK, fontWeight: "900", fontSize: 12, marginLeft: 6 }}>
+                      Send
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* SSocket Conditions (same text & layout) */}
+                <View style={styles.conditionsBox}>
+                  <Text style={styles.conditionItem}>
+                    1. Use this chat to agree on: work rules, termination terms, payments,
+                    bonuses/deductions, probation & duration, and the work description.
+                    What you agree here must match the form. If there’s a mismatch, this chat
+                    is SSocket’s first reference.
+                  </Text>
+                  <Text style={styles.conditionItem}>
+                    2. During probation, either party may terminate the contract without penalty.
+                  </Text>
+                  <Text style={styles.conditionItem}>
+                    3. If probation ends early, the contractor is paid for work already
+                    completed. Agree the probation payment structure here before probation starts.
+                  </Text>
+                </View>
+              </>
             )}
-
-            {/* Message list */}
-            <View style={styles.chatArea}>
-              {(!msgs || msgs.length === 0) ? (
-                <Text style={styles.chatEmpty}>No messages yet. Start the negotiation below.</Text>
-              ) : (
-                msgs.map((m, i) => {
-                  const mine = m.by === role;
-                  return (
-                    <View
-                      key={i}
-                      style={[
-                        styles.bubbleWrap,
-                        { alignItems: mine ? "flex-end" : "flex-start" },
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.bubble,
-                          { backgroundColor: mine ? YELLOW : WHITE, borderColor: BLACK },
-                        ]}
-                      >
-                        <Text style={styles.bubbleBy}>[{m.by}]</Text>
-                        <Text style={styles.bubbleTxt}>{m.text}</Text>
-                      </View>
-                    </View>
-                  );
-                })
-              )}
-            </View>
-
-            {/* Input bar */}
-            <View style={styles.inputBar}>
-              <TouchableOpacity
-                onPress={() => sendMsg()}
-                style={[styles.sendBtn, { marginRight: 6 }]}
-                activeOpacity={0.9}
-              >
-                <Ionicons name="send-outline" size={16} color={BLACK} />
-                <Text style={styles.sendTxt}>Send</Text>
-              </TouchableOpacity>
-              <TextInput
-                ref={inputRef}
-                value={input}
-                onChangeText={setInput}
-                placeholder="Type a message or proposal..."
-                placeholderTextColor="#666"
-                style={styles.kbInput}
-                multiline
-                returnKeyType="send"
-                onSubmitEditing={() => sendMsg()}
-                blurOnSubmit={false}
-              />
-            </View>
-
-            <Text style={styles.reviewNote}>This negotiation log is stored as part of the contract.</Text>
           </Card>
+          {/* ---------- END NEGOTIATION ---------- */}
 
           {/* Finalize */}
           <Card>
@@ -348,23 +374,14 @@ export default function SSocketContractNegotiationPage({
               <TouchableOpacity
                 style={[styles.actionBtn, styles.actionGhost]}
                 activeOpacity={0.9}
-                onPress={() => Alert.alert("Leave contract page", "Your view will be closed.", [
-                  { text: "Stay", style: "cancel" },
-                  { text: "Leave", style: "destructive", onPress: () => {} },
-                ])}
+                onPress={() =>
+                  Alert.alert("Leave contract page", "Your view will be closed.", [
+                    { text: "Stay", style: "cancel" },
+                    { text: "Leave", style: "destructive", onPress: () => {} },
+                  ])
+                }
               >
                 <Text style={styles.actionGhostTxt}>Leave Page</Text>
-              </TouchableOpacity>
-              <View style={{ width: 10 }} />
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.actionOutline]}
-                activeOpacity={0.9}
-                onPress={() => {
-                  inputRef.current?.focus();
-                  setInput((t) => t || "Request: Please confirm the final milestones and pay schedule.");
-                }}
-              >
-                <Text style={styles.actionOutlineTxt}>Request Changes</Text>
               </TouchableOpacity>
               <View style={{ width: 10 }} />
               <TouchableOpacity
@@ -386,7 +403,7 @@ export default function SSocketContractNegotiationPage({
   );
 }
 
-/* ========= Styles ========= */
+/* ---------- Styles ---------- */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: WHITE },
 
@@ -441,9 +458,9 @@ const styles = StyleSheet.create({
   },
   badgeTxt: { color: BLACK, fontSize: 12, fontWeight: "800" },
 
-  // Chips
-  chipsToggle: {
-    marginTop: 6,
+  // Chat (copied style semantics from form)
+  chatToggle: {
+    marginTop: 8,
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
@@ -454,23 +471,8 @@ const styles = StyleSheet.create({
     borderColor: BLACK,
     backgroundColor: WHITE,
   },
-  chipsToggleTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
-  chipsWrap: { flexDirection: "row", flexWrap: "wrap", marginTop: 8 },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: BLACK,
-    backgroundColor: WHITE,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  chipTxt: { marginLeft: 6, fontWeight: "900", fontSize: 12, color: BLACK },
+  chatToggleTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
 
-  // Chat
   chatArea: {
     marginTop: 10,
     borderWidth: 2,
@@ -502,12 +504,23 @@ const styles = StyleSheet.create({
     padding: 6,
     backgroundColor: WHITE,
   },
+  kbBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: WHITE,
+  },
   kbInput: {
     flex: 1,
     minHeight: 34,
     maxHeight: 100,
     paddingHorizontal: 10,
     color: BLACK,
+    borderWidth: 0,
   },
   sendBtn: {
     paddingHorizontal: 10,
@@ -519,8 +532,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  sendTxt: { color: BLACK, fontWeight: "900", fontSize: 12, marginLeft: 6 },
-  reviewNote: { color: "#666", fontSize: 11, marginTop: 6 },
+
+  conditionsBox: {
+    marginTop: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    padding: 10,
+  },
+  conditionItem: { color: BLACK, fontSize: 12, lineHeight: 18, marginBottom: 6 },
 
   // Finalize
   row: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
@@ -534,8 +555,6 @@ const styles = StyleSheet.create({
   },
   actionGhost: { backgroundColor: WHITE, borderColor: BLACK },
   actionGhostTxt: { color: BLACK, fontWeight: "900", fontSize: 14 },
-  actionOutline: { backgroundColor: WHITE, borderColor: BLACK },
-  actionOutlineTxt: { color: BLACK, fontWeight: "900", fontSize: 14 },
   actionPrimary: { backgroundColor: YELLOW, borderColor: BLACK },
   actionPrimaryTxt: { color: BLACK, fontWeight: "900", fontSize: 14 },
 
