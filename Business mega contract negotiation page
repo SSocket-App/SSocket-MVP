@@ -1,0 +1,544 @@
+// SSocketContractNegotiationPage.js
+// Contract already filled by the contractee — this page is for negotiation only.
+// - Read-only contract summary (all fields filled).
+// - Live negotiation chat (both sides can post).
+// - Quick proposal chips to prefill negotiation text.
+// - "Accept & Seal" to finalize. Expo-compatible, no external libs.
+
+import React, { useMemo, useRef, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  Alert,
+  KeyboardAvoidingView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+const RED = "#D32F2F";
+
+function Card({ children }) {
+  return <View style={styles.card}>{children}</View>;
+}
+function RowKV({ label, value }) {
+  return (
+    <View style={{ marginTop: 8 }}>
+      <Text style={styles.kvLabel}>{label}</Text>
+      <View style={styles.kvBox}>
+        <Text style={styles.kvText}>{value ?? "—"}</Text>
+      </View>
+    </View>
+  );
+}
+function SectionTitle({ children }) {
+  return <Text style={styles.cardTitle}>{children}</Text>;
+}
+function Badge({ text }) {
+  return (
+    <View style={styles.badge}>
+      <Text style={styles.badgeTxt}>{text}</Text>
+    </View>
+  );
+}
+function readableSchedule(v) {
+  switch (v) {
+    case "on_completion": return "On Completion";
+    case "weekly": return "Weekly";
+    case "monthly": return "Monthly";
+    case "milestones": return "Milestones";
+    default: return v || "—";
+  }
+}
+
+export default function SSocketContractNegotiationPage({
+  contract,
+  role = "Contractor",          // "Contractor" | "Contractee" (for message sender default)
+  onBack,
+  onAcceptSeal,                 // () => void
+  onSendMessage,                // (msg) => void
+}) {
+  // ===== Demo filled contract (used if no prop passed) =====
+  const demo = {
+    contracteeName: "Ada Ventures Ltd",
+    contractorName: "John Doe",
+    jobRole: "Frontend Developer",
+    workDescription: "4-page company website with contact form, responsive layout.",
+    workRules: "Daily 9am check-in, weekly demo Fri 4pm, share Figma + repo access.",
+    terminationTerms:
+      "Either party may terminate with 14 days written notice after probation. Early termination requires payment for work done.",
+    startDate: "2025-09-01",
+    endDate: "2025-10-01",
+    probationDays: "7",
+    currency: "NGN",
+    salary: "200000",
+    paymentSchedule: "milestones",
+    paymentDetails: "30% kickoff, 40% mid-way, 30% on completion (7 days).",
+    bonusEnabled: true,
+    bonusTerms: "₦50,000 if delivered one week early or +10% for exceeding KPIs.",
+    deductionEnabled: true,
+    deductionTerms: "−10% if late without notice; −₦20,000 per missed milestone.",
+    // From competition context (optional)
+    estimatedPayMin: 180000,
+    estimatedPayMax: 250000,
+    paymentPeriod: "month",
+    negotiationMsgs: [
+      { by: "Contractee", text: "Welcome aboard! Please review and suggest changes." },
+      { by: "Contractor", text: "Thanks! Can we adjust start date to 5th and clarify hosting?" },
+    ],
+  };
+
+  const data = contract || demo;
+
+  // ===== Chat state =====
+  const [msgs, setMsgs] = useState(data.negotiationMsgs || []);
+  const [input, setInput] = useState("");
+  const [chipsOpen, setChipsOpen] = useState(true);
+  const inputRef = useRef(null);
+
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const goBack = () => {
+    if (typeof onBack === "function") onBack();
+    else Alert.alert("Back", "Hook this into navigation.");
+  };
+
+  const sendMsg = (prefill) => {
+    const t = (prefill ?? input).trim();
+    if (!t) return;
+    const msg = { by: role, text: t };
+    setMsgs((prev) => [...prev, msg]);
+    setInput("");
+    if (typeof onSendMessage === "function") onSendMessage(msg);
+  };
+
+  const acceptAndSeal = () => {
+    Alert.alert(
+      "Accept & Seal",
+      "Once sealed by both parties, no further changes can be made.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Seal",
+          style: "default",
+          onPress: () => {
+            if (typeof onAcceptSeal === "function") onAcceptSeal();
+            Alert.alert("Sealed", "Contract sealed successfully.");
+          },
+        },
+      ]
+    );
+  };
+
+  const payBadge = (() => {
+    const cur = data.currency || "NGN";
+    const min = data.estimatedPayMin;
+    const max = data.estimatedPayMax;
+    const per = data.paymentPeriod ? ` per ${data.paymentPeriod}` : "";
+    if (min && max) return `Est. pay range: ${cur} ${min.toLocaleString()}–${max.toLocaleString()}${per}`;
+    if (min) return `Est. pay: from ${cur} ${min.toLocaleString()}${per}`;
+    if (max) return `Est. pay: up to ${cur} ${max.toLocaleString()}${per}`;
+    return null;
+  })();
+
+  const quickChips = [
+    { icon: "cash-outline", text: "Propose new salary", draft: `Proposal: Adjust salary to ${data.currency || "NGN"} ______ per ${data.paymentPeriod || "month"} due to scope.` },
+    { icon: "calendar-outline", text: "Shift start/end", draft: "Proposal: Move start to ____ and end to ____ (no change to milestones)." },
+    { icon: "layers-outline", text: "Clarify milestones", draft: "Request: Break down milestones with dates & deliverables." },
+    { icon: "document-text-outline", text: "Revise scope", draft: "Request: Add hosting + basic SEO to scope, budget impact?" },
+    { icon: "time-outline", text: "Probation terms", draft: "Proposal: Probation 5 days with proportional payment if early termination." },
+    { icon: "gift-outline", text: "Bonus trigger", draft: "Proposal: Bonus if Lighthouse perf ≥ 90 and delivery ≤ 3 weeks." },
+    { icon: "alert-circle-outline", text: "Deductions", draft: "Request: Replace flat deductions with milestone-based penalties." },
+    { icon: "shield-checkmark-outline", text: "Payment schedule", draft: "Proposal: 40% kickoff, 30% mid-way, 30% completion." },
+  ];
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Mega Contract — Negotiation</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <KeyboardAvoidingView
+        behavior={Platform.select({ ios: "padding", android: undefined })}
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+          {/* Parties */}
+          <Card>
+            <SectionTitle>Parties</SectionTitle>
+            <RowKV label="Contractee (Employer)" value={data.contracteeName} />
+            <RowKV label="Contractor" value={data.contractorName} />
+            <RowKV label="Job Role" value={data.jobRole} />
+            {payBadge ? (
+              <View style={{ marginTop: 8 }}>
+                <Badge text={payBadge} />
+              </View>
+            ) : null}
+          </Card>
+
+          {/* Work */}
+          <Card>
+            <SectionTitle>Work Description</SectionTitle>
+            <RowKV label="Scope" value={data.workDescription} />
+          </Card>
+
+          {/* Work Rules */}
+          <Card>
+            <SectionTitle>Work Rules</SectionTitle>
+            <RowKV label="Rules" value={data.workRules} />
+          </Card>
+
+          {/* Duration */}
+          <Card>
+            <SectionTitle>Duration & Probation</SectionTitle>
+            <RowKV label="Start Date" value={data.startDate} />
+            <RowKV label="End / Deadline" value={data.endDate} />
+            <RowKV label="Probation (days)" value={data.probationDays} />
+          </Card>
+
+          {/* Payment */}
+          <Card>
+            <SectionTitle>Payment</SectionTitle>
+            <RowKV label="Currency" value={data.currency || "—"} />
+            <RowKV label="Salary / Base Pay" value={`${data.currency || ""} ${data.salary ? Number(data.salary).toLocaleString() : "—"}`} />
+            <RowKV label="Schedule" value={readableSchedule(data.paymentSchedule)} />
+            {(data.paymentSchedule === "on_completion" || data.paymentSchedule === "milestones" || data.paymentDetails) && (
+              <RowKV label="Payment Details" value={data.paymentDetails} />
+            )}
+          </Card>
+
+          {/* Bonus & Deductions */}
+          <Card>
+            <SectionTitle>Bonus & Deductions</SectionTitle>
+            <RowKV label="Bonus" value={data.bonusEnabled ? (data.bonusTerms || "Enabled") : "None"} />
+            <RowKV label="Deductions" value={data.deductionEnabled ? (data.deductionTerms || "Enabled") : "None"} />
+          </Card>
+
+          {/* Termination */}
+          <Card>
+            <SectionTitle>Termination Terms</SectionTitle>
+            <RowKV label="Conditions" value={data.terminationTerms} />
+          </Card>
+
+          {/* Agreement */}
+          <Card>
+            <SectionTitle>Agreement</SectionTitle>
+            <RowKV
+              label="Statement"
+              value={`${data.contracteeName || "The Business"} agree to: deliver as described and to keep up with payment as promised.`}
+            />
+          </Card>
+
+          {/* Negotiation Chat */}
+          <Card>
+            <SectionTitle>Negotiate</SectionTitle>
+
+            {/* Quick Proposals */}
+            <TouchableOpacity
+              onPress={() => setChipsOpen((s) => !s)}
+              style={styles.chipsToggle}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name={chipsOpen ? "chevron-up" : "chevron-down"}
+                size={18}
+                color={BLACK}
+              />
+              <Text style={[styles.chipsToggleTxt, { marginLeft: 8 }]}>
+                {chipsOpen ? "Hide quick proposals" : "Show quick proposals"}
+              </Text>
+            </TouchableOpacity>
+
+            {chipsOpen && (
+              <View style={styles.chipsWrap}>
+                {quickChips.map((c, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={styles.chip}
+                    activeOpacity={0.9}
+                    onPress={() => {
+                      setInput(c.draft);
+                      setTimeout(() => inputRef.current?.focus(), 40);
+                    }}
+                  >
+                    <Ionicons name={c.icon} size={14} color={BLACK} />
+                    <Text style={styles.chipTxt}>{c.text}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Message list */}
+            <View style={styles.chatArea}>
+              {(!msgs || msgs.length === 0) ? (
+                <Text style={styles.chatEmpty}>No messages yet. Start the negotiation below.</Text>
+              ) : (
+                msgs.map((m, i) => {
+                  const mine = m.by === role;
+                  return (
+                    <View
+                      key={i}
+                      style={[
+                        styles.bubbleWrap,
+                        { alignItems: mine ? "flex-end" : "flex-start" },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.bubble,
+                          { backgroundColor: mine ? YELLOW : WHITE, borderColor: BLACK },
+                        ]}
+                      >
+                        <Text style={styles.bubbleBy}>[{m.by}]</Text>
+                        <Text style={styles.bubbleTxt}>{m.text}</Text>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+
+            {/* Input bar */}
+            <View style={styles.inputBar}>
+              <TouchableOpacity
+                onPress={() => sendMsg()}
+                style={[styles.sendBtn, { marginRight: 6 }]}
+                activeOpacity={0.9}
+              >
+                <Ionicons name="send-outline" size={16} color={BLACK} />
+                <Text style={styles.sendTxt}>Send</Text>
+              </TouchableOpacity>
+              <TextInput
+                ref={inputRef}
+                value={input}
+                onChangeText={setInput}
+                placeholder="Type a message or proposal..."
+                placeholderTextColor="#666"
+                style={styles.kbInput}
+                multiline
+                returnKeyType="send"
+                onSubmitEditing={() => sendMsg()}
+                blurOnSubmit={false}
+              />
+            </View>
+
+            <Text style={styles.reviewNote}>This negotiation log is stored as part of the contract.</Text>
+          </Card>
+
+          {/* Finalize */}
+          <Card>
+            <SectionTitle>Finalize</SectionTitle>
+            <View style={styles.row}>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionGhost]}
+                activeOpacity={0.9}
+                onPress={() => Alert.alert("Leave contract page", "Your view will be closed.", [
+                  { text: "Stay", style: "cancel" },
+                  { text: "Leave", style: "destructive", onPress: () => {} },
+                ])}
+              >
+                <Text style={styles.actionGhostTxt}>Leave Page</Text>
+              </TouchableOpacity>
+              <View style={{ width: 10 }} />
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionOutline]}
+                activeOpacity={0.9}
+                onPress={() => {
+                  inputRef.current?.focus();
+                  setInput((t) => t || "Request: Please confirm the final milestones and pay schedule.");
+                }}
+              >
+                <Text style={styles.actionOutlineTxt}>Request Changes</Text>
+              </TouchableOpacity>
+              <View style={{ width: 10 }} />
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionPrimary]}
+                activeOpacity={0.9}
+                onPress={acceptAndSeal}
+              >
+                <Text style={styles.actionPrimaryTxt}>Accept & Seal</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.sealWarn, { color: RED, fontWeight: "900" }]}>
+              WARNING: Once sealed by both parties, no adjustment can be made
+            </Text>
+            <Text style={styles.stampNote}>Negotiation date: {today}</Text>
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+/* ========= Styles ========= */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+    position: "relative",
+  },
+  backBtn: { position: "absolute", left: 16, bottom: 14, padding: 6 },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Cards */
+  card: {
+    marginTop: 12,
+    marginHorizontal: 14,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+  },
+  cardTitle: { fontSize: 16, fontWeight: "900", color: BLACK },
+
+  // Read-only boxes
+  kvLabel: { color: BLACK, fontSize: 12, fontWeight: "800", marginBottom: 6 },
+  kvBox: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 42,
+    justifyContent: "center",
+  },
+  kvText: { color: BLACK, fontSize: 14, lineHeight: 20 },
+
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: YELLOW,
+    alignSelf: "flex-start",
+    borderWidth: 2,
+    borderColor: BLACK,
+  },
+  badgeTxt: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  // Chips
+  chipsToggle: {
+    marginTop: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  chipsToggleTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
+  chipsWrap: { flexDirection: "row", flexWrap: "wrap", marginTop: 8 },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  chipTxt: { marginLeft: 6, fontWeight: "900", fontSize: 12, color: BLACK },
+
+  // Chat
+  chatArea: {
+    marginTop: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    padding: 10,
+    maxHeight: 280,
+  },
+  chatEmpty: { color: "#666", fontSize: 12 },
+  bubbleWrap: { marginVertical: 6 },
+  bubble: {
+    maxWidth: "84%",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 2,
+  },
+  bubbleBy: { fontSize: 10, fontWeight: "900", marginBottom: 2, color: BLACK },
+  bubbleTxt: { fontSize: 13, lineHeight: 18, color: BLACK },
+
+  inputBar: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 6,
+    backgroundColor: WHITE,
+  },
+  kbInput: {
+    flex: 1,
+    minHeight: 34,
+    maxHeight: 100,
+    paddingHorizontal: 10,
+    color: BLACK,
+  },
+  sendBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: YELLOW,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  sendTxt: { color: BLACK, fontWeight: "900", fontSize: 12, marginLeft: 6 },
+  reviewNote: { color: "#666", fontSize: 11, marginTop: 6 },
+
+  // Finalize
+  row: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
+  actionBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionGhost: { backgroundColor: WHITE, borderColor: BLACK },
+  actionGhostTxt: { color: BLACK, fontWeight: "900", fontSize: 14 },
+  actionOutline: { backgroundColor: WHITE, borderColor: BLACK },
+  actionOutlineTxt: { color: BLACK, fontWeight: "900", fontSize: 14 },
+  actionPrimary: { backgroundColor: YELLOW, borderColor: BLACK },
+  actionPrimaryTxt: { color: BLACK, fontWeight: "900", fontSize: 14 },
+
+  sealWarn: { marginTop: 8, fontSize: 12 },
+  stampNote: { marginTop: 6, color: "#666", fontSize: 11 },
+});
