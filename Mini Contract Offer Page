@@ -25,26 +25,65 @@ export default function MiniContractPage() {
   const [nature, setNature] = useState("");
   const [extra, setExtra] = useState("");
   const [count, setCount] = useState("");
-  const [duration, setDuration] = useState("");
   const [location, setLocation] = useState("");
   const [pay, setPay] = useState("");
 
+  // NEW: Project Type + conditional fields
+  const [projectType, setProjectType] = useState(""); // "duration" | "value"
+  const [duration, setDuration] = useState("");       // for "duration" type -> "how many days or weeks"
+  const [deliverable, setDeliverable] = useState(""); // for "value" type -> "what should be done"
+
   const handlePost = () => {
+    // base required
     if (!title || !role || !nature || !count || !pay) {
       Alert.alert("Error", "Please fill all required fields (Title, Role, Nature, People, Pay).");
       return;
     }
-    Alert.alert(
-      "Mini Contract Created",
-      `Title: ${title}\nRole: ${role}\nNature: ${nature}\nExtra: ${extra}\nPeople: ${count}\nDuration: ${duration}\nLocation: ${location}\nPay: ${pay}`
-    );
+    // require project type and respective field
+    if (!projectType) {
+      Alert.alert("Error", "Please select a Project Type (Duration or Value).");
+      return;
+    }
+    if (projectType === "duration" && !duration.trim()) {
+      Alert.alert("Error", "Please specify how many days or weeks for the Duration project.");
+      return;
+    }
+    if (projectType === "value" && !deliverable.trim()) {
+      Alert.alert("Error", "Please specify what should be done for the Value project.");
+      return;
+    }
+
+    const summary =
+      `Title: ${title}\n` +
+      `Role: ${role}\n` +
+      `Nature: ${nature}\n` +
+      `Extra: ${extra}\n` +
+      `People: ${count}\n` +
+      `Project Type: ${projectType === "duration" ? "Duration" : "Value"}\n` +
+      (projectType === "duration" ? `Duration: ${duration}\n` : `Deliverable: ${deliverable}\n`) +
+      `Location: ${location}\n` +
+      `Pay: ${pay}`;
+
+    Alert.alert("Mini Contract Created", summary);
   };
 
   const handlePreview = () => {
-    Alert.alert(
-      "Preview Contract",
-      `📌 ${title}\n👷 Role: ${role}\n🛠 Nature: ${nature}\n📝 Notes: ${extra}\n👥 Needed: ${count}\n⏳ Duration: ${duration}\n📍 Location: ${location}\n💰 Pay: ${pay}`
-    );
+    const preview =
+      `📌 ${title || "(no title)"}\n` +
+      `👷 Role: ${role || "—"}\n` +
+      `🛠 Nature: ${nature || "—"}\n` +
+      `📝 Notes: ${extra || "—"}\n` +
+      `👥 Needed: ${count || "—"}\n` +
+      `🪪 Project Type: ${projectType ? (projectType === "duration" ? "Duration" : "Value") : "—"}\n` +
+      (projectType === "duration"
+        ? `⏳ Duration: ${duration || "—"}\n`
+        : projectType === "value"
+        ? `📦 Deliverable: ${deliverable || "—"}\n`
+        : "") +
+      `📍 Location: ${location || "—"}\n` +
+      `💰 Pay: ${pay || "—"}`;
+
+    Alert.alert("Preview Contract", preview);
   };
 
   return (
@@ -81,7 +120,51 @@ export default function MiniContractPage() {
           <Field label="Nature of Job" placeholder="e.g. Building foundation walls" value={nature} onChangeText={setNature} />
           <Field label="Extra Notes / Details" placeholder="Optional extra info" value={extra} onChangeText={setExtra} multiline />
           <Field label="Number of People Needed" placeholder="e.g. 4" value={count} onChangeText={setCount} keyboardType="numeric" />
-          <Field label="Duration" placeholder="e.g. 2 weeks" value={duration} onChangeText={setDuration} />
+
+          {/* NEW: Project Type selector */}
+          <View style={styles.fieldWrap}>
+            <Text style={styles.fieldLabel}>Project Type</Text>
+            <View style={styles.typeRow}>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                style={[styles.typePill, projectType === "duration" && styles.typePillOn]}
+                onPress={() => setProjectType("duration")}
+              >
+                <Text style={[styles.typePillTxt, projectType === "duration" && styles.typePillTxtOn]}>
+                  Duration
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                style={[styles.typePill, projectType === "value" && styles.typePillOn]}
+                onPress={() => setProjectType("value")}
+              >
+                <Text style={[styles.typePillTxt, projectType === "value" && styles.typePillTxtOn]}>
+                  Value
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Conditional field based on Project Type */}
+          {projectType === "duration" && (
+            <Field
+              label="How many days or weeks?"
+              placeholder="e.g. 2 weeks"
+              value={duration}
+              onChangeText={setDuration}
+            />
+          )}
+          {projectType === "value" && (
+            <Field
+              label="What should be done?"
+              placeholder="e.g. Paint a 3-bedroom flat"
+              value={deliverable}
+              onChangeText={setDeliverable}
+              multiline
+            />
+          )}
+
           <Field label="Location" placeholder="e.g. Lagos, Nigeria" value={location} onChangeText={setLocation} />
           <Field label="Amount of Pay" placeholder="e.g. ₦50,000" value={pay} onChangeText={setPay} keyboardType="numeric" />
 
@@ -131,6 +214,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
   },
   previewText: { marginLeft: 4, fontWeight: "700", color: BLACK },
 
@@ -148,6 +233,29 @@ const styles = StyleSheet.create({
     color: BLACK,
   },
 
+  // NEW: project type pills
+  typeRow: { flexDirection: "row", gap: 10 },
+  typePill: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  typePillOn: {
+    backgroundColor: YELLOW,
+  },
+  typePillTxt: {
+    fontWeight: "900",
+    color: BLACK,
+  },
+  typePillTxtOn: {
+    color: BLACK,
+  },
+
   postBtn: {
     flexDirection: "row",
     justifyContent: "center",
@@ -156,6 +264,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     marginTop: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
   },
   postText: { marginLeft: 6, fontWeight: "900", fontSize: 16, color: BLACK },
 });
