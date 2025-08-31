@@ -1,0 +1,188 @@
+// StatsHub.js — Central hub listing all user stat pages (Help Stats removed)
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+/* ===== Brand ===== */
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+const MUTED = "#6B7280";
+
+/* Small reusable UI */
+function Card({ children }) {
+  return <View style={styles.card}>{children}</View>;
+}
+function Toggle2({ left, right, value, onChange }) {
+  return (
+    <View style={styles.toggleRow}>
+      <TouchableOpacity
+        style={[styles.toggleBtn, value === left && styles.toggleActive]}
+        onPress={() => onChange(left)}
+        activeOpacity={0.9}
+      >
+        <Text style={[styles.toggleTxt, value === left && styles.toggleTxtActive]}>
+          {left}
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.toggleBtn, value === right && styles.toggleActive]}
+        onPress={() => onChange(right)}
+        activeOpacity={0.9}
+      >
+        <Text style={[styles.toggleTxt, value === right && styles.toggleTxtActive]}>
+          {right}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+export default function StatsHub({ onNavigate }) {
+  const [miniRole, setMiniRole] = useState("Contractee");
+  const [megaRole, setMegaRole] = useState("Contractee");
+
+  const go = (screen, params) => {
+    if (typeof onNavigate === "function") {
+      onNavigate(screen, params);
+    } else {
+      console.log("NAVIGATE ->", screen, params || {});
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.8}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Stats</Text>
+        <View style={styles.iconBox} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+        {/* Mini Contract Stats (toggle) */}
+        <Card>
+          <Text style={styles.cardTitle}>Mini Contract Stats</Text>
+          <Toggle2
+            left="Contractee"
+            right="Contractor"
+            value={miniRole}
+            onChange={setMiniRole}
+          />
+          <TouchableOpacity
+            style={styles.viewBtn}
+            activeOpacity={0.9}
+            onPress={() =>
+              go("MiniContractStats", { role: miniRole.toLowerCase() })
+            }
+          >
+            <Ionicons name="analytics-outline" size={16} color={BLACK} />
+            <Text style={styles.viewBtnTxt}>
+              View {miniRole} Stats
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={BLACK} />
+          </TouchableOpacity>
+        </Card>
+
+        {/* Mega Contract Stats (toggle) */}
+        <Card>
+          <Text style={styles.cardTitle}>Mega Contract Stats</Text>
+          <Toggle2
+            left="Contractee"
+            right="Contractor"
+            value={megaRole}
+            onChange={setMegaRole}
+          />
+          <TouchableOpacity
+            style={styles.viewBtn}
+            activeOpacity={0.9}
+            onPress={() =>
+              go("MegaContractStats", { role: megaRole.toLowerCase() })
+            }
+          >
+            <Ionicons name="analytics-outline" size={16} color={BLACK} />
+            <Text style={styles.viewBtnTxt}>
+              View {megaRole} Stats
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={BLACK} />
+          </TouchableOpacity>
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top bar */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Cards */
+  card: {
+    marginHorizontal: 12,
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  cardTitle: { fontSize: 16, fontWeight: "900", color: BLACK },
+
+  toggleRow: { flexDirection: "row", gap: 8, marginTop: 6, marginBottom: 10 },
+  toggleBtn: {
+    flex: 1,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+    backgroundColor: WHITE,
+  },
+  toggleActive: { backgroundColor: "#FFFDF2", borderColor: YELLOW },
+  toggleTxt: { fontSize: 12, fontWeight: "900", color: BLACK },
+  toggleTxtActive: { color: BLACK },
+
+  viewBtn: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    alignSelf: "flex-start",
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: YELLOW,
+  },
+  viewBtnTxt: { fontWeight: "900", color: BLACK, fontSize: 14 },
+});
