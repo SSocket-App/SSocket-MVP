@@ -86,7 +86,7 @@ export default function ContractPage() {
         <TouchableOpacity style={styles.iconBox} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={24} color={WHITE} />
         </TouchableOpacity>
-        <Text style={styles.topTitle}>Contracts</Text>
+        <Text style={styles.topTitle}>Mini Contracts</Text>
         <View style={styles.iconBox} />
       </View>
       <View style={styles.topAccent} />
