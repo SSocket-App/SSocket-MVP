@@ -1,0 +1,91 @@
+// ContractPage.js — simplified (no toggle, no descriptions, no T&C hint)
+import React from "react";
+import {
+  SafeAreaView,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  StatusBar,
+  Platform,
+} from "react-native";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+export default function ContractPage() {
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <Text style={styles.topBarTitle}>3rd party's business contract page</Text>
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Contract Type Options */}
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+        <View style={styles.optionCard}>
+          <TouchableOpacity style={styles.optionButton}>
+            <Text style={styles.optionText}>Mini Contract</Text>
+          </TouchableOpacity>
+          <Text style={styles.optionSubText}>
+            Short-term jobs like small tasks, quick gigs or temporary roles.
+          </Text>
+        </View>
+
+        <View style={styles.optionCard}>
+          <TouchableOpacity style={styles.optionButton}>
+            <Text style={styles.optionText}>Mega Contract</Text>
+          </TouchableOpacity>
+          <Text style={styles.optionSubText}>
+            Larger and long-term projects that require detailed agreements.
+          </Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ---------- Styles ---------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+  },
+  topBarTitle: { color: WHITE, fontSize: 22, fontWeight: "900", textAlign: "center" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  optionCard: {
+    marginHorizontal: 16,
+    marginVertical: 10,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#E0E0E0",
+    backgroundColor: WHITE,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  optionButton: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: YELLOW,
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  optionText: { fontSize: 16, fontWeight: "800", color: BLACK },
+  optionSubText: { fontSize: 13, color: "#555", textAlign: "center" },
+});
