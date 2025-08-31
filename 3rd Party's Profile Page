@@ -1,3 +1,4 @@
+
 // OtherUserProfilePage.js 
 import React, { useState } from "react";
 import {
@@ -118,7 +119,7 @@ export default function OtherUserProfilePage() {
         </TouchableOpacity>
       </View>
 
-      {/* Actions row */}
+                 {/* Actions row */}
       <View style={styles.actionsRow}>
         <ProfileButton icon="chatbubble-ellipses-outline" text="Message" dark />
         <ProfileButton icon="briefcase-outline" text="Contract" />
@@ -131,7 +132,10 @@ export default function OtherUserProfilePage() {
           text={view === "posts" ? "Help" : "Posts"}
           onPress={toggleHelps}
         />
+        <ProfileButton icon="heart-outline" text="Interest" />
       </View>
+
+
 
       {/* Divider title */}
       <Text style={styles.sectionTitle}>{view === "posts" ? "Recent Posts" : "Help Posts"}</Text>
