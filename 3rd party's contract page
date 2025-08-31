@@ -1,0 +1,180 @@
+// ContractPage.js — same UI + small public-visibility note + Employers hint on Contractors→Mega
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  StatusBar,
+  Platform,
+} from "react-native";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+export default function ContractPage() {
+  const [activeTab, setActiveTab] = useState("contractees"); // contractees | contractors
+  const [showMegaHint, setShowMegaHint] = useState(false);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <Text style={styles.topBarTitle}>3rd party's contract</Text>
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Tabs */}
+      <View style={styles.tabRow}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "contractees" && styles.tabActive]}
+          onPress={() => { setActiveTab("contractees"); setShowMegaHint(false); }}
+        >
+          <Text style={[styles.tabText, activeTab === "contractees" && styles.tabTextActive]}>
+            Contractees
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "contractors" && styles.tabActive]}
+          onPress={() => { setActiveTab("contractors"); setShowMegaHint(false); }}
+        >
+          <Text style={[styles.tabText, activeTab === "contractors" && styles.tabTextActive]}>
+            Contractors
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Small public-visibility note */}
+      <Text style={styles.publicNote}>Contract activity here is public.</Text>
+
+      {/* Short Description */}
+      <Text style={styles.description}>
+        {activeTab === "contractees"
+          ? "Contracts you are receiving from others."
+          : "Contracts you are offering to others."}
+      </Text>
+
+      {/* Contract Type Options */}
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+        <View style={styles.optionCard}>
+          <TouchableOpacity style={styles.optionButton}>
+            <Text style={styles.optionText}>Mini Contract</Text>
+          </TouchableOpacity>
+          <Text style={styles.optionSubText}>
+            Short-term jobs like small tasks, quick gigs or temporary roles.
+          </Text>
+        </View>
+
+        <View style={styles.optionCard}>
+          <TouchableOpacity
+            style={styles.optionButton}
+            onPress={() => {
+              if (activeTab === "contractors") setShowMegaHint(true);
+            }}
+          >
+            <Text style={styles.optionText}>Mega Contract</Text>
+          </TouchableOpacity>
+          <Text style={styles.optionSubText}>
+            Larger and long-term projects that require detailed agreements.
+          </Text>
+
+          {/* Employers account hint (only when Contractors → Mega) */}
+          {activeTab === "contractors" && showMegaHint && (
+            <Text style={styles.hintText}>
+              Open a <Text style={{ fontWeight: "900" }}>Business</Text> account to use this
+              function (for big businesses & transfer-style workflows).
+            </Text>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ---------- Styles ---------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+  },
+  topBarTitle: { color: WHITE, fontSize: 26, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  tabRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginVertical: 12,
+    gap: 14,
+  },
+  tab: {
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  tabActive: { backgroundColor: YELLOW, borderColor: YELLOW },
+  tabText: { fontWeight: "800", color: BLACK },
+  tabTextActive: { color: BLACK },
+
+  publicNote: {
+    textAlign: "center",
+    color: "#777",
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: -4,
+    marginBottom: 6,
+  },
+
+  description: {
+    textAlign: "center",
+    color: "#555",
+    fontSize: 13,
+    marginBottom: 16,
+  },
+
+  optionCard: {
+    marginHorizontal: 16,
+    marginVertical: 10,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#E0E0E0",
+    backgroundColor: WHITE,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  optionButton: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: YELLOW,
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  optionText: { fontSize: 16, fontWeight: "800", color: BLACK },
+  optionSubText: { fontSize: 13, color: "#555", textAlign: "center" },
+
+  hintText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#555",
+    fontStyle: "italic",
+    textAlign: "center",
+  },
+});
