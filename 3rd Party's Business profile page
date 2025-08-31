@@ -1,0 +1,351 @@
+// OtherUserProfilePage.js 
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  FlatList,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+const USER = {
+  name: "John Doe",
+  level: "Level 5",
+  location: "📍 Lagos, Nigeria",
+  about: "Bricklayer • Loves solving site workflow issues and speed builds.",
+};
+
+const POSTS = [
+  { id: "p1", caption: "Finished the west wall section today. Fast & clean.", timestamp: "2025-08-18T15:31:00Z" },
+  { id: "p2", caption: "Tip: stage blocks in pairs to reduce hand-off time.", timestamp: "2025-08-17T11:05:00Z" },
+  { id: "p3", caption: "Rain delay yesterday; recovered schedule with an early start.", timestamp: "2025-08-15T09:10:00Z" },
+];
+
+const HELPS = [
+  {
+    id: "h1",
+    title: "How to optimize block staging for 3-man crew?",
+    tags: ["ConstructionWorkflow", "Management"],
+    timestamp: "2025-08-16T08:40:00Z",
+    summary: "Looking for faster staging patterns. Current cycle time ~9min per row.",
+  },
+  {
+    id: "h2",
+    title: "Prevent mortar cracking in midday heat",
+    tags: ["Materials", "Engineering"],
+    timestamp: "2025-08-13T13:15:00Z",
+    summary: "Best mix ratios / shades? Seeking tips that hold up under sun.",
+  },
+];
+
+function formatDateTime(iso) {
+  const d = new Date(iso);
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const mm = months[d.getMonth()];
+  const day = d.getDate();
+  const yyyy = d.getFullYear();
+  let hrs = d.getHours();
+  const mins = d.getMinutes().toString().padStart(2, "0");
+  const ampm = hrs >= 12 ? "PM" : "AM";
+  hrs = hrs % 12 || 12;
+  return `${mm} ${day}, ${yyyy} · ${hrs}:${mins} ${ampm}`;
+}
+
+export default function OtherUserProfilePage() {
+  const [view, setView] = useState("posts");
+
+  const goBack = () => {
+    Alert.alert("Back", "Hook this into navigation later.");
+  };
+
+  const openTrackList = () => {
+    Alert.alert("Track List", "Navigate to Track List page later.");
+  };
+
+  const toggleHelps = () => {
+    setView((v) => (v === "posts" ? "helps" : "posts"));
+  };
+
+  const listData = view === "posts" ? POSTS : HELPS;
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+            {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconBox} activeOpacity={0.7} onPress={goBack}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>3rd party's business profile page</Text>
+        <View style={styles.iconBox} />
+      </View>
+      <View style={styles.topAccent} />
+
+
+      {/* Header card */}
+      <View style={styles.headerCard}>
+        <View style={styles.avatarBig}>
+          <View style={styles.avatarHead} />
+          <View style={styles.avatarBody} />
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Text style={styles.name}>{USER.name}</Text>
+          <Text style={styles.rankLine}>{USER.level}</Text>
+        </View>
+      </View>
+
+      {/* Info */}
+      <View style={styles.infoSection}>
+        <Text style={styles.infoText}>{USER.location}</Text>
+        <Text style={styles.infoText}>💬 {USER.about}</Text>
+      </View>
+
+      {/* Track List Button */}
+      <View style={{ paddingHorizontal: 16, marginTop: 6 }}>
+        <TouchableOpacity style={styles.trackListBtn} onPress={openTrackList} activeOpacity={0.8}>
+          <Ionicons name="list-outline" size={18} color={BLACK} />
+          <Text style={styles.trackListText}>Track List</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Actions row */}
+      <View style={styles.actionsRow}>
+        <ProfileButton icon="chatbubble-ellipses-outline" text="Message" dark />
+        <ProfileButton icon="briefcase-outline" text="Contract" />
+      </View>
+      <View style={styles.actionsRow}>
+        <ProfileButton icon="pulse-outline" text="Track" />
+        <ProfileButton icon="stats-chart-outline" text="Stats" />
+        <ProfileButton
+          icon={view === "posts" ? "help-buoy-outline" : "reader-outline"}
+          text={view === "posts" ? "Help" : "Posts"}
+          onPress={toggleHelps}
+        />
+      </View>
+
+      {/* Divider title */}
+      <Text style={styles.sectionTitle}>{view === "posts" ? "Recent Posts" : "Help Posts"}</Text>
+
+      {/* Feed list */}
+      <FlatList
+        data={listData}
+        keyExtractor={(i) => i.id}
+        contentContainerStyle={{ paddingBottom: 18 }}
+        showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={styles.sep} />}
+        renderItem={({ item }) =>
+          view === "posts" ? (
+            <View style={styles.post}>
+              <View style={styles.postHeader}>
+                <View style={styles.avatarSmall}>
+                  <View style={styles.avatarSmallHead} />
+                  <View style={styles.avatarSmallBody} />
+                </View>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={styles.postName} numberOfLines={1}>{USER.name}</Text>
+                  <Text style={styles.postRank} numberOfLines={1}>{USER.level}</Text>
+                </View>
+                <Text style={styles.postTime}>{formatDateTime(item.timestamp)}</Text>
+              </View>
+              <Text style={styles.postCaption}>{item.caption}</Text>
+            </View>
+          ) : (
+            <View style={styles.post}>
+              <View style={styles.postHeader}>
+                <View style={styles.avatarSmall}>
+                  <View style={styles.avatarSmallHead} />
+                  <View style={styles.avatarSmallBody} />
+                </View>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={styles.postName} numberOfLines={1}>{USER.name}</Text>
+                  <Text style={styles.postRank} numberOfLines={1}>{USER.level}</Text>
+                </View>
+                <Text style={styles.postTime}>{formatDateTime(item.timestamp)}</Text>
+              </View>
+              <Text style={styles.helpTitle}>{item.title}</Text>
+              <View style={styles.tagsRow}>
+                {item.tags.map((tag) => (
+                  <Text key={tag} style={styles.helpTag}>#{tag}</Text>
+                ))}
+              </View>
+              <Text style={styles.helpSummary}>{item.summary}</Text>
+            </View>
+          )
+        }
+      />
+    </SafeAreaView>
+  );
+}
+
+/* Reusable button */
+function ProfileButton({ icon, text, dark, onPress }) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={onPress}
+      style={[styles.button, dark ? styles.buttonDark : styles.buttonLight]}
+    >
+      <Ionicons name={icon} size={18} color={dark ? WHITE : BLACK} />
+      <Text style={[styles.buttonText, dark ? { color: WHITE } : { color: BLACK }]}>{text}</Text>
+    </TouchableOpacity>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top bar */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  iconBox: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Header */
+  headerCard: {
+    marginTop: 12,
+    marginHorizontal: 14,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: WHITE,
+    borderWidth: 1,
+    borderColor: "#EDEDED",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  avatarBig: {
+    width: 64, height: 64, borderRadius: 32,
+    borderWidth: 2, borderColor: BLACK,
+    backgroundColor: WHITE,
+    alignItems: "center", justifyContent: "center",
+    marginRight: 6,
+  },
+  avatarHead: {
+    width: 14, height: 14, borderRadius: 7,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE, marginBottom: 2,
+  },
+  avatarBody: {
+    width: 26, height: 12, borderRadius: 7,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+  },
+  name: { fontSize: 20, fontWeight: "800", color: BLACK },
+  rankLine: { fontSize: 13, color: "#666", marginTop: 2 },
+
+  infoSection: { paddingHorizontal: 16, paddingTop: 12, marginBottom: 6 },
+  infoText: { fontSize: 14, color: "#333", marginBottom: 4 },
+
+  /* Track List button */
+  trackListBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: YELLOW,
+    borderRadius: 8,
+    paddingVertical: 10,
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: BLACK,
+  },
+  trackListText: { fontWeight: "900", fontSize: 15, color: BLACK },
+
+  /* Buttons */
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 10,
+    paddingHorizontal: 16,
+  },
+  button: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+  },
+  buttonDark: { backgroundColor: BLACK },
+  buttonLight: { backgroundColor: YELLOW },
+  buttonText: { fontWeight: "900" },
+
+  /* Section */
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: BLACK,
+    paddingHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 6,
+  },
+
+  /* Post / Help cards */
+  sep: { height: 1, backgroundColor: "#F0F0F0", marginHorizontal: 12 },
+  post: {
+    marginHorizontal: 12,
+    marginTop: 10,
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    paddingVertical: 10,
+  },
+  postHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    marginBottom: 6,
+  },
+  avatarSmall: {
+    width: 36, height: 36, borderRadius: 18,
+    borderWidth: 2, borderColor: BLACK,
+    alignItems: "center", justifyContent: "center",
+    marginRight: 10,
+  },
+  avatarSmallHead: {
+    width: 10, height: 10, borderRadius: 5,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE, marginBottom: 1,
+  },
+  avatarSmallBody: {
+    width: 16, height: 8, borderRadius: 5,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+  },
+  postName: { fontWeight: "900", color: BLACK, fontSize: 15 },
+  postRank: { color: "#666", fontSize: 12, marginTop: 2 },
+  postTime: { color: "#777", fontSize: 12 },
+
+  postCaption: { color: BLACK, fontSize: 15, paddingHorizontal: 12, paddingBottom: 8 },
+
+  /* Help-specific text */
+  helpTitle: { color: BLACK, fontWeight: "900", fontSize: 15, paddingHorizontal: 12 },
+  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, paddingHorizontal: 12, marginTop: 4 },
+  helpTag: { color: "#444", fontSize: 12, fontWeight: "700" },
+  helpSummary: { color: BLACK, fontSize: 14, paddingHorizontal: 12, paddingTop: 6, paddingBottom: 8 },
+});
