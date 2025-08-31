@@ -1,3 +1,4 @@
+
 // SSocketMegaContractSnapshot_Public.js
 // PUBLIC VIEW: Snapshot of a contractor's mega contracts (for 3rd-party viewers).
 // - Shows ONE ongoing mega contract (if any) + list of ENDED mega contracts.
@@ -109,7 +110,7 @@ export default function SSocketMegaContractSnapshot_Public({
         <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
           <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
         </TouchableOpacity>
-        <Text style={styles.topTitle}>Contractor Snapshot</Text>
+        <Text style={styles.topTitle}>3rd party's mega contracts list</Text>
         <View style={{ width: 40 }} />
       </View>
       <View style={styles.topAccent} />
