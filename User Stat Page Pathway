@@ -1,4 +1,4 @@
-// StatsHub.js — Central hub listing all user stat pages (simplified)
+// StatsHub.js — Central hub listing all user stat pages (Mega = Contractor only)
 import React, { useState } from "react";
 import {
   SafeAreaView,
@@ -16,49 +16,14 @@ import { Ionicons } from "@expo/vector-icons";
 const BLACK = "#000";
 const WHITE = "#FFF";
 const YELLOW = "#FFD54A";
-const MUTED = "#6B7280";
 
 /* Small reusable UI */
 function Card({ children }) {
   return <View style={styles.card}>{children}</View>;
 }
-function Toggle2({ left, right, value, onChange }) {
-  return (
-    <View style={styles.toggleRow}>
-      <TouchableOpacity
-        style={[styles.toggleBtn, value === left && styles.toggleActive]}
-        onPress={() => onChange(left)}
-        activeOpacity={0.9}
-      >
-        <Text style={[styles.toggleTxt, value === left && styles.toggleTxtActive]}>
-          {left}
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.toggleBtn, value === right && styles.toggleActive]}
-        onPress={() => onChange(right)}
-        activeOpacity={0.9}
-      >
-        <Text style={[styles.toggleTxt, value === right && styles.toggleTxtActive]}>
-          {right}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
 
-/**
- * Props:
- *   onNavigate?: (screen: string, params?: object) => void
- *
- * Expected screen names (use your own):
- *   "HelpStats"
- *   "MiniContractStats"  (params: { role: "contractee" | "contractor" })
- *   "MegaContractStats"  (params: { role: "contractee" | "contractor" })
- */
 export default function StatsHub({ onNavigate }) {
   const [miniRole, setMiniRole] = useState("Contractee");
-  const [megaRole, setMegaRole] = useState("Contractee");
 
   const go = (screen, params) => {
     if (typeof onNavigate === "function") {
@@ -97,15 +62,45 @@ export default function StatsHub({ onNavigate }) {
           </TouchableOpacity>
         </Card>
 
-        {/* Mini Contract Stats (toggle) */}
+        {/* Mini Contract Stats (with toggle) */}
         <Card>
           <Text style={styles.cardTitle}>Mini Contract Stats</Text>
-          <Toggle2
-            left="Contractee"
-            right="Contractor"
-            value={miniRole}
-            onChange={setMiniRole}
-          />
+          <View style={styles.toggleRow}>
+            <TouchableOpacity
+              style={[
+                styles.toggleBtn,
+                miniRole === "Contractee" && styles.toggleActive,
+              ]}
+              onPress={() => setMiniRole("Contractee")}
+              activeOpacity={0.9}
+            >
+              <Text
+                style={[
+                  styles.toggleTxt,
+                  miniRole === "Contractee" && styles.toggleTxtActive,
+                ]}
+              >
+                Contractee
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.toggleBtn,
+                miniRole === "Contractor" && styles.toggleActive,
+              ]}
+              onPress={() => setMiniRole("Contractor")}
+              activeOpacity={0.9}
+            >
+              <Text
+                style={[
+                  styles.toggleTxt,
+                  miniRole === "Contractor" && styles.toggleTxtActive,
+                ]}
+              >
+                Contractor
+              </Text>
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity
             style={styles.viewBtn}
             activeOpacity={0.9}
@@ -114,33 +109,21 @@ export default function StatsHub({ onNavigate }) {
             }
           >
             <Ionicons name="analytics-outline" size={16} color={BLACK} />
-            <Text style={styles.viewBtnTxt}>
-              View {miniRole} Stats
-            </Text>
+            <Text style={styles.viewBtnTxt}>View {miniRole} Stats</Text>
             <Ionicons name="chevron-forward" size={16} color={BLACK} />
           </TouchableOpacity>
         </Card>
 
-        {/* Mega Contract Stats (toggle) */}
+        {/* Mega Contract Stats (Contractor only) */}
         <Card>
           <Text style={styles.cardTitle}>Mega Contract Stats</Text>
-          <Toggle2
-            left="Contractee"
-            right="Contractor"
-            value={megaRole}
-            onChange={setMegaRole}
-          />
           <TouchableOpacity
             style={styles.viewBtn}
             activeOpacity={0.9}
-            onPress={() =>
-              go("MegaContractStats", { role: megaRole.toLowerCase() })
-            }
+            onPress={() => go("MegaContractStats", { role: "contractor" })}
           >
             <Ionicons name="analytics-outline" size={16} color={BLACK} />
-            <Text style={styles.viewBtnTxt}>
-              View {megaRole} Stats
-            </Text>
+            <Text style={styles.viewBtnTxt}>View Contractor Stats</Text>
             <Ionicons name="chevron-forward" size={16} color={BLACK} />
           </TouchableOpacity>
         </Card>
