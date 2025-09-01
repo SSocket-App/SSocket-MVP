@@ -1,3 +1,4 @@
+
 // MiniContracteeStats.js
 import React, { useMemo, useState } from "react";
 import {
@@ -121,7 +122,7 @@ const GREEN_TAGS = [
   "responsible",
 ];
 const RED_TAGS = [
-  "disrespectful",
+  "not supportive",
   "not cooperative",
   "untrustworthy",
   "unclear instructions",
