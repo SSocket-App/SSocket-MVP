@@ -1,3 +1,4 @@
+
 // HelpStats.js (Mega Contract Stat Page)
 import React, { useMemo, useState } from "react";
 import {
@@ -402,7 +403,7 @@ export default function App() {
           <Ionicons name="chevron-back" size={24} color={WHITE} />
         </TouchableOpacity>
 
-        <Text style={styles.topTitle}>Mega Contract Stat Page</Text>
+        <Text style={styles.topTitle}>Competition stat page</Text>
 
         <View style={{ width: 40, height: 36 }} />
       </View>
