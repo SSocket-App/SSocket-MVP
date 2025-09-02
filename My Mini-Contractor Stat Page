@@ -1,4 +1,9 @@
-// MiniContractStats.js 
+// App.js — MiniContractStats (Snack/Expo Go ready)
+// Updates for your request:
+//  • Removed Green tags: reliability, prudent
+//  • Strong, non-repeating, high-contrast colors (Category10-style) per tag
+//  • Green & Red each have their own pie and legend with counts like "Speed (30 tags)"
+
 import React, { useMemo, useState } from "react";
 import {
   SafeAreaView,
@@ -9,9 +14,9 @@ import {
   StyleSheet,
   Platform,
   TouchableOpacity,
-  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Svg, { G, Path } from "react-native-svg"; // Snack will ask to add dependency
 
 /* ===== Brand ===== */
 const BLACK = "#000";
@@ -37,7 +42,6 @@ function buildDailyMini(seed = 2, days = 90) {
     // Base ratings for both toggles
     const satBase   = 3.9 + prng(k + 11) * 1.0; // Satisfaction (result)
     const csBase    = 4.0 + prng(k + 17) * 0.9; // Customer Service (experience)
-
     const wBias     = (d.getDay() === 0 || d.getDay() === 6) ? -0.1 : 0.05;
 
     const satisfactionRating    = jobs ? Math.max(1, Math.min(5, satBase + wBias)) : 0;
@@ -70,16 +74,15 @@ const NICHE_KEYS = ["All", "Mechanical", "Software", "Marketing", "Design", "Eve
 
 // Mock dataset per niche
 const DATA = {
-  All: { totalReviews: 142, avgSatisfaction: 4.6, avgService: 4.7, daily: buildDailyMini(2) },
-  Mechanical: { totalReviews: 58, avgSatisfaction: 4.5, avgService: 4.6, daily: buildDailyMini(3) },
-  Software: { totalReviews: 45, avgSatisfaction: 4.7, avgService: 4.6, daily: buildDailyMini(4) },
-  Marketing:{ totalReviews: 29, avgSatisfaction: 4.4, avgService: 4.6, daily: buildDailyMini(5) },
-  Design:   { totalReviews: 22, avgSatisfaction: 4.5, avgService: 4.6, daily: buildDailyMini(6) },
-  Events:   { totalReviews: 31, avgSatisfaction: 4.5, avgService: 4.7, daily: buildDailyMini(7) },
+  All:        { totalReviews: 142, avgSatisfaction: 4.6, avgService: 4.7, daily: buildDailyMini(2) },
+  Mechanical: { totalReviews: 58,  avgSatisfaction: 4.5, avgService: 4.6, daily: buildDailyMini(3) },
+  Software:   { totalReviews: 45,  avgSatisfaction: 4.7, avgService: 4.6, daily: buildDailyMini(4) },
+  Marketing:  { totalReviews: 29,  avgSatisfaction: 4.4, avgService: 4.6, daily: buildDailyMini(5) },
+  Design:     { totalReviews: 22,  avgSatisfaction: 4.5, avgService: 4.6, daily: buildDailyMini(6) },
+  Events:     { totalReviews: 31,  avgSatisfaction: 4.5, avgService: 4.7, daily: buildDailyMini(7) },
 };
 
 /* ===== Utils ===== */
-const W = Dimensions.get("window").width;
 const pad2 = (n) => (n < 10 ? `${n}`.padStart(2, "0") : `${n}`);
 const fmt = (dt) => `${pad2(dt.getDate())}/${pad2(dt.getMonth()+1)}/${dt.getFullYear()}`;
 
@@ -107,7 +110,7 @@ function dayStarCountsFromAvg(avg, count, seed = 0) {
   const probs = weights.map(w => w / sumW);
   const floats = probs.map(p => p * h);
   const [c1,c2,c3,c4,c5] = roundPreserve(h, floats, seed);
-  return {1:c1,2:c2,3:c3,4:c4,5:c5}; // keys present => no NaN
+  return {1:c1,2:c2,3:c3,4:c4,5:c5};
 }
 function intervalStarDistribution(inRange, mode = "satisfaction") {
   return inRange.reduce((acc, p, idx) => {
@@ -123,31 +126,68 @@ function intervalStarDistribution(inRange, mode = "satisfaction") {
 }
 
 /* ===== Tag Lists ===== */
+/* Removed from green: reliability, prudent */
 const GREEN_TAGS = [
-  "diplomatic","sharp","punctuality","speed","perfection","quality","reliability","communication",
-  "teamspirit","flexibility","trust","peaceful","proactive","strategic","polite","prudent",
-  "leader","problem-solving"
+  "sharp","punctuality","speed","experience","flexibility",
+  "trust","proactive","strategic","polite","problem-solving"
 ];
 const RED_TAGS = [
   "lateness","unprofessional","conflict","unreliable","dishonesty","wasteful",
   "unexperienced","disorganized","rigid","slow"
 ];
 
-/* ===== Tag scoring from a window ===== */
-function tagScoresFromWindow(days, list, seedSalt = 0) {
+/* ===== DISTINCT color assignment (high-contrast categorical) ===== */
+const CATEGORY10 = [
+  "#1f77b4", // blue
+  "#ff7f0e", // orange
+  "#2ca02c", // green
+  "#d62728", // red
+  "#9467bd", // purple
+  "#8c564b", // brown
+  "#e377c2", // pink
+  "#7f7f7f", // gray
+  "#bcbd22", // chartreuse
+  "#17becf", // cyan
+];
+// Fallback hue if ever needed (not used here since we have ≤10 per group)
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const toHex = x => Math.round(255 * x).toString(16).padStart(2, "0");
+  return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+}
+function colorMapForTags(list, offset = 0) {
+  const colors = [];
+  for (let i = 0; i < list.length; i++) {
+    if (i < CATEGORY10.length) {
+      colors.push(CATEGORY10[(i + offset) % CATEGORY10.length]);
+    } else {
+      const hue = (i * 137.508) % 360; // very separated backup
+      colors.push(hslToHex(hue, 75, 50));
+    }
+  }
+  const map = {};
+  list.forEach((t, i) => { map[t] = colors[i]; });
+  return map;
+}
+
+/* ===== Use COUNTS (not %) for tags, scaled to nice integers ===== */
+function tagCountsFromWindow(days, list, seedSalt = 0) {
   const totals = Object.fromEntries(list.map(t => [t, 0]));
-  let sumJobs = 0;
-  days.forEach((p, idx) => {
+  days.forEach((p) => {
     const jobs = p.jobs || 0;
-    sumJobs += jobs;
     list.forEach((t, i) => {
       const s = 0.5 + 0.5 * prng((p.date?.getTime?.() || 0) + seedSalt * 1000 + i * 77);
-      totals[t] += jobs * s; // more jobs that day -> stronger tag weight
+      totals[t] += jobs * s; // more jobs that day -> stronger tag signal
     });
   });
   const maxVal = Math.max(1, ...Object.values(totals));
-  const arr = list.map(t => ({ tag: t, pct: Math.round((totals[t] / maxVal) * 100) }));
-  return arr.sort((a,b) => b.pct - a.pct);
+  const scale = 40 / maxVal; // biggest ≈ 40 tags
+  return list
+    .map((t) => ({ tag: t, count: Math.max(0, Math.round(totals[t] * scale)) }))
+    .sort((a, b) => b.count - a.count);
 }
 
 /* ===== Reusable UI ===== */
@@ -232,18 +272,38 @@ function GaugeRing({ label, pct = 0, size = 84, thickness = 10 }) {
   );
 }
 
-/* ===== Tag bar (screenshot style) ===== */
-function HBarTag({ label, pct }) {
+/* ===== Tiny pie (SVG) ===== */
+function polarToCartesian(cx, cy, r, angle) {
+  const a = ((angle - 90) * Math.PI) / 180.0;
+  return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+}
+function arcPath(cx, cy, r, startAngle, endAngle) {
+  const start = polarToCartesian(cx, cy, r, endAngle);
+  const end = polarToCartesian(cx, cy, r, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y} Z`;
+}
+function PieChart({ data = [], size = 160, stroke = 2 }) {
+  const total = Math.max(1, data.reduce((s, d) => s + (d.count || 0), 0));
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size / 2 - stroke;
+  let angle = 0;
+  const paths = data.map((d, i) => {
+    const slice = (d.count / total) * 360;
+    const start = angle;
+    const end = angle + slice;
+    angle = end;
+    const dPath = arcPath(cx, cy, r, start, end);
+    return <Path key={i} d={dPath} stroke={BLACK} strokeWidth={1.5} fill={d.color} />;
+  });
   return (
-    <View style={styles.hbarRow}>
-      <Text style={styles.hbarLabel} numberOfLines={1}>{label}</Text>
-      <View style={styles.hbarTrack}>
-        <View style={[styles.hbarFill, { width: `${Math.max(4, Math.min(100, pct || 0))}%` }]} />
-      </View>
-      <Text style={styles.hbarPct}>{Math.round(pct || 0)}%</Text>
-    </View>
+    <Svg width={size} height={size}>
+      <G>{paths}</G>
+    </Svg>
   );
 }
+
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /* ===== Main Page ===== */
@@ -263,7 +323,7 @@ export default function App() {
   const [ratingMode, setRatingMode] = useState("satisfaction"); // "satisfaction" | "service"
   const [ratesScope, setRatesScope] = useState("interval");     // "interval" | "all"
   const [tagsScope, setTagsScope] = useState("interval");       // "interval" | "all"
-  const [ratingScope, setRatingScope] = useState("interval");   // NEW: unified scope toggle
+  const [ratingScope, setRatingScope] = useState("interval");   // unified scope toggle
 
   // Interval aggregates based on ratingMode
   const interval = useMemo(() => {
@@ -303,62 +363,55 @@ export default function App() {
     };
   }, [all]);
 
-  // Tags — compute from window (interval vs all)
+  // ===== Color maps (no repeats, high contrast). Offset red to look different from green.
+  const greenColorMap = useMemo(() => colorMapForTags(GREEN_TAGS, 0), []);
+  const redColorMap   = useMemo(() => colorMapForTags(RED_TAGS, 3), []);
+
+  // ===== Tag counts (interval/all) + attach colors =====
   const greenInterval = useMemo(
-    () => tagScoresFromWindow(inRange, GREEN_TAGS, 111),
-    [inRange]
+    () => tagCountsFromWindow(inRange, GREEN_TAGS, 111).map(x => ({ ...x, color: greenColorMap[x.tag] })),
+    [inRange, greenColorMap]
   );
   const redInterval = useMemo(
-    () => tagScoresFromWindow(inRange, RED_TAGS, 333),
-    [inRange]
+    () => tagCountsFromWindow(inRange, RED_TAGS, 333).map(x => ({ ...x, color: redColorMap[x.tag] })),
+    [inRange, redColorMap]
   );
   const greenAll = useMemo(
-    () => tagScoresFromWindow(all, GREEN_TAGS, 111),
-    [all]
+    () => tagCountsFromWindow(all, GREEN_TAGS, 111).map(x => ({ ...x, color: greenColorMap[x.tag] })),
+    [all, greenColorMap]
   );
   const redAll = useMemo(
-    () => tagScoresFromWindow(all, RED_TAGS, 333),
-    [all]
+    () => tagCountsFromWindow(all, RED_TAGS, 333).map(x => ({ ...x, color: redColorMap[x.tag] })),
+    [all, redColorMap]
   );
-
-  const [showMoreGreen, setShowMoreGreen] = useState(false);
-  const [showMoreRed, setShowMoreRed] = useState(false);
-
-  const activeRates = ratesScope === "interval" ? {
-    abandonmentRate: (() => {
-      const jobs = inRange.reduce((a,b)=>a+b.jobs,0);
-      const abandoned = inRange.reduce((a,b)=>a+b.abandoned,0);
-      return jobs ? (abandoned / jobs) * 100 : 0;
-    })(),
-    referralRate: (() => {
-      const jobs = inRange.reduce((a,b)=>a+b.jobs,0);
-      const referrals = inRange.reduce((a,b)=>a+b.referrals,0);
-      return jobs ? (referrals / jobs) * 100 : 0;
-    })(),
-    rehireRate: (() => {
-      const jobs = inRange.reduce((a,b)=>a+b.jobs,0);
-      const rehire = inRange.reduce((a,b)=>a+b.rehire,0);
-      return jobs ? (rehire / jobs) * 100 : 0;
-    })(),
-  } : allTime.rates;
 
   const activeGreen = tagsScope === "interval" ? greenInterval : greenAll;
   const activeRed   = tagsScope === "interval" ? redInterval   : redAll;
 
-  const greenToShow = showMoreGreen ? activeGreen : activeGreen.slice(0, 7);
-  const redToShow   = showMoreRed ? activeRed : activeRed.slice(0, 6);
-
   // === Derived for unified Rating card ===
+  const scopeIsInterval = ratingScope === "interval";
   const avgAll = ratingMode === "satisfaction" ? allTime.avgSatisfactionAll : allTime.avgServiceAll;
   const gainedStarsAll = Math.round(ratingMode === "satisfaction" ? allTime.satSum : allTime.svcSum);
   const distAll = useMemo(() => intervalStarDistribution(all, ratingMode), [all, ratingMode]);
 
-  const scopeIsInterval = ratingScope === "interval";
   const avgShown = scopeIsInterval ? (interval.avgInterval || 0) : (avgAll || 0);
   const starsEarnedShown = scopeIsInterval ? interval.gainedStars : gainedStarsAll;
   const possibleStarsShown = scopeIsInterval ? interval.possibleStars : allTime.possibleStarsAll;
   const distShown = scopeIsInterval ? interval.dist : distAll;
   const contractsShown = scopeIsInterval ? interval.jobs : allTime.jobs;
+
+  // Rates scope selection
+  const activeRates = ratesScope === "interval" ? (() => {
+    const jobs = inRange.reduce((a,b)=>a+b.jobs,0);
+    const abandoned = inRange.reduce((a,b)=>a+b.abandoned,0);
+    const referrals = inRange.reduce((a,b)=>a+b.referrals,0);
+    const rehire    = inRange.reduce((a,b)=>a+b.rehire,0);
+    return {
+      abandonmentRate: jobs ? (abandoned / jobs) * 100 : 0,
+      referralRate:    jobs ? (referrals / jobs) * 100 : 0,
+      rehireRate:      jobs ? (rehire    / jobs) * 100 : 0,
+    };
+  })() : allTime.rates;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -393,15 +446,15 @@ export default function App() {
           <TitleRow title="Date interval" help="Choose a date window to analyze your mini-contract performance." />
           <View style={styles.rangeRow}>
             <Text style={styles.rangeLbl}>From</Text>
-            <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftStart(-1)}><Ionicons name="chevron-back" size={16} color={BLACK} /></TouchableOpacity>
+            <TouchableOpacity style={styles.arrowBtn} onPress={() => setStartIdx((s)=>Math.min(endIdx, Math.max(0, s - 1)))}><Ionicons name="chevron-back" size={16} color={BLACK} /></TouchableOpacity>
             <Text style={styles.rangeVal}>{fmt(all[startIdx].date)}</Text>
-            <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftStart(1)}><Ionicons name="chevron-forward" size={16} color={BLACK} /></TouchableOpacity>
+            <TouchableOpacity style={styles.arrowBtn} onPress={() => setStartIdx((s)=>Math.min(endIdx, Math.max(0, s + 1)))}><Ionicons name="chevron-forward" size={16} color={BLACK} /></TouchableOpacity>
           </View>
           <View style={styles.rangeRow}>
             <Text style={styles.rangeLbl}>To</Text>
-            <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftEnd(-1)}><Ionicons name="chevron-back" size={16} color={BLACK} /></TouchableOpacity>
+            <TouchableOpacity style={styles.arrowBtn} onPress={() => setEndIdx((e)=>Math.max(startIdx, Math.min(all.length - 1, e - 1)))}><Ionicons name="chevron-back" size={16} color={BLACK} /></TouchableOpacity>
             <Text style={styles.rangeVal}>{fmt(all[endIdx].date)}</Text>
-            <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftEnd(1)}><Ionicons name="chevron-forward" size={16} color={BLACK} /></TouchableOpacity>
+            <TouchableOpacity style={styles.arrowBtn} onPress={() => setEndIdx((e)=>Math.max(startIdx, Math.min(all.length - 1, e + 1)))}><Ionicons name="chevron-forward" size={16} color={BLACK} /></TouchableOpacity>
           </View>
         </Card>
 
@@ -426,18 +479,18 @@ export default function App() {
           />
           <View style={styles.toggleRow}>
             <TouchableOpacity
-              style={[styles.toggleBtn, scopeIsInterval && styles.toggleActive]}
+              style={[styles.toggleBtn, ratingScope === "interval" && styles.toggleActive]}
               onPress={() => setRatingScope("interval")}
               activeOpacity={0.9}
             >
-              <Text style={[styles.toggleTxt, scopeIsInterval && styles.toggleTxtActive]}>This Interval</Text>
+              <Text style={[styles.toggleTxt, ratingScope === "interval" && styles.toggleTxtActive]}>This Interval</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.toggleBtn, !scopeIsInterval && styles.toggleActive]}
+              style={[styles.toggleBtn, ratingScope === "all" && styles.toggleActive]}
               onPress={() => setRatingScope("all")}
               activeOpacity={0.9}
             >
-              <Text style={[styles.toggleTxt, !scopeIsInterval && styles.toggleTxtActive]}>All-Time</Text>
+              <Text style={[styles.toggleTxt, ratingScope === "all" && styles.toggleTxtActive]}>All-Time</Text>
             </TouchableOpacity>
           </View>
 
@@ -448,7 +501,7 @@ export default function App() {
               Stars earned: <Text style={styles.bigStatInline}>{starsEarnedShown}</Text> / {possibleStarsShown}
             </Text>
             <Text style={styles.kpiHint}>
-              {scopeIsInterval ? "Contracts in this interval" : "Total contracts"}:{" "}
+              {ratingScope === "interval" ? "Contracts in this interval" : "Total contracts"}:{" "}
               <Text style={styles.bigStatInline}>{contractsShown}</Text>
             </Text>
           </View>
@@ -461,7 +514,7 @@ export default function App() {
             <Text style={styles.kidRow}>⭐⭐        =  {distShown[2]}</Text>
             <Text style={styles.kidRow}>⭐          =  {distShown[1]}</Text>
             <Text style={styles.kpiHint}>
-              {scopeIsInterval
+              {ratingScope === "interval"
                 ? "Counts modeled from daily average and jobs for this window."
                 : "Counts modeled from daily average and jobs across all time."}
             </Text>
@@ -486,9 +539,9 @@ export default function App() {
           </View>
         </Card>
 
-        {/* ===== TAGS ===== */}
+        {/* ===== GREEN TAGS (counts + pie + unique colors) ===== */}
         <Card>
-          <TitleRow title="Green Tags" help="Top strengths based on signals inside the selected date range (or All-Time via toggle)." />
+          <TitleRow title="Green Tags" help="Top strengths in the selected window (or All-Time via toggle). Colors are all distinct." />
           <View style={styles.toggleRow}>
             <TouchableOpacity style={[styles.toggleBtn, tagsScope === "interval" && styles.toggleActive]} onPress={() => setTagsScope("interval")} activeOpacity={0.9}>
               <Text style={[styles.toggleTxt, tagsScope === "interval" && styles.toggleTxtActive]}>This Interval</Text>
@@ -497,16 +550,25 @@ export default function App() {
               <Text style={[styles.toggleTxt, tagsScope === "all" && styles.toggleTxtActive]}>All-Time</Text>
             </TouchableOpacity>
           </View>
-          <View style={{ marginTop: 6 }}>
-            {greenToShow.map((t) => (<HBarTag key={t.tag} label={`• ${cap(t.tag)}`} pct={t.pct} />))}
-            <TouchableOpacity style={styles.moreBtn} activeOpacity={0.85} onPress={() => setShowMoreGreen(v => !v)}>
-              <Text style={styles.moreTxt}>{showMoreGreen ? "Show less" : "Show more"}</Text>
-            </TouchableOpacity>
+
+          <View style={styles.pieRow}>
+            <PieChart data={activeGreen} size={160} />
+            <View style={styles.legendCol}>
+              {activeGreen.map((t) => (
+                <View key={t.tag} style={styles.legendItem}>
+                  <View style={[styles.legendSwatch, { backgroundColor: t.color }]} />
+                  <Text style={styles.legendText} numberOfLines={1}>
+                    {cap(t.tag)} ({t.count} {t.count === 1 ? "tag" : "tags"})
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
         </Card>
 
+        {/* ===== RED TAGS (counts + pie + unique colors) ===== */}
         <Card>
-          <TitleRow title="Red Tags" help="Risk signals inside the selected date range (or All-Time via toggle)." />
+          <TitleRow title="Red Tags" help="Risk signals in the selected window (or All-Time via toggle). Colors are all distinct." />
           <View style={styles.toggleRow}>
             <TouchableOpacity style={[styles.toggleBtn, tagsScope === "interval" && styles.toggleActive]} onPress={() => setTagsScope("interval")} activeOpacity={0.9}>
               <Text style={[styles.toggleTxt, tagsScope === "interval" && styles.toggleTxtActive]}>This Interval</Text>
@@ -515,11 +577,19 @@ export default function App() {
               <Text style={[styles.toggleTxt, tagsScope === "all" && styles.toggleTxtActive]}>All-Time</Text>
             </TouchableOpacity>
           </View>
-          <View style={{ marginTop: 6 }}>
-            {redToShow.map((t) => (<HBarTag key={t.tag} label={`• ${cap(t.tag)}`} pct={t.pct} />))}
-            <TouchableOpacity style={styles.moreBtn} activeOpacity={0.85} onPress={() => setShowMoreRed(v => !v)}>
-              <Text style={styles.moreTxt}>{showMoreRed ? "Show less" : "Show more"}</Text>
-            </TouchableOpacity>
+
+          <View style={styles.pieRow}>
+            <PieChart data={activeRed} size={160} />
+            <View style={styles.legendCol}>
+              {activeRed.map((t) => (
+                <View key={t.tag} style={styles.legendItem}>
+                  <View style={[styles.legendSwatch, { backgroundColor: t.color }]} />
+                  <Text style={styles.legendText} numberOfLines={1}>
+                    {cap(t.tag)} ({t.count})
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
         </Card>
       </ScrollView>
@@ -596,14 +666,10 @@ const styles = StyleSheet.create({
   gaugePct: { fontSize: 16, fontWeight: "900", color: BLACK },
   gaugeLabel: { marginTop: 6, fontSize: 12, fontWeight: "900", color: BLACK, textAlign: "center" },
 
-  /* Tag bars */
-  hbarRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
-  hbarLabel: { width: 180, fontSize: 12, color: BLACK },
-  hbarTrack: { flex: 1, height: 20, borderRadius: 10, backgroundColor: WHITE, borderWidth: 2, borderColor: BLACK, overflow: "hidden" },
-  hbarFill: { height: "100%", backgroundColor: YELLOW, borderRightWidth: 2, borderRightColor: BLACK },
-  hbarPct: { width: 48, textAlign: "right", fontSize: 12, color: BLACK, fontWeight: "900" },
-
-  /* Show more/less */
-  moreBtn: { alignSelf: "center", marginTop: 10, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 2, borderColor: BLACK, backgroundColor: "#FFFDF2" },
-  moreTxt: { fontSize: 12, fontWeight: "900", color: BLACK },
+  /* Pie + legend */
+  pieRow: { flexDirection: "row", gap: 12, alignItems: "center", marginTop: 10 },
+  legendCol: { flex: 1, gap: 6 },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 8 },
+  legendSwatch: { width: 14, height: 14, borderRadius: 3, borderWidth: 1.5, borderColor: BLACK },
+  legendText: { fontSize: 12, color: BLACK, fontWeight: "900", flexShrink: 1 },
 });
