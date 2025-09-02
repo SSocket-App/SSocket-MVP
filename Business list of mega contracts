@@ -1,17 +1,6 @@
 // SSocketSealedContracts_Business.js
 // Business-side: Sealed Mega Contracts list (read-only).
-// - Title: "List of Mega Contractors"
-// - Distinct cards with yellow barrier + avatar beside contractor name
-// - Search by contractor name, description, job role
-// - Red urgency badge: "N pending confirmations" (>=2). Confirmations hidden by default.
-// - "View Confirmations" toggles pending confirmations for that contractor
-// - Open/Close a confirmation without forcing a decision; actions appear only after "Decide"
-// - Once a decision is made (accepted/declined), the confirmation VANISHES (no edits/reversals)
-// - Accept button disabled until ALL fields are filled (green tag, red tag, rating, review/comment)
-// - Green tags: hardworking, analytical, creative, strategic, flexible, leadership, collaborative, social, detail-oriented, trustworthy
-// - Red tags: short-sighted, rigid, ineffective, untrustworthy, conflict-prone, lazy, unsociable, disloyal, disorganized, slow
-// - Review note: "Reviews are only visible to the system."
-// - Removed `gap` from styles to avoid RN warning; replaced with margins.
+// (unchanged header comments)
 
 import React, { useMemo, useState } from "react";
 import {
@@ -120,18 +109,28 @@ export default function SSocketSealedContracts_Business({ contracts, onOpenContr
 
   const [items, setItems] = useState(contracts && contracts.length ? contracts : demo);
   const [query, setQuery] = useState("");
+  const [tab, setTab] = useState("ongoing"); // NEW: "ongoing" | "ended"
 
   const filtered = useMemo(() => {
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const byStatus = items.filter((c) => {
+      const end = c?.endDate ? new Date(c.endDate) : null;
+      const isOngoing = !end || end >= startOfToday;
+      return tab === "ongoing" ? isOngoing : !isOngoing;
+    });
+
     const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((c) => {
+    if (!q) return byStatus;
+
+    return byStatus.filter((c) => {
       return (
         (c.contractorName || "").toLowerCase().includes(q) ||
         (c.workDescription || "").toLowerCase().includes(q) ||
         (c.jobRole || "").toLowerCase().includes(q)
       );
     });
-  }, [items, query]);
+  }, [items, query, tab]);
 
   const goBack = () => {
     if (typeof onBack === "function") onBack();
@@ -202,7 +201,7 @@ export default function SSocketSealedContracts_Business({ contracts, onOpenContr
     Alert.alert("Saved", decision === "accepted" ? "Confirmation accepted." : "Confirmation declined.");
   };
 
-  /* ===== Renderers ===== */
+  /* ===== Renderers (UNCHANGED) ===== */
   const renderConfirm = (contract) => (f) => {
     if (!f._expanded) {
       return (
@@ -335,7 +334,7 @@ export default function SSocketSealedContracts_Business({ contracts, onOpenContr
               onChange={(n) => setConfirmField(contract.id, f.id, { rating: n })}
             />
 
-            {/* Review (compulsory, but not labeled as required) */}
+            {/* Review */}
             <View style={{ marginTop: 10 }}>
               <Text style={styles.flowLabel}>Review</Text>
               <Text style={styles.reviewNote}>Reviews are only visible to the system.</Text>
@@ -511,6 +510,38 @@ export default function SSocketSealedContracts_Business({ contracts, onOpenContr
       </View>
       <View style={styles.topAccent} />
 
+      {/* NEW: Ongoing / Ended toggle (right above search) */}
+      <View style={styles.filterRow}>
+        <TouchableOpacity
+          onPress={() => setTab("ongoing")}
+          activeOpacity={0.9}
+          style={[styles.filterPill, tab === "ongoing" ? styles.filterPillActive : styles.filterPillIdle]}
+        >
+          <Text
+            style={[
+              styles.filterPillTxt,
+              tab === "ongoing" ? styles.filterPillTxtActive : styles.filterPillTxtIdle,
+            ]}
+          >
+            Ongoing
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setTab("ended")}
+          activeOpacity={0.9}
+          style={[styles.filterPill, tab === "ended" ? styles.filterPillActive : styles.filterPillIdle]}
+        >
+          <Text
+            style={[
+              styles.filterPillTxt,
+              tab === "ended" ? styles.filterPillTxtActive : styles.filterPillTxtIdle,
+            ]}
+          >
+            Ended
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Search */}
       <View style={styles.searchWrap}>
         <Ionicons name="search-outline" size={16} color={BLACK} />
@@ -578,6 +609,26 @@ const styles = StyleSheet.create({
   backBtn: { position: "absolute", left: 12, bottom: 14, padding: 6 },
   topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
   topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* NEW: Filter toggle (right above search) */
+  filterRow: {
+    marginTop: 12,
+    marginHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  filterPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 2,
+    marginRight: 8,
+  },
+  filterPillIdle: { backgroundColor: WHITE, borderColor: BLACK },
+  filterPillActive: { backgroundColor: YELLOW, borderColor: BLACK },
+  filterPillTxt: { fontSize: 12, fontWeight: "900" },
+  filterPillTxtIdle: { color: BLACK },
+  filterPillTxtActive: { color: BLACK },
 
   /* Search */
   searchWrap: {
@@ -771,3 +822,4 @@ const styles = StyleSheet.create({
   emptyWrap: { marginTop: 40, alignItems: "center", justifyContent: "center" },
   emptyText: { color: "#666", fontWeight: "600" },
 });
+
