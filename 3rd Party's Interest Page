@@ -1,163 +1,91 @@
-// OtherUserInterestsPage.js — 3rd-party Interests (compact, same UI)
+// ContractPage.js — simplified (no toggle, no extra descriptions on Mega)
 import React from "react";
 import {
   SafeAreaView,
-  StatusBar,
   View,
   Text,
   StyleSheet,
-  Platform,
   TouchableOpacity,
   ScrollView,
+  StatusBar,
+  Platform,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
+const YELLOW = "#FFD54A";
 const BLACK = "#000";
 const WHITE = "#FFF";
-const YELLOW = "#FFD233";
-const BDR = "#E5E7EB";
 
-/* Replace with real profile data */
-const USER = {
-  name: "John Doe",
-  level: "Level 5",
-  location: "📍 Lagos, Nigeria",
-  about: "Enjoys solving on-site workflow issues and rapid builds.",
-};
-
-/* Only the interests this user actually picked (keep it short) */
-const SELECTED_INTERESTS = [
-  "Bricklayer",
-  "Electrician (incl. Solar)",
-  "Driver",
-  "Customer Service / Call Centre",
-]; // replace with real array from backend
-
-export default function OtherUserInterestsPage() {
+export default function ContractPage() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={BLACK} />
 
-      {/* Top Bar — unchanged */}
+      {/* Top Bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBox} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={24} color={WHITE} />
-        </TouchableOpacity>
-        <Text style={styles.topTitle}>Interests</Text>
-        <View style={styles.iconBox} />
+        <Text style={styles.topBarTitle}>3rd party's contract</Text>
       </View>
       <View style={styles.topAccent} />
 
-      {/* Header card — unchanged style */}
-      <View style={styles.headerCard}>
-        <View style={styles.avatarBig}>
-          <View style={styles.avatarHead} />
-          <View style={styles.avatarBody} />
+      {/* Contract Type Options */}
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+        <View style={styles.optionCard}>
+          <TouchableOpacity style={styles.optionButton}>
+            <Text style={styles.optionText}>Mini Contract</Text>
+          </TouchableOpacity>
+          <Text style={styles.optionSubText}>
+            Short-term jobs like small tasks, quick gigs or temporary roles.
+          </Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{USER.name}</Text>
-          <Text style={styles.rankLine}>{USER.level}</Text>
-          <Text style={styles.infoText} numberOfLines={1}>{USER.location}</Text>
-          <Text style={styles.infoText} numberOfLines={2}>💬 {USER.about}</Text>
-        </View>
-      </View>
 
-      {/* Compact Interests — chips only, sleek and minimal */}
-      <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Interests</Text>
-          <View style={styles.chipsWrap}>
-            {SELECTED_INTERESTS.map((label) => (
-              <View key={label} style={styles.chip}>
-                <Text style={styles.chipText}>#{label}</Text>
-              </View>
-            ))}
-          </View>
+        <View style={styles.optionCard}>
+          <TouchableOpacity style={styles.optionButton}>
+            <Text style={styles.optionText}>Mega Contract</Text>
+          </TouchableOpacity>
+          <Text style={styles.optionSubText}>
+            Larger and long-term projects that require detailed agreements.
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-/* ---------------- Styles (same family as your app) ---------------- */
+/* ---------- Styles ---------- */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: WHITE },
 
-  /* Top bar */
   topBar: {
     backgroundColor: BLACK,
     height: 88,
     paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
-    paddingHorizontal: 12,
-    paddingBottom: 12,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
   },
-  iconBox: { width: 40, height: 36, justifyContent: "center" },
-  topTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topBarTitle: { color: WHITE, fontSize: 26, fontWeight: "900" },
   topAccent: { height: 3, backgroundColor: YELLOW },
 
-  /* Header card */
-  headerCard: {
-    marginTop: 12,
-    marginHorizontal: 14,
-    padding: 14,
-    borderRadius: 14,
+  optionCard: {
+    marginHorizontal: 16,
+    marginVertical: 10,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#E0E0E0",
     backgroundColor: WHITE,
-    borderWidth: 1,
-    borderColor: "#EDEDED",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
     shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
-  avatarBig: {
-    width: 64, height: 64, borderRadius: 32,
-    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
-    alignItems: "center", justifyContent: "center",
-  },
-  avatarHead: {
-    width: 14, height: 14, borderRadius: 7,
-    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE, marginBottom: 2,
-  },
-  avatarBody: {
-    width: 26, height: 12, borderRadius: 7,
-    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
-  },
-  name: { fontSize: 20, fontWeight: "800", color: BLACK },
-  rankLine: { fontSize: 13, color: "#666", marginTop: 2 },
-  infoText: { fontSize: 13, color: "#333", marginTop: 2 },
-
-  /* Interests card */
-  card: {
-    marginTop: 12,
-    marginHorizontal: 14,
+  optionButton: {
     paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    backgroundColor: WHITE,
-    borderWidth: 2,
-    borderColor: BLACK,
+    borderRadius: 8,
+    backgroundColor: YELLOW,
+    alignItems: "center",
+    marginBottom: 6,
   },
-  sectionTitle: { fontSize: 16, fontWeight: "900", color: BLACK, marginBottom: 10 },
-
-  chipsWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  chip: {
-    borderWidth: 2,
-    borderColor: BLACK,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: WHITE,
-  },
-  chipText: { fontSize: 12, fontWeight: "800", color: BLACK },
+  optionText: { fontSize: 16, fontWeight: "800", color: BLACK },
+  optionSubText: { fontSize: 13, color: "#555", textAlign: "center" },
 });
