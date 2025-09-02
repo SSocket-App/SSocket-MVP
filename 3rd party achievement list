@@ -1,0 +1,176 @@
+// SSocketAchievementList_Contractor.js
+// Contractor-side: Achievement List page with ONLY Approved (no Pending, no Share button)
+
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  Alert,
+  ScrollView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+const GREEN = "#2E7D32";
+
+export default function SSocketAchievementList_Contractor({
+  contract,
+  approvedAchievements,
+  onBack,
+}) {
+  /* ===== Demo fallbacks ===== */
+  const demoContract = {
+    id: "sc_me_mine",
+    contracteeName: "Ada Ventures Ltd",
+    contractorName: "John Doe",
+    ongoing: true,
+  };
+  const c = contract || demoContract;
+
+  /* ===== Approved only ===== */
+  const [approved, setApproved] = useState(
+    Array.isArray(approvedAchievements) && approvedAchievements.length
+      ? approvedAchievements.map((x) => ({ ...x }))
+      : [
+          {
+            id: "a1",
+            text: `Did ${c.contractorName} increase CTR by 12% in July?`,
+            status: "accepted",
+          },
+        ]
+  );
+
+  const goBack = () => {
+    if (typeof onBack === "function") onBack();
+    else Alert.alert("Back", "Hook this into navigation.");
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Achievement List</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+        <View style={styles.barrier}>
+          <View style={styles.card}>
+            {/* Status badge only */}
+            <View style={styles.statusRow}>
+              <View style={[styles.badgeChip, { backgroundColor: c.ongoing ? YELLOW : "#EEE" }]}>
+                <Text style={[styles.badgeChipTxt, { color: BLACK }]}>
+                  {c.ongoing ? "Ongoing" : "Ended"}
+                </Text>
+              </View>
+            </View>
+
+            {/* Approved List */}
+            <Text style={styles.sectionTitle}>Approved Achievements ({approved.length})</Text>
+            {approved.length === 0 ? (
+              <Text style={styles.emptyText}>No approved achievements yet.</Text>
+            ) : (
+              approved.map((a) => (
+                <View key={a.id} style={styles.itemRow}>
+                  <Text style={styles.itemText}>{a.text}</Text>
+                  <View style={[styles.statusPill, { backgroundColor: GREEN }]}>
+                    <Text style={styles.statusTxt}>Approved</Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+    position: "relative",
+  },
+  backBtn: { position: "absolute", left: 12, bottom: 14, padding: 6 },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Barrier & Card */
+  barrier: {
+    marginTop: 12,
+    marginHorizontal: 12,
+    borderWidth: 3,
+    borderColor: YELLOW,
+    borderRadius: 16,
+    padding: 4,
+    backgroundColor: WHITE,
+  },
+  card: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 12,
+  },
+
+  /* Status only row */
+  statusRow: { flexDirection: "row", justifyContent: "flex-end" },
+  badgeChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignSelf: "flex-start",
+  },
+  badgeChipTxt: { color: BLACK, fontSize: 12, fontWeight: "900" },
+
+  /* Sections & Lists */
+  sectionTitle: { color: BLACK, fontSize: 14, fontWeight: "900", marginTop: 12 },
+
+  itemRow: {
+    marginTop: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    backgroundColor: WHITE,
+    padding: 10,
+  },
+  itemText: { color: BLACK, fontSize: 12 },
+
+  statusPill: {
+    alignSelf: "flex-start",
+    marginTop: 6,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  statusTxt: { color: WHITE, fontSize: 11, fontWeight: "900" },
+
+  /* Empty */
+  emptyText: { color: "#666", fontWeight: "600", marginTop: 6 },
+});
