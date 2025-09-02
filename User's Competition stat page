@@ -1,5 +1,4 @@
-
-// HelpStats.js (Mega Contract Stat Page)
+// App.js — HelpStats (Mega Contract Stat Page) with Pie charts + tag counts (no bars)
 import React, { useMemo, useState } from "react";
 import {
   SafeAreaView,
@@ -117,7 +116,6 @@ const DATA = {
 };
 
 /* ===== Utils ===== */
-const sumVals = (obj) => Object.values(obj).reduce((a, b) => a + b, 0);
 const W = Dimensions.get("window").width;
 const pad2 = (n) => (n < 10 ? `0${n}` : `${n}`);
 const fmt = (dt) => `${pad2(dt.getDate())}/${pad2(dt.getMonth()+1)}/${dt.getFullYear()}`;
@@ -162,7 +160,7 @@ function distForRange(days) {
   }, {1:0,2:0,3:0,4:0,5:0});
 }
 
-/* GREEN tags (exact list) */
+/* ======= GREEN tag counts (return INTEGERS) ======= */
 function strengthsFromInterval(inRange, d) {
   const base = {
     creative: d.posTags.Creative || 40,
@@ -179,23 +177,21 @@ function strengthsFromInterval(inRange, d) {
   const keys = Object.keys(base);
   const totalBase = keys.reduce((a,k)=>a+base[k],0) || 1;
   const counts = Object.fromEntries(keys.map(k=>[k,0]));
-  let total = 0;
+  let totalHelps = 0;
 
   inRange.forEach((p, idx) => {
-    const h = p.helps || 0; total += h;
+    const h = p.helps || 0; totalHelps += h;
     keys.forEach((k, i) => {
       const jitter = 0.9 + 0.2 * prng(h + base[k] + i + idx);
       counts[k] += (h * (base[k] / totalBase)) * jitter;
     });
   });
 
-  if (!total) return Object.fromEntries(keys.map(k=>[k,0]));
-  const pct = {};
-  keys.forEach(k => { pct[k] = Math.round((counts[k] / total) * 100); });
-  return pct;
+  keys.forEach(k => { counts[k] = Math.max(0, Math.round(counts[k])); });
+  return counts; // integer "tag counts"
 }
 
-/* RED tags (exact list) */
+/* ======= RED tag counts (return INTEGERS) ======= */
 function improveFromInterval(inRange, d) {
   const base = {
     "undetailed explanation": (d.improve["More Detail"] || 0),
@@ -208,24 +204,38 @@ function improveFromInterval(inRange, d) {
   };
   const reasons = Object.keys(base);
   const weightSum = reasons.reduce((a,k)=>a+base[k],0) || 1;
-
   const counts = Object.fromEntries(reasons.map(k=>[k,0]));
-  let totalIssues = 0;
 
   inRange.forEach((p, idx) => {
     const dist = dayStarCountsRealistic(p, idx);
     const notFive = (p.helps || 0) - (dist[5] || 0);
-    totalIssues += notFive;
     reasons.forEach((k, i) => {
       const jitter = 0.9 + 0.2 * prng(notFive + base[k] + i + idx);
       counts[k] += (notFive * (base[k] / weightSum)) * jitter;
     });
   });
 
-  if (!totalIssues) return Object.fromEntries(reasons.map(k=>[k,0]));
-  const pct = {};
-  reasons.forEach(k => { pct[k] = Math.round((counts[k] / totalIssues) * 100); });
-  return pct;
+  reasons.forEach(k => { counts[k] = Math.max(0, Math.round(counts[k])); });
+  return counts; // integer "tag counts"
+}
+
+/* ===== High-contrast palette + mapping ===== */
+const CATEGORY10 = [
+  "#1f77b4", // blue
+  "#ff7f0e", // orange
+  "#2ca02c", // green
+  "#d62728", // red
+  "#9467bd", // purple
+  "#8c564b", // brown
+  "#e377c2", // pink
+  "#7f7f7f", // gray
+  "#bcbd22", // chartreuse
+  "#17becf", // cyan
+];
+function colorMapForList(keys, offset = 0) {
+  const map = {};
+  keys.forEach((k, i) => { map[k] = CATEGORY10[(i + offset) % CATEGORY10.length]; });
+  return map;
 }
 
 /* ===== Reusable UI ===== */
@@ -264,17 +274,6 @@ function Chip({ text, active, onPress }) {
     </TouchableOpacity>
   );
 }
-function HBar({ label, pct, big = false }) {
-  return (
-    <View style={styles.hbarRow}>
-      <Text style={[styles.hbarLabel, big && { width: 180 }]} numberOfLines={1}>{label}</Text>
-      <View style={[styles.hbarTrack, big && { height: 20 }]}>
-        <View style={[styles.hbarFill, { width: `${Math.max(4, pct)}%` }]} />
-      </View>
-      <Text style={styles.hbarPct}>{pct}%</Text>
-    </View>
-  );
-}
 function StarMeter({ value = 0 }) {
   const full = Math.floor(value);
   const hasHalf = value - full >= 0.5;
@@ -307,9 +306,7 @@ function CirclePct({ pct = 0, size = 96, thickness = 10, color = "#5AC8FA", trac
           borderWidth: thickness, borderColor: track
         }} />
         {/* right half */}
-        <View style={{
-          position: "absolute", left: size/2, top: 0, width: size/2, height: size, overflow: "hidden"
-        }}>
+        <View style={{ position: "absolute", left: size/2, top: 0, width: size/2, height: size, overflow: "hidden" }}>
           <View style={{
             position: "absolute", left: -size/2, top: 0, width: size, height: size,
             borderRadius: size/2, borderWidth: thickness, borderColor: color,
@@ -317,9 +314,7 @@ function CirclePct({ pct = 0, size = 96, thickness = 10, color = "#5AC8FA", trac
           }} />
         </View>
         {/* left half */}
-        <View style={{
-          position: "absolute", left: 0, top: 0, width: size/2, height: size, overflow: "hidden"
-        }}>
+        <View style={{ position: "absolute", left: 0, top: 0, width: size/2, height: size, overflow: "hidden" }}>
           <View style={{
             position: "absolute", left: 0, top: 0, width: size, height: size,
             borderRadius: size/2, borderWidth: thickness, borderColor: color,
@@ -333,6 +328,74 @@ function CirclePct({ pct = 0, size = 96, thickness = 10, color = "#5AC8FA", trac
         </View>
       </View>
       {!!label && <Text style={{ marginTop: 8, fontSize: 12, fontWeight: "900", color: BLACK, textAlign: "center" }}>{label}</Text>}
+    </View>
+  );
+}
+
+/* === Pure-View PIE CHART (no libraries) === */
+function PieChart({ data = [], size = 160, startAtTop = true }) {
+  const total = data.reduce((a, b) => a + (Number.isFinite(b.value) ? b.value : 0), 0) || 1;
+  const radius = size / 2;
+  const thickness = radius; // full pie
+  let accAngle = startAtTop ? -90 : 0;
+
+  return (
+    <View style={{ alignItems: "center", marginTop: 8 }}>
+      <View style={[styles.pieBox, { width: size, height: size }]}>
+        <View style={[styles.pieTrack, { width: size, height: size, borderRadius: radius }]} />
+        {data.map((slice, i) => {
+          const v = Math.max(0, Number(slice.value) || 0);
+          const angle = (v / total) * 360;
+          if (angle <= 0.001) return null;
+
+          const start = accAngle;
+          accAngle += angle;
+
+          const rightAngle = Math.min(angle, 180);
+          const leftAngle  = Math.max(angle - 180, 0);
+
+          return (
+            <View
+              key={`${slice.label}-${i}`}
+              style={[styles.sliceWrap, { width: size, height: size, transform: [{ rotateZ: `${start}deg` }] }]}
+            >
+              {/* right half */}
+              <View style={[styles.halfWrap, { width: radius, height: size, right: radius }]}>
+                <View
+                  style={[
+                    styles.sliceArc,
+                    {
+                      width: size,
+                      height: size,
+                      borderRadius: radius,
+                      borderWidth: thickness,
+                      transform: [{ rotateZ: `${rightAngle}deg` }],
+                      borderColor: slice.color,
+                    },
+                  ]}
+                />
+              </View>
+              {/* left half */}
+              <View style={[styles.halfWrap, { width: radius, height: size, left: radius }]}>
+                <View
+                  style={[
+                    styles.sliceArc,
+                    {
+                      width: size,
+                      height: size,
+                      borderRadius: radius,
+                      borderWidth: thickness,
+                      transform: [{ rotateZ: `${leftAngle}deg` }],
+                      borderColor: slice.color,
+                      opacity: angle > 180 ? 1 : 0,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -381,6 +444,21 @@ export default function App() {
   const greenAll = useMemo(() => strengthsFromInterval(all, d), [all, d]);
   const redInterval = useMemo(() => improveFromInterval(inRange, d), [inRange, d]);
   const redAll = useMemo(() => improveFromInterval(all, d), [all, d]);
+
+  // Distinct keys + color maps
+  const GREEN_KEYS = ["creative","analytical","practical","detailed","clear","insightful","innovative","professional","high-impact","depth"];
+  const RED_KEYS = ["undetailed explanation","overcomplicated","unconcreted illustration","unclear solution","not actionable","messy explanation","misleading fact"];
+  const greenColors = useMemo(() => colorMapForList(GREEN_KEYS, 0), []);
+  const redColors   = useMemo(() => colorMapForList(RED_KEYS, 3), []); // offset for different hues
+
+  // Build pie data by scope (values are COUNTS)
+  const greenMap = greenScope === "interval" ? greenInterval : greenAll;
+  const redMap   = redScope === "interval" ? redInterval : redAll;
+
+  const greenPie = GREEN_KEYS.map(k => ({ label: k, value: greenMap[k] || 0, color: greenColors[k] }))
+                             .filter(s => s.value > 0);
+  const redPie   = RED_KEYS.map(k => ({ label: k, value: redMap[k] || 0, color: redColors[k] }))
+                           .filter(s => s.value > 0);
 
   const scopePack = proofScope === "interval" ? interval : allTime;
   const finalPct = (() => {
@@ -504,11 +582,11 @@ export default function App() {
           </View>
         </Card>
 
-        {/* Green Tags */}
+        {/* ===== Green Tags — PIE + legend with COUNTS (no bars) ===== */}
         <Card>
           <TitleRow
             title="Green Tags"
-            help="What your answers most frequently demonstrated."
+            help="What your answers most frequently demonstrated. Distinct, high-contrast colors."
           />
           <View style={styles.toggleRow}>
             <TouchableOpacity
@@ -526,29 +604,25 @@ export default function App() {
               <Text style={[styles.toggleTxt, greenScope === "all" && styles.toggleTxtActive]}>All-Time</Text>
             </TouchableOpacity>
           </View>
-          <View style={{ marginTop: 6 }}>
-            {[
-              ["💡 creative", (greenScope === "interval" ? greenInterval : greenAll)["creative"]],
-              ["🧠 analytical", (greenScope === "interval" ? greenInterval : greenAll)["analytical"]],
-              ["🔧 practical", (greenScope === "interval" ? greenInterval : greenAll)["practical"]],
-              ["📝 detailed", (greenScope === "interval" ? greenInterval : greenAll)["detailed"]],
-              ["🧼 clear", (greenScope === "interval" ? greenInterval : greenAll)["clear"]],
-              ["👀 insightful", (greenScope === "interval" ? greenInterval : greenAll)["insightful"]],
-              ["🚀 innovative", (greenScope === "interval" ? greenInterval : greenAll)["innovative"]],
-              ["🎓 professional", (greenScope === "interval" ? greenInterval : greenAll)["professional"]],
-              ["📈 high-impact", (greenScope === "interval" ? greenInterval : greenAll)["high-impact"]],
-              ["🏊 depth", (greenScope === "interval" ? greenInterval : greenAll)["depth"]],
-            ].map(([label, pct]) => (
-              <HBar key={label} label={label} pct={pct || 0} big />
+
+          <PieChart data={greenPie} size={160} />
+          <View style={styles.legendGrid}>
+            {greenPie.map((s) => (
+              <View key={`g-${s.label}`} style={styles.legendItem}>
+                <View style={[styles.legendSwatch, { backgroundColor: s.color }]} />
+                <Text style={styles.legendTxt} numberOfLines={1}>
+                  {s.label} ({s.value} tags)
+                </Text>
+              </View>
             ))}
           </View>
         </Card>
 
-        {/* Red Tags */}
+        {/* ===== Red Tags — PIE + legend with COUNTS (no bars) ===== */}
         <Card>
           <TitleRow
             title="Red Tags"
-            help="Main reasons an answer didn’t score 5★."
+            help="Main reasons an answer didn’t score 5★. Distinct, high-contrast colors."
           />
           <View style={styles.toggleRow}>
             <TouchableOpacity
@@ -566,17 +640,16 @@ export default function App() {
               <Text style={[styles.toggleTxt, redScope === "all" && styles.toggleTxtActive]}>All-Time</Text>
             </TouchableOpacity>
           </View>
-          <View style={{ marginTop: 6 }}>
-            {[
-              ["🪫 undetailed explanation", (redScope === "interval" ? redInterval : redAll)["undetailed explanation"]],
-              ["🧩 overcomplicated", (redScope === "interval" ? redInterval : redAll)["overcomplicated"]],
-              ["📦 unconcreted illustration", (redScope === "interval" ? redInterval : redAll)["unconcreted illustration"]],
-              ["❓ unclear solution", (redScope === "interval" ? redInterval : redAll)["unclear solution"]],
-              ["🚫 not actionable", (redScope === "interval" ? redInterval : redAll)["not actionable"]],
-              ["🌀 messy explanation", (redScope === "interval" ? redInterval : redAll)["messy explanation"]],
-              ["⚠️ misleading fact", (redScope === "interval" ? redInterval : redAll)["misleading fact"]],
-            ].map(([label, pct]) => (
-              <HBar key={label} label={label} pct={pct || 0} big />
+
+          <PieChart data={redPie} size={160} />
+          <View style={styles.legendGrid}>
+            {redPie.map((s) => (
+              <View key={`r-${s.label}`} style={styles.legendItem}>
+                <View style={[styles.legendSwatch, { backgroundColor: s.color }]} />
+                <Text style={styles.legendTxt} numberOfLines={1}>
+                  {s.label} ({s.value} tags)
+                </Text>
+              </View>
             ))}
           </View>
         </Card>
@@ -676,10 +749,16 @@ const styles = StyleSheet.create({
   /* Simple star distribution list */
   kidRow: { fontSize: 14, fontWeight: "900", color: BLACK, marginTop: 4 },
 
-  /* H bars */
-  hbarRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
-  hbarLabel: { width: 140, fontSize: 12, color: BLACK },
-  hbarTrack: { flex: 1, height: 20, borderRadius: 10, backgroundColor: WHITE, borderWidth: 2, borderColor: BLACK, overflow: "hidden" },
-  hbarFill: { height: "100%", backgroundColor: YELLOW, borderRightWidth: 2, borderRightColor: BLACK },
-  hbarPct: { width: 48, textAlign: "right", fontSize: 12, color: BLACK, fontWeight: "900" },
+  /* ===== Pie chart styles (no libs) ===== */
+  pieBox: { justifyContent: "center", alignItems: "center" },
+  pieTrack: { position: "absolute", backgroundColor: "#F2F2F2" },
+  sliceWrap: { position: "absolute", top: 0, left: 0 },
+  halfWrap: { position: "absolute", overflow: "hidden" },
+  sliceArc: { position: "absolute", backgroundColor: "transparent" },
+
+  /* Legend for pie labels */
+  legendGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 2, borderColor: BLACK, borderRadius: 12, paddingVertical: 4, paddingHorizontal: 8, backgroundColor: WHITE },
+  legendSwatch: { width: 12, height: 12, borderRadius: 3, borderWidth: 1.5, borderColor: BLACK },
+  legendTxt: { fontSize: 12, color: BLACK, fontWeight: "900", maxWidth: 180 },
 });
