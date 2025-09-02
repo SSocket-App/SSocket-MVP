@@ -9,20 +9,30 @@ import {
   ScrollView,
   StatusBar,
   Platform,
+  Alert,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 const YELLOW = "#FFD54A";
 const BLACK = "#000";
 const WHITE = "#FFF";
 
 export default function ContractPage() {
+  const goBack = () => {
+    Alert.alert("Back", "Hook this into navigation later.");
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={BLACK} />
 
       {/* Top Bar */}
       <View style={styles.topBar}>
-        <Text style={styles.topBarTitle}>3rd party's business contract page</Text>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topBarTitle}>Contract Page</Text>
+        <View style={{ width: 40 }} /> 
       </View>
       <View style={styles.topAccent} />
 
@@ -61,8 +71,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-end",
     paddingBottom: 14,
+    position: "relative",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
   },
-  topBarTitle: { color: WHITE, fontSize: 22, fontWeight: "900", textAlign: "center" },
+  backBtn: { padding: 6 },
+  topBarTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
   topAccent: { height: 3, backgroundColor: YELLOW },
 
   optionCard: {
