@@ -148,7 +148,7 @@ export default function SSocketSealedContracts_Business({ contracts, onBack }) {
             {item.workDescription}
           </Text>
 
-          {/* Meta: Sealed + Estimated Pay */}
+          {/* Meta: Sealed + Estimated Pay + Dates */}
           <View style={styles.metaRow}>
             <View style={styles.badgeYellow}>
               <Text style={styles.badgeYellowTxt}>Sealed</Text>
@@ -159,6 +159,13 @@ export default function SSocketSealedContracts_Business({ contracts, onBack }) {
                   item.paymentPeriod ? ` per ${readablePeriod(item.paymentPeriod)}` : ""
                 }`}
               </Text>
+            </View>
+            {/* ADDED: Start & End dates */}
+            <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+              <Text style={styles.badgeOutlineTxt}>Start: {item.startDate || "—"}</Text>
+            </View>
+            <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+              <Text style={styles.badgeOutlineTxt}>End: {item.endDate || "—"}</Text>
             </View>
           </View>
         </View>
