@@ -1,10 +1,10 @@
-// MiniContractContractorReview_Negotiate.js
+// MiniContractContractorReview_Negotiate.js 
 // Contractor-side read-only Mini Contract review + negotiation (drop-down style)
 // - Mirrors the SSocket black/white/yellow UI
 // - Shows contract details from props (with demo fallback)
 // - Includes the same negotiation field (toggle, attach file/image, chat log)
 // - Includes SSocket Conditions (with #4 remote-work half-payment clause)
-// - Actions: Leave • Request Changes • Accept & Seal
+// - Actions: Leave • Accept & Seal
 
 import React, { useMemo, useRef, useState } from "react";
 import {
@@ -31,7 +31,6 @@ export default function MiniContractContractorReview_Negotiate({
   contract,           // optional: the mini contract data object
   onBack,             // optional: navigation handler
   onLeave,            // optional: leave handler
-  onRequestChanges,   // optional: request-changes handler
   onAcceptSeal,       // optional: accept & seal handler
 }) {
   // Demo fallback if no contract passed in
@@ -76,12 +75,6 @@ export default function MiniContractContractorReview_Negotiate({
   const handleLeave = () => {
     if (typeof onLeave === "function") return onLeave();
     Alert.alert("Leave", "This view will be closed.");
-  };
-
-  const handleRequestChanges = () => {
-    if (typeof onRequestChanges === "function") return onRequestChanges();
-    Alert.alert("Request Changes", "Ask for updates via this negotiation chat.");
-    setTimeout(() => inputRef.current?.focus(), 100);
   };
 
   const handleAcceptSeal = () => {
@@ -266,14 +259,7 @@ export default function MiniContractContractorReview_Negotiate({
                     <Text style={[styles.btnGhostTxt, { marginLeft: 6 }]}>Leave</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.btn, styles.btnOutline]}
-                    activeOpacity={0.9}
-                    onPress={handleRequestChanges}
-                  >
-                    <Ionicons name="create-outline" size={16} color={BLACK} />
-                    <Text style={[styles.btnOutlineTxt, { marginLeft: 6 }]}>Request Changes</Text>
-                  </TouchableOpacity>
+                  {/* Request Changes button removed */}
 
                   <TouchableOpacity
                     style={[styles.btn, styles.btnYellow]}
@@ -454,9 +440,6 @@ const styles = StyleSheet.create({
   },
   btnGhost: { backgroundColor: WHITE },
   btnGhostTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
-
-  btnOutline: { backgroundColor: WHITE },
-  btnOutlineTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
 
   btnYellow: { backgroundColor: YELLOW },
   btnYellowTxt: { color: BLACK, fontWeight: "900", fontSize: 12 },
