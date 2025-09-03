@@ -161,15 +161,13 @@ function strengthsFromInterval(inRange, d) {
   const keys = Object.keys(base);
   const totalBase = keys.reduce((a,k)=>a+base[k],0) || 1;
   const counts = Object.fromEntries(keys.map(k=>[k,0]));
-  let totalHelps = 0;
   inRange.forEach((p, idx) => {
-    const h = p.helps || 0; totalHelps += h;
+    const h = p.helps || 0;
     keys.forEach((k, i) => {
       const jitter = 0.9 + 0.2 * prng(h + base[k] + i + idx);
       counts[k] += (h * (base[k] / totalBase)) * jitter;
     });
   });
-  // Round to integer "tag counts"
   keys.forEach(k => { counts[k] = Math.max(0, Math.round(counts[k])); });
   return counts;
 }
@@ -202,16 +200,8 @@ function improveFromInterval(inRange, d) {
 
 /* ===== High-contrast palette + mapping ===== */
 const CATEGORY10 = [
-  "#1f77b4", // blue
-  "#ff7f0e", // orange
-  "#2ca02c", // green
-  "#d62728", // red
-  "#9467bd", // purple
-  "#8c564b", // brown
-  "#e377c2", // pink
-  "#7f7f7f", // gray
-  "#bcbd22", // chartreuse
-  "#17becf", // cyan
+  "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
+  "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
 ];
 function colorMapForList(keys, offset = 0) {
   const map = {};
@@ -297,19 +287,15 @@ function PieChart({ data = [], size = 160, startAtTop = true }) {
           const v = Math.max(0, Number(slice.value) || 0);
           const angle = (v / total) * 360;
           if (angle <= 0.001) return null;
-
           const start = accAngle;
           accAngle += angle;
-
           const rightAngle = Math.min(angle, 180);
           const leftAngle  = Math.max(angle - 180, 0);
-
           return (
             <View
               key={`${slice.label}-${i}`}
               style={[styles.sliceWrap, { width: size, height: size, transform: [{ rotateZ: `${start}deg` }] }]}
             >
-              {/* right half */}
               <View style={[styles.halfWrap, { width: radius, height: size, right: radius }]}>
                 <View
                   style={[
@@ -325,7 +311,6 @@ function PieChart({ data = [], size = 160, startAtTop = true }) {
                   ]}
                 />
               </View>
-              {/* left half */}
               <View style={[styles.halfWrap, { width: radius, height: size, left: radius }]}>
                 <View
                   style={[
@@ -350,6 +335,18 @@ function PieChart({ data = [], size = 160, startAtTop = true }) {
   );
 }
 
+/* === Simple hollow ring gauge (like your Competition stat page) === */
+function GaugeRing({ pct, color, label }) {
+  return (
+    <View style={styles.gaugeBox}>
+      <View style={[styles.gaugeCircle, { borderColor: color }]}>
+        <Text style={styles.gaugeVal}>{Math.max(0, Math.min(100, Math.round(pct || 0)))}%</Text>
+      </View>
+      <Text style={styles.gaugeLabel}>{label}</Text>
+    </View>
+  );
+}
+
 /* ===== Main Page ===== */
 export default function App() {
   const [niche, setNiche] = useState("All");
@@ -368,6 +365,7 @@ export default function App() {
   /* === Toggles === */
   const [ratingDistScope, setRatingDistScope] = useState("interval"); // 'interval' | 'all'
   const [winScope, setWinScope] = useState("interval");
+  const [podiumScope, setPodiumScope] = useState("interval");
   const [consScope, setConsScope] = useState("interval");
   const [greenScope, setGreenScope] = useState("interval");
   const [redScope, setRedScope] = useState("interval");
@@ -451,6 +449,21 @@ export default function App() {
     </View>
   );
 
+  // --- Podium calculation (derived, simple) ---
+  const podiumFromTotals = (wins, attempts) => {
+    const safeAttempts = Math.max(0, attempts || 0);
+    if (!safeAttempts) return { first: 0, second: 0, third: 0 };
+    const first = Math.round((wins / safeAttempts) * 100);
+    const remaining = Math.max(0, 100 - first);
+    const second = Math.round(remaining * 0.6); // allocate 60% of non-wins to 2nd
+    const third = Math.max(0, 100 - first - second); // remainder to 3rd
+    return { first, second, third };
+  };
+  const podiumInterval = podiumFromTotals(interval.wins, interval.attempts);
+  const podiumAll      = podiumFromTotals(allTime.wins,  allTime.attempts);
+
+  const podium = podiumScope === "interval" ? podiumInterval : podiumAll;
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={BLACK} />
@@ -491,7 +504,7 @@ export default function App() {
             help="Choose a date window. Then flip cards to see interval vs all-time."
           />
 
-        {/* Date range pickers */}
+          {/* Date range pickers */}
           <View style={styles.rangeRow}>
             <Text style={styles.rangeLbl}>From</Text>
             <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftStart(-1)}>
@@ -568,6 +581,20 @@ export default function App() {
             <Text style={styles.kpiHint}>Chosen as the final solution / attempts.</Text>
           </View>
 
+          {/* === Podium Rates (new, simple rings) === */}
+          <ToggleRow scope={podiumScope} setScope={setPodiumScope} />
+          <View style={[styles.kpiBlock, { marginTop: 8 }]}>
+            <Text style={styles.kpiBlockTitle}>Podium Rates</Text>
+            <View style={styles.kpiGrid3}>
+              <GaugeRing pct={podium.first}  color={YELLOW}   label="1st Rate" />
+              <GaugeRing pct={podium.second} color="#5EC3FF" label="2nd Rate" />
+              <GaugeRing pct={podium.third}  color="#FF9354" label="3rd Rate" />
+            </View>
+            <Text style={styles.kpiHint}>
+              % of total attempts that finished 1st/2nd/3rd in this window.
+            </Text>
+          </View>
+
           {/* Consistency strip */}
           <ToggleRow scope={consScope} setScope={setConsScope} />
           <View style={[styles.kpiBlock, { marginTop: 8 }]}>
@@ -592,7 +619,6 @@ export default function App() {
           />
           <ToggleRow scope={greenScope} setScope={setGreenScope} />
           <PieChart data={greenPie} size={160} />
-          {/* Legend with tag counts */}
           <View style={styles.legendGrid}>
             {greenPie.map((s) => (
               <View key={`g-${s.label}`} style={styles.legendItem}>
@@ -613,7 +639,6 @@ export default function App() {
           />
           <ToggleRow scope={redScope} setScope={setRedScope} />
           <PieChart data={redPie} size={160} />
-          {/* Legend with tag counts */}
           <View style={styles.legendGrid}>
             {redPie.map((s) => (
               <View key={`r-${s.label}`} style={styles.legendItem}>
@@ -702,6 +727,7 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: BLACK,
     alignItems: "center", justifyContent: "center", backgroundColor: WHITE,
   },
+  infoTxt: { fontSize: 12, fontWeight: "900", color: BLACK },
   helpBox: { marginTop: 8, borderWidth: 2, borderColor: BLACK, borderRadius: 10, padding: 8, backgroundColor: "#FFFDF2" },
   helpText: { color: BLACK, fontSize: 12 },
 
@@ -769,4 +795,24 @@ const styles = StyleSheet.create({
   legendGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 2, borderColor: BLACK, borderRadius: 12, paddingVertical: 4, paddingHorizontal: 8, backgroundColor: WHITE },
   legendTxt: { fontSize: 12, color: BLACK, fontWeight: "900", maxWidth: 180 },
+
+  /* Gauge rings (Podium) */
+  kpiGrid3: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  gaugeBox: { alignItems: "center", width: (W - 12 * 2 - 24) / 3 },
+  gaugeCircle: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    borderWidth: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: WHITE,
+  },
+  gaugeVal: { fontSize: 18, fontWeight: "900", color: BLACK },
+  gaugeLabel: { fontSize: 12, fontWeight: "900", color: BLACK, marginTop: 6 },
 });
