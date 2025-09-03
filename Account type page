@@ -1,0 +1,131 @@
+// CreateAccountChoice.js — SSocket "Create Account" choice screen
+
+import React from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  TouchableOpacity,
+  Platform,
+  StyleSheet,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+export default function CreateAccountChoice({ navigation }) {
+  const goPersonal = () => {
+    // TODO: navigate to your Personal signup flow screen
+    console.log("Personal account selected");
+  };
+
+  const goBusiness = () => {
+    // TODO: navigate to your Business signup flow screen
+    console.log("Business account selected");
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Header */}
+      <View style={styles.topBar}>
+        <Text style={styles.topBarTitle}>Create Account</Text>
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Choices */}
+      <View style={styles.body}>
+        <Text style={styles.heading}>Choose account type</Text>
+
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={goPersonal}
+          style={styles.card}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <View style={styles.cardIconWrap}>
+            <Ionicons name="person-outline" size={28} color={BLACK} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.cardTitle}>Personal</Text>
+            <Text style={styles.cardSub}>
+              Best for job seekers and one-man service providers.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={22} color={BLACK} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={goBusiness}
+          style={styles.card}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <View style={styles.cardIconWrap}>
+            <Ionicons name="briefcase-outline" size={28} color={BLACK} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.cardTitle}>Business</Text>
+            <Text style={styles.cardSub}>
+              Best for big businesses that need workers.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={22} color={BLACK} />
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+/* -------------------- Styles -------------------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+  },
+  topBarTitle: { color: WHITE, fontSize: 26, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  body: { paddingHorizontal: 16, paddingTop: 12 },
+
+  heading: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: BLACK,
+    marginBottom: 10,
+  },
+
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 10,
+    gap: 10,
+  },
+  cardIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFDF2",
+  },
+  cardTitle: { fontSize: 18, fontWeight: "900", color: BLACK },
+  cardSub: { fontSize: 12, color: BLACK },
+});
