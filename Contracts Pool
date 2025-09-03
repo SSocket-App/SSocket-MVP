@@ -1,7 +1,8 @@
 // ContractsPool.js
-// Update: Mega card CTA box is BLACK (so yellow 🌟 is clear).
+// Update: Removed back button from top bar.
+// Mega card CTA box is BLACK (so yellow 🌟 is clear).
 // Added bottom nav bar exactly like the provided example.
-// Top bar = "Contracts Pool" with Back + Search.
+// Top bar = "Contracts Pool" with Search only.
 // Stories header slides away on scroll; cards are consistent across modes.
 
 import React, { useMemo, useState } from "react";
@@ -191,8 +192,6 @@ export default function ContractsPool() {
   const [showSearch, setShowSearch] = useState(false);
   const [query, setQuery] = useState("");
 
-  const goBack = () => Alert.alert("Go Back", "Hook this into navigation.");
-
   const filteredMega = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return MEGA_CONTRACTS;
@@ -363,11 +362,9 @@ export default function ContractsPool() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={BLACK} />
 
-      {/* Top Bar with Back + Search toggle */}
+      {/* Top Bar with Search only (back button removed) */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBox} activeOpacity={0.8} onPress={goBack}>
-          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
-        </TouchableOpacity>
+        <View style={styles.iconBox} /> {/* placeholder for spacing */}
         <Text style={styles.topTitle}>Contracts Pool</Text>
         <TouchableOpacity
           style={[styles.iconBox, { alignItems: "flex-end" }]}
