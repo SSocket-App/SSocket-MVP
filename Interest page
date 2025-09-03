@@ -1,4 +1,4 @@
-// App.js — SSocket Interest Selection (standalone screen)
+// App.js — SSocket Interest Selection (PersonalSignup UI applied)
 // Paste this into Expo Snack (App.js). No extra dependencies.
 
 import React, { useState } from "react";
@@ -14,13 +14,10 @@ import {
   Alert,
 } from "react-native";
 
-const BG = "#ffffff";
-const TEXT = "#111111";
-const MUTED = "#6b7280";
-const CARD = "#ffffff";
-const BDR = "#e5e7eb";
-const BLACK = "#000000";
-const YELLOW = "#FFD233";
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+const MUTED = "#6B7280";
 
 // Grouped categories (expand to view subcategories)
 const CATEGORIES = [
@@ -38,8 +35,8 @@ const CATEGORIES = [
       "Catering / Cook",
       "Laundry Attendant",
       "Nanny / Childcare",
-      "Spa Therapist / Masseuse"
-    ]
+      "Spa Therapist / Masseuse",
+    ],
   },
   {
     key: "cleaning",
@@ -49,8 +46,8 @@ const CATEGORIES = [
       "Security Guard",
       "Facility Maintenance",
       "Office Assistant",
-      "Caretaker / Building Manager"
-    ]
+      "Caretaker / Building Manager",
+    ],
   },
   {
     key: "manufacturing",
@@ -60,8 +57,8 @@ const CATEGORIES = [
       "Warehouse / Inventory Clerk",
       "Machine Operator",
       "Quality Control Inspector",
-      "Packing & Sorting Staff"
-    ]
+      "Packing & Sorting Staff",
+    ],
   },
   {
     key: "trades",
@@ -77,8 +74,8 @@ const CATEGORIES = [
       "Tailor / Fashion Designer",
       "Shoe Maker / Cobbler",
       "Hair Stylist",
-      "Barber"
-    ]
+      "Barber",
+    ],
   },
   {
     key: "transport",
@@ -87,8 +84,8 @@ const CATEGORIES = [
       "Driver (Private / Bus / Truck)",
       "Dispatch Rider",
       "Logistics / Courier",
-      "Boat Operator"
-    ]
+      "Boat Operator",
+    ],
   },
   {
     key: "retail",
@@ -98,8 +95,8 @@ const CATEGORIES = [
       "Market Trader",
       "Sales Promoter",
       "Supermarket Cashier",
-      "Merchandiser"
-    ]
+      "Merchandiser",
+    ],
   },
   {
     key: "office",
@@ -113,8 +110,8 @@ const CATEGORIES = [
       "Project Manager",
       "Receptionist",
       "Procurement Officer",
-      "Secretary"
-    ]
+      "Secretary",
+    ],
   },
   {
     key: "techcreative",
@@ -129,8 +126,8 @@ const CATEGORIES = [
       "IT Support",
       "Content Writer",
       "SEO Specialist",
-      "Animator"
-    ]
+      "Animator",
+    ],
   },
   {
     key: "education",
@@ -140,8 +137,8 @@ const CATEGORIES = [
       "Lecturer / University",
       "Tutor (Private Lessons)",
       "Vocational Skills Trainer",
-      "Language Instructor"
-    ]
+      "Language Instructor",
+    ],
   },
   {
     key: "healthcare",
@@ -151,8 +148,8 @@ const CATEGORIES = [
       "Doctor",
       "Laboratory Technician",
       "Pharmacist",
-      "Caregiver / Health Assistant"
-    ]
+      "Caregiver / Health Assistant",
+    ],
   },
   {
     key: "agriculture",
@@ -162,8 +159,8 @@ const CATEGORIES = [
       "Poultry Farmer",
       "Fish Farmer",
       "Farm Labourer",
-      "Agro-Processing Worker"
-    ]
+      "Agro-Processing Worker",
+    ],
   },
   {
     key: "repairs",
@@ -173,8 +170,8 @@ const CATEGORIES = [
       "AC / Refrigerator Repair",
       "Electronics Repair",
       "Mobile Phone Repair",
-      "Generator Repair"
-    ]
+      "Generator Repair",
+    ],
   },
   {
     key: "engineering",
@@ -190,13 +187,13 @@ const CATEGORIES = [
       "Environmental Engineer",
       "Petroleum Engineer",
       "Mining Engineer",
-      "Water / Sanitation Engineer"
-    ]
-  }
+      "Water / Sanitation Engineer",
+    ],
+  },
 ];
 
 export default function App() {
-  StatusBar.setBarStyle("dark-content");
+  StatusBar.setBarStyle("light-content");
 
   const [openGroups, setOpenGroups] = useState({});
   const [selected, setSelected] = useState([]);
@@ -204,7 +201,7 @@ export default function App() {
   const toggleGroup = (key) => {
     setOpenGroups((prev) => ({
       ...prev,
-      [key]: !prev[key]
+      [key]: !prev[key],
     }));
   };
 
@@ -228,13 +225,17 @@ export default function App() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.headerWrap}>
-        <Text style={styles.brand}>SSocket</Text>
-        <View style={styles.brandDot} />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Header (PersonalSignup style) */}
+      <View style={styles.topBar}>
+        <Text style={styles.topBarTitle}>Select Interests</Text>
       </View>
+      <View style={styles.topAccent} />
 
       <ScrollView contentContainerStyle={styles.scroll}>
+        {/* Title + Sub */}
         <Text style={styles.h1}>
           What kind of problems would you like to solve on SSocket?
         </Text>
@@ -242,8 +243,7 @@ export default function App() {
           Pick your areas. We’ll tailor gigs, people and tools to match.
         </Text>
 
-        <View style={{ height: 10 }} />
-
+        {/* Groups */}
         {CATEGORIES.map((cat) => {
           const isOpen = !!openGroups[cat.key];
           return (
@@ -266,16 +266,10 @@ export default function App() {
                         key={label}
                         onPress={() => toggleItem(label)}
                         activeOpacity={0.85}
-                        style={[
-                          styles.chip,
-                          active && styles.chipActive
-                        ]}
+                        style={[styles.chip, active && styles.chipActive]}
                       >
                         <Text
-                          style={[
-                            styles.chipText,
-                            active && styles.chipTextActive
-                          ]}
+                          style={[styles.chipText, active && styles.chipTextActive]}
                         >
                           {label}
                         </Text>
@@ -289,24 +283,21 @@ export default function App() {
         })}
       </ScrollView>
 
+      {/* Footer CTA (PersonalSignup primaryBtn style) */}
       <View style={styles.footer}>
         <TouchableOpacity
           onPress={onContinue}
-          activeOpacity={0.9}
-          style={[styles.cta, !canContinue && styles.ctaDisabled]}
+          activeOpacity={canContinue ? 0.9 : 1}
+          disabled={!canContinue}
+          style={[styles.primaryBtn, !canContinue && { opacity: 0.4 }]}
         >
-          <Text style={styles.ctaText}>
-            Continue ⚡
+          <Text style={styles.primaryBtnTxt}>
+            Continue ⚡  ({selected.length})
           </Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countText}>{selected.length}</Text>
-          </View>
         </TouchableOpacity>
 
         {!canContinue ? (
-          <Text style={styles.hint}>
-            Select at least 3 interests to continue.
-          </Text>
+          <Text style={styles.hint}>Select at least 3 interests to continue.</Text>
         ) : (
           <Text style={styles.hintOK}>Nice! You’re good to go.</Text>
         )}
@@ -315,148 +306,83 @@ export default function App() {
   );
 }
 
+/* -------------------- Styles (mirroring PersonalSignup UI) -------------------- */
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: BG
-  },
-  headerWrap: {
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Header */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
     alignItems: "center",
-    paddingTop: Platform.OS === "android" ? 24 : 8,
-    paddingBottom: 6
+    justifyContent: "flex-end",
+    paddingBottom: 14,
   },
-  brand: {
-    fontSize: 32,
-    fontWeight: "900",
-    letterSpacing: 0.5,
-    color: TEXT,
-    textAlign: "center"
-  },
-  brandDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: YELLOW,
-    marginTop: 6
-  },
-  scroll: {
-    paddingHorizontal: 18,
-    paddingBottom: 20
-  },
-  h1: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: TEXT,
-    textAlign: "left"
-  },
-  sub: {
-    marginTop: 4,
-    fontSize: 13,
-    color: MUTED
-  },
+  topBarTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Body */
+  scroll: { paddingHorizontal: 16, paddingBottom: 24 },
+  h1: { fontSize: 18, fontWeight: "900", color: BLACK, marginTop: 10 },
+  sub: { marginTop: 4, fontSize: 13, color: MUTED },
+
+  /* Group cards (switch to black-outline, white fill) */
   groupCard: {
-    backgroundColor: CARD,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: BDR,
     marginTop: 12,
+    padding: 0,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2
   },
   groupHeader: {
     paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fafafa"
+    backgroundColor: WHITE,
   },
-  groupTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: TEXT
-  },
-  chev: {
-    fontSize: 22,
-    fontWeight: "900",
-    color: TEXT
-  },
+  groupTitle: { fontSize: 16, fontWeight: "900", color: BLACK },
+  chev: { fontSize: 22, fontWeight: "900", color: BLACK },
+
   chipsWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
     paddingHorizontal: 10,
-    paddingBottom: 10,
-    gap: 8
+    paddingBottom: 12,
+    gap: 8,
   },
+
+  /* Chips — match input/button vibe: black border, yellow active */
   chip: {
-    borderWidth: 1,
-    borderColor: BDR,
-    paddingHorizontal: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "#fff"
+    backgroundColor: WHITE,
   },
   chipActive: {
     backgroundColor: YELLOW,
-    borderColor: "#d1a900"
+    borderColor: BLACK,
   },
-  chipText: {
-    fontSize: 12, // smaller than main group titles
-    color: TEXT,
-    fontWeight: "700"
-  },
-  chipTextActive: {
-    color: BLACK
-  },
-  footer: {
-    paddingHorizontal: 18,
-    paddingBottom: 14
-  },
-  cta: {
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: BLACK,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row"
-  },
-  ctaDisabled: {
-    opacity: 0.5
-  },
-  ctaText: {
-    color: "#fff",
-    fontSize: 16.5,
-    fontWeight: "900",
-    letterSpacing: 0.3
-  },
-  countBadge: {
-    marginLeft: 10,
-    backgroundColor: YELLOW,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2
-  },
-  countText: {
-    color: BLACK,
-    fontSize: 12,
-    fontWeight: "900"
-  },
-  hint: {
-    textAlign: "center",
-    marginTop: 8,
-    color: MUTED,
-    fontSize: 12
-  },
-  hintOK: {
-    textAlign: "center",
-    marginTop: 8,
-    color: "#16a34a",
-    fontSize: 12,
-    fontWeight: "700"
-  }
-});
+  chipText: { fontSize: 12, fontWeight: "900", color: BLACK },
+  chipTextActive: { color: BLACK },
 
+  /* Footer CTA — same as PersonalSignup primary button */
+  footer: { paddingHorizontal: 16, paddingBottom: 18, paddingTop: 6 },
+  primaryBtn: {
+    backgroundColor: YELLOW,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  primaryBtnTxt: { color: BLACK, fontWeight: "900", fontSize: 16 },
+  hint: { textAlign: "center", marginTop: 8, color: MUTED, fontSize: 12 },
+  hintOK: { textAlign: "center", marginTop: 8, color: "#16a34a", fontSize: 12, fontWeight: "700" },
+});
