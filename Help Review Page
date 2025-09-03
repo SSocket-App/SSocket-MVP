@@ -1,4 +1,4 @@
-// App.js — Help Review page with Volunteer dropdown feedback (no tip, updated warning)
+// App.js — Help Review page with Volunteer dropdown feedback + Winner Picking (1st/2nd/3rd)
 import React, { useMemo, useRef, useState } from "react";
 import {
   SafeAreaView,
@@ -43,7 +43,8 @@ const VOLUNTEERS = [
 ];
 
 export default function App() {
-  const [winnerId, setWinnerId] = useState(null);
+  // Winner placements
+  const [placements, setPlacements] = useState({ first: null, second: null, third: null });
 
   // dropdown state per volunteer
   const [open, setOpen] = useState({});
@@ -89,21 +90,68 @@ export default function App() {
     Alert.alert("Submitted", "Solution can only be offered once.");
   };
 
-  const renderItem = ({ item }) => (
-    <VolunteerCard
-      item={item}
-      isWinner={item.id === winnerId}
-      isOpen={!!open[item.id]}
-      isSubmitted={!!submitted[item.id]}
-      draft={drafts[item.id]}
-      onToggleOpen={() => toggleOpen(item.id)}
-      onSetRating={(n) => updateDraft(item.id, { rating: n })}
-      onToggleGreen={(tag) => toggleChip(item.id, "greenTags", tag)}
-      onToggleRed={(tag) => toggleChip(item.id, "redTags", tag)}
-      onChangeReview={(txt) => updateDraft(item.id, { review: txt })}
-      onSubmit={() => submitFeedback(item.id)}
-    />
-  );
+  // Winner selection handlers
+  const setPlace = (place, volunteerId) => {
+    setPlacements((prev) => {
+      const currentForPlace = prev[place];
+
+      // If tapping active: unset
+      if (currentForPlace === volunteerId) {
+        return { ...prev, [place]: null };
+      }
+
+      // Remove this volunteer from any other place
+      const next = { ...prev };
+      Object.keys(next).forEach((k) => {
+        if (next[k] === volunteerId) next[k] = null;
+      });
+
+      // Assign to requested place
+      next[place] = volunteerId;
+      return next;
+    });
+  };
+
+  const finalizeWinners = () => {
+    const findName = (id) => data.find(v => v.id === id)?.name || "—";
+    const msg =
+      `🏆 Winners\n\n` +
+      `1st: ${findName(placements.first)}\n` +
+      `2nd: ${findName(placements.second)}\n` +
+      `3rd: ${findName(placements.third)}`;
+    Alert.alert("Finalize Winners", msg);
+    // Here you could POST to your backend with `placements`
+    // e.g., fetch('/api/help/winners', { method: 'POST', body: JSON.stringify(placements) })
+  };
+
+  const renderItem = ({ item }) => {
+    const badge =
+      placements.first === item.id ? "1st" :
+      placements.second === item.id ? "2nd" :
+      placements.third === item.id ? "3rd" : null;
+
+    return (
+      <VolunteerCard
+        item={item}
+        winnerBadge={badge}
+        isOpen={!!open[item.id]}
+        isSubmitted={!!submitted[item.id]}
+        draft={drafts[item.id]}
+        onToggleOpen={() => toggleOpen(item.id)}
+        onSetRating={(n) => updateDraft(item.id, { rating: n })}
+        onToggleGreen={(tag) => toggleChip(item.id, "greenTags", tag)}
+        onToggleRed={(tag) => toggleChip(item.id, "redTags", tag)}
+        onChangeReview={(txt) => updateDraft(item.id, { review: txt })}
+        onSubmit={() => submitFeedback(item.id)}
+        onPickFirst={() => setPlace("first", item.id)}
+        onPickSecond={() => setPlace("second", item.id)}
+        onPickThird={() => setPlace("third", item.id)}
+        isFirst={placements.first === item.id}
+        isSecond={placements.second === item.id}
+        isThird={placements.third === item.id}
+      />
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -130,6 +178,14 @@ export default function App() {
         contentContainerStyle={{ paddingBottom: 20 }}
         showsVerticalScrollIndicator={false}
       />
+
+      {/* Finalize winners CTA */}
+      <View style={styles.finalizeBar}>
+        <TouchableOpacity style={styles.finalizeBtn} activeOpacity={0.9} onPress={finalizeWinners}>
+          <Ionicons name="trophy-outline" size={18} color={BLACK} />
+          <Text style={styles.finalizeTxt}>Finalize Winners</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -159,17 +215,33 @@ function StarsPicker({ value, onChange, disabled }) {
 
 /* ---------- Volunteer Card ---------- */
 function VolunteerCard({
-  item, isWinner, isOpen, isSubmitted,
+  item, winnerBadge, isOpen, isSubmitted,
   draft, onToggleOpen,
   onSetRating, onToggleGreen, onToggleRed,
-  onChangeReview, onSubmit
+  onChangeReview, onSubmit,
+  onPickFirst, onPickSecond, onPickThird,
+  isFirst, isSecond, isThird,
 }) {
+  const isAnyWinner = !!winnerBadge;
+
   return (
     <Pressable
-      style={[styles.card, isWinner && { borderColor: YELLOW, backgroundColor: "#FFFDF2" }]}
+      style={[
+        styles.card,
+        isAnyWinner && { borderColor: YELLOW, backgroundColor: "#FFFDF2" }
+      ]}
     >
       <View style={styles.cardHeader}>
-        <Text style={styles.name}>{item.name}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={styles.name}>{item.name}</Text>
+          {winnerBadge && (
+            <View style={styles.winnerPill}>
+              <Ionicons name="trophy-outline" size={14} color={BLACK} />
+              <Text style={styles.winnerPillTxt}>{winnerBadge}</Text>
+            </View>
+          )}
+        </View>
+
         <TouchableOpacity onPress={onToggleOpen} activeOpacity={0.8} style={styles.volBtn}>
           <Text style={styles.volTxt}>Volunteer</Text>
           <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={16} color={BLACK} style={{ marginLeft: 6 }} />
@@ -179,6 +251,16 @@ function VolunteerCard({
       {/* Response text */}
       <View style={styles.responseBox}>
         <Text style={styles.responseText}>{item.response}</Text>
+      </View>
+
+      {/* Winner picker */}
+      <View style={styles.winnerRow}>
+        <Text style={styles.formLabel}>Pick Winner</Text>
+        <View style={styles.winnerChips}>
+          <WinChip label="1st" active={isFirst} onPress={onPickFirst} />
+          <WinChip label="2nd" active={isSecond} onPress={onPickSecond} />
+          <WinChip label="3rd" active={isThird} onPress={onPickThird} />
+        </View>
       </View>
 
       {/* Dropdown content (feedback) */}
@@ -245,6 +327,18 @@ function VolunteerCard({
   );
 }
 
+function WinChip({ label, active, onPress }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={[styles.winChip, active && styles.winChipActive]}
+    >
+      <Text style={[styles.winChipTxt, active && styles.winChipTxtActive]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 /* ----------------- Styles ----------------- */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: WHITE },
@@ -273,7 +367,18 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8,
   },
-  name: { flex: 1, marginLeft: 8, color: BLACK, fontSize: 16, fontWeight: "800" },
+  name: { flex: 0, marginLeft: 0, color: BLACK, fontSize: 16, fontWeight: "800", marginRight: 8 },
+
+  // Winner badge next to name
+  winnerPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 2, borderColor: BLACK,
+    backgroundColor: YELLOW,
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: 999,
+  },
+  winnerPillTxt: { marginLeft: 6, color: BLACK, fontWeight: "900", fontSize: 12 },
 
   volBtn: {
     borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10,
@@ -285,6 +390,17 @@ const styles = StyleSheet.create({
   /* response */
   responseBox: { borderWidth: 1, borderColor: "#E5E5E5", borderRadius: 8, padding: 10, backgroundColor: "#FAFAFA" },
   responseText: { color: "#333", fontSize: 13 },
+
+  /* Winner picker row */
+  winnerRow: { marginTop: 10 },
+  winnerChips: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
+  winChip: {
+    borderWidth: 2, borderColor: BLACK, borderRadius: 999,
+    paddingHorizontal: 12, paddingVertical: 6, backgroundColor: WHITE,
+  },
+  winChipActive: { backgroundColor: YELLOW, borderColor: BLACK },
+  winChipTxt: { fontSize: 12, fontWeight: "800", color: BLACK },
+  winChipTxtActive: { color: BLACK, fontWeight: "900" },
 
   /* feedback dropdown */
   feedbackWrap: { marginTop: 10, padding: 12, borderRadius: 12, borderWidth: 1.5, borderColor: "#E5E5E5", backgroundColor: "#FAFAFA" },
@@ -312,4 +428,26 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: BLACK, backgroundColor: YELLOW,
   },
   submitBtnText: { fontWeight: "900", color: BLACK },
+
+  /* Finalize winners bar */
+  finalizeBar: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#EFEFEF",
+    backgroundColor: WHITE,
+  },
+  finalizeBtn: {
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: YELLOW,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  finalizeTxt: { fontWeight: "900", color: BLACK, fontSize: 14 },
 });
