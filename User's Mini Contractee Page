@@ -89,7 +89,7 @@ function Chip({ text, active, onPress }) {
   );
 }
 
-/* ===== Demo data (replace with your list) ===== */
+/* ===== Demo data (Ongoing/Ended contracts) ===== */
 const DEMO_CONTRACTS = [
   {
     id: "MC-1048",
@@ -117,7 +117,31 @@ const DEMO_CONTRACTS = [
   },
 ];
 
-/* ===== Card component with dropdown feedback ===== */
+/* ===== NEW: Demo data (Queued/Applied but not accepted) ===== */
+const DEMO_QUEUED_APPS = [
+  {
+    id: "QA-3001",
+    contractId: "CT-9001",
+    title: "House Painting (Duplex)",
+    role: "Painter",
+    appliedOn: "2025-09-10",
+    location: "Ikeja, Lagos",
+    expectedPay: "₦150,000 – ₦220,000",
+    status: "Queued",
+  },
+  {
+    id: "QA-3002",
+    contractId: "CT-9002",
+    title: "E-commerce API Integration",
+    role: "Backend Dev",
+    appliedOn: "2025-09-11",
+    location: "Remote",
+    expectedPay: "₦280,000 – ₦380,000",
+    status: "Queued",
+  },
+];
+
+/* ===== Card component with dropdown feedback (for ongoing/ended) ===== */
 function ContractCard({ item }) {
   const [open, setOpen] = useState(false);
 
@@ -285,9 +309,60 @@ function ContractCard({ item }) {
   );
 }
 
+/* ===== NEW: Simple card for queued applications ===== */
+function QueuedCard({ item, onView }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.jobTitle}>{item.title}</Text>
+      <Text style={styles.jobLine}>
+        Role: <Text style={styles.jobLineStrong}>{item.role}</Text>
+      </Text>
+
+      <View style={styles.metaGrid}>
+        <View style={styles.metaCol}>
+          <Text style={styles.metaKey}>Applied On</Text>
+          <Text style={styles.metaVal}>{item.appliedOn}</Text>
+        </View>
+        <View style={styles.metaCol}>
+          <Text style={styles.metaKey}>Location</Text>
+          <Text style={styles.metaVal}>{item.location}</Text>
+        </View>
+        <View style={styles.metaCol}>
+          <Text style={styles.metaKey}>Expected Pay</Text>
+          <Text style={styles.metaVal}>{item.expectedPay}</Text>
+        </View>
+        <View style={styles.metaCol}>
+          <Text style={styles.metaKey}>Status</Text>
+          <Text style={[styles.metaVal, { color: "#a16207" }]}>{item.status}</Text>
+        </View>
+      </View>
+
+      <View style={[styles.statusRow, { marginTop: 10 }]}>
+        <Text style={[styles.status, { color: "#a16207" }]}>Waiting for acceptance</Text>
+        <TouchableOpacity
+          onPress={() => onView?.(item)}
+          activeOpacity={0.9}
+          style={styles.viewBtn}
+        >
+          <Ionicons name="eye-outline" size={16} color={BLACK} />
+          <Text style={styles.viewBtnTxt}>View</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 /* ===== Page ===== */
 export default function MiniContracteeList() {
   StatusBar.setBarStyle("light-content");
+
+  // NEW: top toggle — ongoing vs queued
+  const [view, setView] = useState("ongoing"); // 'ongoing' | 'queued'
+
+  const onViewQueuedItem = (item) => {
+    // Wire up to your navigation or detail modal here
+    Alert.alert("Queued Contract", `${item.title}\nRole: ${item.role}\nStatus: ${item.status}`);
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: BG }}>
@@ -304,10 +379,48 @@ export default function MiniContracteeList() {
       </View>
       <View style={styles.topAccent} />
 
+      {/* ===== NEW: Toggle row (minimal) ===== */}
+      <View style={styles.toggleRow}>
+        <TouchableOpacity
+          onPress={() => setView("ongoing")}
+          activeOpacity={0.9}
+          style={[styles.toggleBtn, view === "ongoing" && styles.toggleActive]}
+        >
+          <Text style={[styles.toggleTxt, view === "ongoing" && styles.toggleTxtActive]}>
+            Ongoing Contracts
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setView("queued")}
+          activeOpacity={0.9}
+          style={[styles.toggleBtn, view === "queued" && styles.toggleActive]}
+        >
+          <Text style={[styles.toggleTxt, view === "queued" && styles.toggleTxtActive]}>
+            Queued (Applied)
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 20 }}>
-        {DEMO_CONTRACTS.map((c) => (
-          <ContractCard key={c.id} item={c} />
-        ))}
+        {view === "ongoing" ? (
+          <>
+            {DEMO_CONTRACTS.map((c) => (
+              <ContractCard key={c.id} item={c} />
+            ))}
+          </>
+        ) : (
+          <>
+            {DEMO_QUEUED_APPS.length === 0 ? (
+              <View style={[styles.card, { alignItems: "center" }]}>
+                <Text style={{ color: MUTED, fontWeight: "700" }}>You currently have no queued contracts.</Text>
+              </View>
+            ) : (
+              DEMO_QUEUED_APPS.map((q) => (
+                <QueuedCard key={q.id} item={q} onView={onViewQueuedItem} />
+              ))
+            )}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -328,6 +441,26 @@ const styles = StyleSheet.create({
   },
   topAccent: { height: 3, backgroundColor: YELLOW },
   topTitle: { color: "#fff", fontSize: 22, fontWeight: "900" },
+
+  /* NEW: Toggle */
+  toggleRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 10,
+    paddingHorizontal: 12,
+  },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    alignItems: "center",
+    backgroundColor: WHITE,
+  },
+  toggleActive: { backgroundColor: "#FFFDF2", borderColor: YELLOW },
+  toggleTxt: { fontSize: 13, fontWeight: "800", color: BLACK },
+  toggleTxtActive: { color: BLACK },
 
   /* Cards */
   card: {
@@ -424,4 +557,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   submitTxt: { fontSize: 16, fontWeight: "900", color: BLACK },
+
+  /* NEW: Queued view button */
+  viewBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: YELLOW,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  viewBtnTxt: { fontWeight: "900", color: BLACK },
 });
