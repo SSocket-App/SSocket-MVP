@@ -1,0 +1,242 @@
+// BusinessSignup.js — matches PersonalSignup styling/behavior
+
+import React, { useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Platform,
+  StyleSheet,
+  KeyboardAvoidingView,
+  ScrollView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+export default function BusinessSignup() {
+  const [bizName, setBizName] = useState("");
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [showPw2, setShowPw2] = useState(false);
+  const [agree, setAgree] = useState(false);
+
+  const validPw =
+    /.{8,}/.test(pw) &&
+    /[A-Z]/.test(pw) &&
+    /[a-z]/.test(pw) &&
+    /[0-9]/.test(pw) &&
+    /[^A-Za-z0-9]/.test(pw);
+
+  const canSubmit = bizName && email && validPw && pw === pw2 && agree;
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Header */}
+      <View style={styles.topBar}>
+        <Text style={styles.topBarTitle}>Create Business Account</Text>
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Form */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      >
+        <ScrollView
+          contentContainerStyle={styles.form}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Business Name */}
+          <Text style={styles.label}>Business name</Text>
+          <TextInput
+            value={bizName}
+            onChangeText={setBizName}
+            placeholder="Enter business name"
+            placeholderTextColor="#999"
+            style={styles.input}
+          />
+
+          {/* Email */}
+          <Text style={styles.label}>Work email</Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="Enter work email"
+            placeholderTextColor="#999"
+            style={styles.input}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+
+          {/* Password */}
+          <Text style={styles.label}>Password</Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              value={pw}
+              onChangeText={setPw}
+              placeholder="Enter password"
+              placeholderTextColor="#999"
+              style={styles.inputFlex}
+              autoCapitalize="none"
+              secureTextEntry={!showPw}
+            />
+            <TouchableOpacity
+              onPress={() => setShowPw((v) => !v)}
+              style={styles.eyeBtn}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name={showPw ? "eye-off-outline" : "eye-outline"}
+                size={22}
+                color={BLACK}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Single red warning under password */}
+          {pw.length > 0 && !validPw && (
+            <Text style={styles.warn}>
+              Password must be at least 8 characters and include an uppercase letter,
+              a lowercase letter, a number, and a special character.
+            </Text>
+          )}
+
+          {/* Confirm Password */}
+          <Text style={styles.label}>Confirm password</Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              value={pw2}
+              onChangeText={setPw2}
+              placeholder="Re-enter password"
+              placeholderTextColor="#999"
+              style={styles.inputFlex}
+              autoCapitalize="none"
+              secureTextEntry={!showPw2}
+            />
+            <TouchableOpacity
+              onPress={() => setShowPw2((v) => !v)}
+              style={styles.eyeBtn}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name={showPw2 ? "eye-off-outline" : "eye-outline"}
+                size={22}
+                color={BLACK}
+              />
+            </TouchableOpacity>
+          </View>
+          {!!pw2 && pw !== pw2 && (
+            <Text style={styles.mismatch}>Passwords do not match.</Text>
+          )}
+
+          {/* Terms & Conditions */}
+          <TouchableOpacity
+            onPress={() => setAgree((v) => !v)}
+            activeOpacity={0.9}
+            style={styles.agreeRow}
+          >
+            <View style={[styles.checkbox, agree && styles.checkboxOn]}>
+              {agree ? <Ionicons name="checkmark" size={16} color={BLACK} /> : null}
+            </View>
+            <Text style={styles.agreeText}>
+              I agree to the <Text style={styles.link}>Terms & Conditions</Text>
+            </Text>
+          </TouchableOpacity>
+
+          {/* Submit */}
+          <TouchableOpacity
+            activeOpacity={canSubmit ? 0.9 : 1}
+            style={[styles.primaryBtn, !canSubmit && { opacity: 0.4 }]}
+            disabled={!canSubmit}
+          >
+            <Text style={styles.primaryBtnTxt}>Create Account</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+/* -------------------- Styles (same system) -------------------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+  },
+  topBarTitle: { color: WHITE, fontSize: 22, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  form: { paddingHorizontal: 16, paddingBottom: 32 },
+
+  label: { fontSize: 12, color: BLACK, fontWeight: "900", marginTop: 10, marginBottom: 6 },
+  input: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    color: BLACK,
+    backgroundColor: WHITE,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    paddingRight: 6,
+  },
+  inputFlex: { flex: 1, paddingVertical: 12, paddingHorizontal: 12, fontSize: 14, color: BLACK },
+  eyeBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFDF2",
+    margin: 4,
+  },
+
+  warn: { color: "#D9534F", fontSize: 12, marginTop: 6 },
+  mismatch: { color: "#D9534F", fontSize: 12, marginTop: 6 },
+
+  agreeRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14 },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: BLACK,
+    backgroundColor: WHITE, alignItems: "center", justifyContent: "center",
+  },
+  checkboxOn: { backgroundColor: YELLOW },
+  agreeText: { fontSize: 12, color: BLACK },
+  link: { textDecorationLine: "underline", fontWeight: "900" },
+
+  primaryBtn: {
+    marginTop: 18, marginBottom: 32,
+    backgroundColor: YELLOW,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BLACK,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  primaryBtnTxt: { color: BLACK, fontWeight: "900", fontSize: 16 },
+});
