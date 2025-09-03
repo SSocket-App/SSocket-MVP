@@ -102,7 +102,7 @@ export default function MiniContractContractorReview_Negotiate({
         <TouchableOpacity style={styles.iconBox} activeOpacity={0.8} onPress={goBack}>
           <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
         </TouchableOpacity>
-        <Text style={styles.topTitle} numberOfLines={1}>Mini Contract — Contractor Review</Text>
+        <Text style={styles.topTitle} numberOfLines={1}>Mini Contract Review</Text>
         <View style={styles.iconBox} />
       </View>
       <View style={styles.topAccent} />
