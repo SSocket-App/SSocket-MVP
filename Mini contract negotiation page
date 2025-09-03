@@ -1,11 +1,8 @@
 // MiniContractReview_Negotiate.js
-// Read-only Mini Contract summary + Negotiation (drop-down) as requested.
-// FIXES:
-// - Top bar layout so the back button no longer overlaps the title
-// UPDATES:
-// - Top bar title set to "Mini Contract Negotiation Page"
-// - Added 4th SSocket condition: "For remote work contractor will demand for half payment before commencing contract"
-// - Action buttons below negotiation: "Edit", "Leave", "Seal Contract"
+// Read-only Mini Contract summary + Negotiation (drop-down) with inline Edit.
+// - Preserves your UI + wording
+// - Edit button toggles an inline form for the Overview fields
+// - Save updates local state and calls onEdit(updated) if provided
 
 import React, { useMemo, useRef, useState } from "react";
 import {
@@ -31,7 +28,7 @@ const RED = "#D32F2F";
 export default function MiniContractReview_Negotiate({
   contract,      // optional: pass the mini contract data object
   onBack,        // optional: navigation handler
-  onEdit,        // optional: edit handler
+  onEdit,        // optional: edit handler -> onEdit(updatedContract)
   onLeave,       // optional: leave handler
   onSeal,        // optional: seal handler
 }) {
@@ -49,7 +46,14 @@ export default function MiniContractReview_Negotiate({
     pay: "₦50,000",
   };
 
-  const data = contract || demo;
+  // Keep a local copy we can edit, independent of parent
+  const [current, setCurrent] = useState(contract || demo);
+
+  // Edit mode + working form
+  const [editMode, setEditMode] = useState(false);
+  const [form, setForm] = useState(current);
+
+  const setF = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   // Negotiation state (drop-down style + controls)
   const [negotiationOpen, setNegotiationOpen] = useState(true);
@@ -74,14 +78,43 @@ export default function MiniContractReview_Negotiate({
     setInput("");
   };
 
-  const handleEdit = () => {
-    if (typeof onEdit === "function") return onEdit();
-    Alert.alert("Edit", "Open the contract editor (hook this to navigation).");
+  const handleEditPress = () => {
+    if (!editMode) {
+      // Enter edit mode with a fresh copy of current
+      setForm(current);
+      setEditMode(true);
+      return;
+    }
   };
+
+  const handleSave = () => {
+    // Basic sanity: require title & role & pay
+    if (!form.title?.trim() || !form.role?.trim() || !form.pay?.toString()?.trim()) {
+      return Alert.alert("Missing fields", "Please fill at least Title, Role and Amount of Pay.");
+    }
+    // If projectType is duration, keep deliverable empty; if value, clear duration.
+    const normalized =
+      form.projectType === "duration"
+        ? { ...form, deliverable: form.deliverable || "", duration: form.duration || "" }
+        : { ...form, duration: "", deliverable: form.deliverable || "" };
+
+    setCurrent(normalized);
+    setEditMode(false);
+
+    if (typeof onEdit === "function") onEdit(normalized);
+    else Alert.alert("Saved", "Contract details updated locally.");
+  };
+
+  const handleCancel = () => {
+    setForm(current);
+    setEditMode(false);
+  };
+
   const handleLeave = () => {
     if (typeof onLeave === "function") return onLeave();
     Alert.alert("Leave", "This view will be closed.");
   };
+
   const handleSeal = () => {
     if (typeof onSeal === "function") return onSeal();
     Alert.alert("Seal Contract", "Both parties must accept to seal. (Hook action here.)");
@@ -107,32 +140,173 @@ export default function MiniContractReview_Negotiate({
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
-          {/* Overview: Read-only details */}
+          {/* Overview: Read-only details or Editable form */}
           <Card>
             <Text style={styles.cardTitle}>Overview</Text>
-            <RowKV label="Job Title" value={data.title} />
-            <RowKV label="Role" value={data.role} />
-            <RowKV label="Nature of Job" value={data.nature} />
-            <RowKV label="Extra Notes / Details" value={data.extra || "—"} />
-            <RowKV label="Number of People Needed" value={String(data.count || "—")} />
-            <RowKV
-              label="Project Type"
-              value={
-                data.projectType === "duration"
-                  ? "Duration"
-                  : data.projectType === "value"
-                  ? "Value"
-                  : "—"
-              }
-            />
-            {data.projectType === "duration" ? (
-              <RowKV label="How many days or weeks?" value={data.duration || "—"} />
-            ) : null}
-            {data.projectType === "value" ? (
-              <RowKV label="What should be done?" value={data.deliverable || "—"} />
-            ) : null}
-            <RowKV label="Location" value={data.location} />
-            <RowKV label="Amount of Pay" value={data.pay} />
+
+            {editMode ? (
+              <>
+                <RowEdit label="Job Title">
+                  <TextInput
+                    value={form.title}
+                    onChangeText={(t) => setF("title", t)}
+                    placeholder="e.g., Build my house"
+                    placeholderTextColor="#777"
+                    style={styles.input}
+                  />
+                </RowEdit>
+
+                <RowEdit label="Role">
+                  <TextInput
+                    value={form.role}
+                    onChangeText={(t) => setF("role", t)}
+                    placeholder="e.g., Bricklayer"
+                    placeholderTextColor="#777"
+                    style={styles.input}
+                  />
+                </RowEdit>
+
+                <RowEdit label="Nature of Job">
+                  <TextInput
+                    value={form.nature}
+                    onChangeText={(t) => setF("nature", t)}
+                    placeholder="What is the nature of the job?"
+                    placeholderTextColor="#777"
+                    style={styles.input}
+                  />
+                </RowEdit>
+
+                <RowEdit label="Extra Notes / Details">
+                  <TextInput
+                    value={form.extra}
+                    onChangeText={(t) => setF("extra", t)}
+                    placeholder="Any extra instructions…"
+                    placeholderTextColor="#777"
+                    style={[styles.input, { height: 90, textAlignVertical: "top" }]}
+                    multiline
+                  />
+                </RowEdit>
+
+                <RowEdit label="Number of People Needed">
+                  <TextInput
+                    value={String(form.count ?? "")}
+                    onChangeText={(t) => setF("count", t)}
+                    placeholder="e.g., 4"
+                    placeholderTextColor="#777"
+                    style={styles.input}
+                    keyboardType="numeric"
+                  />
+                </RowEdit>
+
+                {/* Project Type toggle (Duration / Value) */}
+                <View style={{ marginTop: 8 }}>
+                  <Text style={styles.kvLabel}>Project Type</Text>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <TogglePill
+                      text="Duration"
+                      active={form.projectType === "duration"}
+                      onPress={() => setF("projectType", "duration")}
+                    />
+                    <TogglePill
+                      text="Value"
+                      active={form.projectType === "value"}
+                      onPress={() => setF("projectType", "value")}
+                    />
+                  </View>
+                </View>
+
+                {form.projectType === "duration" ? (
+                  <RowEdit label="How many days or weeks?">
+                    <TextInput
+                      value={form.duration}
+                      onChangeText={(t) => setF("duration", t)}
+                      placeholder="e.g., 2 weeks"
+                      placeholderTextColor="#777"
+                      style={styles.input}
+                    />
+                  </RowEdit>
+                ) : null}
+
+                {form.projectType === "value" ? (
+                  <RowEdit label="What should be done?">
+                    <TextInput
+                      value={form.deliverable}
+                      onChangeText={(t) => setF("deliverable", t)}
+                      placeholder="Describe the deliverable…"
+                      placeholderTextColor="#777"
+                      style={[styles.input, { height: 90, textAlignVertical: "top" }]}
+                      multiline
+                    />
+                  </RowEdit>
+                ) : null}
+
+                <RowEdit label="Location">
+                  <TextInput
+                    value={form.location}
+                    onChangeText={(t) => setF("location", t)}
+                    placeholder="e.g., Lagos, Nigeria"
+                    placeholderTextColor="#777"
+                    style={styles.input}
+                  />
+                </RowEdit>
+
+                <RowEdit label="Amount of Pay">
+                  <TextInput
+                    value={String(form.pay ?? "")}
+                    onChangeText={(t) => setF("pay", t)}
+                    placeholder="e.g., ₦50,000"
+                    placeholderTextColor="#777"
+                    style={styles.input}
+                  />
+                </RowEdit>
+
+                {/* Edit actions */}
+                <View style={[styles.actionRow, { marginTop: 10 }]}>
+                  <TouchableOpacity
+                    style={[styles.btn, styles.btnYellow]}
+                    activeOpacity={0.9}
+                    onPress={handleSave}
+                  >
+                    <Ionicons name="save-outline" size={16} color={BLACK} />
+                    <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Save</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.btn, styles.btnGhost]}
+                    activeOpacity={0.9}
+                    onPress={handleCancel}
+                  >
+                    <Ionicons name="close-outline" size={16} color={BLACK} />
+                    <Text style={[styles.btnGhostTxt, { marginLeft: 6 }]}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <RowKV label="Job Title" value={current.title} />
+                <RowKV label="Role" value={current.role} />
+                <RowKV label="Nature of Job" value={current.nature} />
+                <RowKV label="Extra Notes / Details" value={current.extra || "—"} />
+                <RowKV label="Number of People Needed" value={String(current.count || "—")} />
+                <RowKV
+                  label="Project Type"
+                  value={
+                    current.projectType === "duration"
+                      ? "Duration"
+                      : current.projectType === "value"
+                      ? "Value"
+                      : "—"
+                  }
+                />
+                {current.projectType === "duration" ? (
+                  <RowKV label="How many days or weeks?" value={current.duration || "—"} />
+                ) : null}
+                {current.projectType === "value" ? (
+                  <RowKV label="What should be done?" value={current.deliverable || "—"} />
+                ) : null}
+                <RowKV label="Location" value={current.location} />
+                <RowKV label="Amount of Pay" value={current.pay} />
+              </>
+            )}
           </Card>
 
           {/* Negotiate Contract (drop-down style + attach buttons + conditions) */}
@@ -253,14 +427,17 @@ export default function MiniContractReview_Negotiate({
 
                 {/* Action buttons below */}
                 <View style={[styles.actionRow, { marginTop: 10 }]}>
-                  <TouchableOpacity
-                    style={[styles.btn, styles.btnGhost]}
-                    activeOpacity={0.9}
-                    onPress={handleEdit}
-                  >
-                    <Ionicons name="create-outline" size={16} color={BLACK} />
-                    <Text style={[styles.btnGhostTxt, { marginLeft: 6 }]}>Edit</Text>
-                  </TouchableOpacity>
+                  {/* Edit toggler (read-only mode only) */}
+                  {!editMode && (
+                    <TouchableOpacity
+                      style={[styles.btn, styles.btnGhost]}
+                      activeOpacity={0.9}
+                      onPress={handleEditPress}
+                    >
+                      <Ionicons name="create-outline" size={16} color={BLACK} />
+                      <Text style={[styles.btnGhostTxt, { marginLeft: 6 }]}>Edit</Text>
+                    </TouchableOpacity>
+                  )}
 
                   <TouchableOpacity
                     style={[styles.btn, styles.btnDanger]}
@@ -301,6 +478,28 @@ function RowKV({ label, value }) {
         <Text style={styles.kvText}>{String(value ?? "—") || "—"}</Text>
       </View>
     </View>
+  );
+}
+function RowEdit({ label, children }) {
+  return (
+    <View style={{ marginTop: 8 }}>
+      <Text style={styles.kvLabel}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+function TogglePill({ text, active, onPress }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.9}
+      style={[
+        styles.pill,
+        active ? { backgroundColor: YELLOW, borderColor: BLACK } : null,
+      ]}
+    >
+      <Text style={[styles.pillTxt, { color: BLACK, fontWeight: "900" }]}>{text}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -348,6 +547,26 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   kvText: { color: BLACK, fontSize: 14, lineHeight: 20 },
+
+  /* Editable inputs */
+  input: {
+    height: 44,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    backgroundColor: WHITE,
+    color: BLACK,
+  },
+  pill: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: BLACK,
+    backgroundColor: WHITE,
+  },
+  pillTxt: { fontSize: 12 },
 
   /* Chat (drop-down style) */
   chatToggle: {
