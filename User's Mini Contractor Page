@@ -102,10 +102,13 @@ export default function MiniContractorPage() {
     roles: "",
     nature: "",
     details: "",
-    startDate: "",
-    endDate: "",
     location: "",
     contractPay: "",
+    // NEW: type toggle + perProject
+    contractType: "duration", // 'duration' | 'project'
+    startDate: "",
+    endDate: "",
+    perProject: "", // only when contractType === 'project'
   });
   const setF = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -172,22 +175,49 @@ export default function MiniContractorPage() {
   };
 
   const onCreateContract = () => {
-    const { title, roles, nature, startDate, endDate, location, contractPay } = form;
-    if (!title || !roles || !nature || !startDate || !endDate || !location || !contractPay) {
+    const {
+      title, roles, nature, details, startDate, endDate,
+      location, contractPay, contractType, perProject
+    } = form;
+
+    if (!title || !roles || !nature || !location || !contractPay) {
       Alert.alert("Missing info", "Please fill all required fields.");
       return;
     }
-    Alert.alert("Contract Created", `${title}\n${roles}\n${location}\n${contractPay}\n${startDate} - ${endDate}`);
-    setForm({
+
+    if (contractType === "duration") {
+      if (!startDate || !endDate) {
+        Alert.alert("Missing dates", "Provide Start and End dates for duration contracts.");
+        return;
+      }
+    } else {
+      if (!perProject) {
+        Alert.alert("Missing project info", "Provide the Per Project description for project contracts.");
+        return;
+      }
+    }
+
+    Alert.alert(
+      "Contract Created",
+      `${title}\n${roles}\n${location}\n${contractPay}\nType: ${contractType.toUpperCase()}\n${
+        contractType === "duration" ? `${startDate} - ${endDate}` : `Per Project: ${perProject}`
+      }`
+    );
+
+    setForm((p) => ({
+      ...p,
       title: "",
       roles: "",
       nature: "",
       details: "",
       startDate: "",
       endDate: "",
+      perProject: "",
       location: "",
       contractPay: "",
-    });
+      // keep last chosen type
+      contractType: p.contractType,
+    }));
   };
 
   /* ---------- RENDERERS ---------- */
@@ -368,8 +398,9 @@ export default function MiniContractorPage() {
             </Text>
           </View>
 
+          {/* Changed label from "Pick" to "View" as requested previously */}
           <TouchableOpacity style={styles.pickButton}>
-            <Text style={styles.pickText}>Pick</Text>
+            <Text style={styles.pickText}>View</Text>
           </TouchableOpacity>
         </View>
       ))}
@@ -456,26 +487,80 @@ export default function MiniContractorPage() {
                 />
               </FormRow>
 
-              <View style={styles.row}>
-                <Half label="Start Date">
+              {/* ======== NEW: Type selector (minimal box) ======== */}
+              <FormRow label="Contract Type">
+                <View style={styles.typeRow}>
+                  <TouchableOpacity
+                    onPress={() => setF("contractType", "duration")}
+                    activeOpacity={0.9}
+                    style={[
+                      styles.typeBtn,
+                      form.contractType === "duration" && styles.typeBtnActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.typeTxt,
+                        form.contractType === "duration" && styles.typeTxtActive,
+                      ]}
+                    >
+                      Duration
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setF("contractType", "project")}
+                    activeOpacity={0.9}
+                    style={[
+                      styles.typeBtn,
+                      form.contractType === "project" && styles.typeBtnActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.typeTxt,
+                        form.contractType === "project" && styles.typeTxtActive,
+                      ]}
+                    >
+                      Project
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </FormRow>
+
+              {/* ======== Conditional inputs under the box ======== */}
+              {form.contractType === "duration" ? (
+                <View style={styles.row}>
+                  <Half label="Start Date">
+                    <TextInput
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor="#999"
+                      value={form.startDate}
+                      onChangeText={(t) => setF("startDate", t)}
+                      style={styles.input}
+                    />
+                  </Half>
+                  <Half label="End Date">
+                    <TextInput
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor="#999"
+                      value={form.endDate}
+                      onChangeText={(t) => setF("endDate", t)}
+                      style={styles.input}
+                    />
+                  </Half>
+                </View>
+              ) : (
+                <FormRow label="Per Project">
                   <TextInput
-                    placeholder="YYYY-MM-DD"
+                    placeholder="e.g., Paint this room / Repair these cars"
                     placeholderTextColor="#999"
-                    value={form.startDate}
-                    onChangeText={(t) => setF("startDate", t)}
+                    value={form.perProject}
+                    onChangeText={(t) => setF("perProject", t)}
                     style={styles.input}
                   />
-                </Half>
-                <Half label="End Date">
-                  <TextInput
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor="#999"
-                    value={form.endDate}
-                    onChangeText={(t) => setF("endDate", t)}
-                    style={styles.input}
-                  />
-                </Half>
-              </View>
+                </FormRow>
+              )}
 
               <FormRow label="Location">
                 <TextInput
@@ -656,6 +741,22 @@ const styles = StyleSheet.create({
     backgroundColor: WHITE,
     color: BLACK,
   },
+
+  // NEW: contract type selector styles
+  typeRow: { flexDirection: "row", gap: 10 },
+  typeBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    alignItems: "center",
+    backgroundColor: WHITE,
+  },
+  typeBtnActive: { backgroundColor: "#FFFDF2", borderColor: YELLOW },
+  typeTxt: { fontSize: 13, fontWeight: "800", color: BLACK },
+  typeTxtActive: { color: BLACK },
+
   submitBtn: {
     marginTop: 8,
     backgroundColor: YELLOW,
