@@ -1,4 +1,4 @@
-// App.js
+// App.js 
 import React, { useState } from "react";
 import {
   SafeAreaView,
@@ -28,8 +28,6 @@ export default function App() {
   const onDelete = (id) => setHelps((h) => h.filter((x) => x.id !== id));
   const onReview = (item) =>
     Alert.alert("Review", `Open review for:\n${item.title.replace("\n", " ")}`);
-  const onPreview = (item) =>
-    Alert.alert("Preview", `Previewing "${item.title.replace("\n", " ")}"`);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -89,14 +87,6 @@ export default function App() {
                 activeOpacity={0.85}
               >
                 <Text style={styles.actionText}>Review</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.eyeBtn}
-                onPress={() => onPreview(item)}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="eye-outline" size={18} color={BLACK} />
               </TouchableOpacity>
             </View>
           </View>
@@ -208,16 +198,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   actionText: { fontWeight: "800", color: BLACK },
-
-  eyeBtn: {
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: BLACK,
-    borderRadius: 10,
-    height: 40,
-    backgroundColor: WHITE,
-  },
 
   emptyText: {
     textAlign: "center",
