@@ -20,7 +20,7 @@ const BLACK = "#000";
 const WHITE = "#FFF";
 const YELLOW = "#FFD54A";
 
-const SUPPORT_EMAIL = "support@ssocket.app"; // change if needed
+const SUPPORT_EMAIL = "ssocketapp@gmail.com"; // updated email
 const MAX_MESSAGE = 2000; // reasonable mail body cap
 
 export default function CustomerSupportPage() {
