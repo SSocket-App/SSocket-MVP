@@ -104,24 +104,19 @@ export default function MiniContractorPage() {
     details: "",
     location: "",
     contractPay: "",
-    // NEW: type toggle + perProject
+    // Type toggle + project description
     contractType: "duration", // 'duration' | 'project'
     startDate: "",
     endDate: "",
-    perProject: "", // only when contractType === 'project'
+    perProject: "", // used when contractType === 'project'
   });
   const setF = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   /* ---------- Active list + Feedback state ---------- */
   const [activeContracts, setActiveContracts] = useState(INITIAL_ACTIVE);
-
-  // per-contract feedback dropdown open/close
   const [openFeedback, setOpenFeedback] = useState({}); // { [id]: boolean }
-
-  // one-time submit guard
   const [submittedFeedback, setSubmittedFeedback] = useState({}); // { [id]: true }
 
-  // local drafts per contract id — NEW shape for stats fields
   const [drafts, setDrafts] = useState(() =>
     Object.fromEntries(
       INITIAL_ACTIVE.map((c) => [
@@ -157,8 +152,6 @@ export default function MiniContractorPage() {
     if (!d.satisfactionRating || !d.customerServiceRating) {
       return Alert.alert("Missing ratings", "Please set both Satisfaction and Customer Service ratings (1–5).");
     }
-
-    // Submit payload aligned with stats page
     const payload = {
       contractId: id,
       satisfactionRating: d.satisfactionRating,
@@ -170,7 +163,7 @@ export default function MiniContractorPage() {
     console.log("MINI_CONTRACTOR_FEEDBACK_SUBMIT", payload);
 
     setSubmittedFeedback((p) => ({ ...p, [id]: true }));
-    setOpenFeedback((p) => ({ ...p, [id]: false })); // collapse after submit
+    setOpenFeedback((p) => ({ ...p, [id]: false }));
     Alert.alert("Feedback submitted", "Hidden until both parties submit (double-blind).");
   };
 
@@ -192,7 +185,7 @@ export default function MiniContractorPage() {
       }
     } else {
       if (!perProject) {
-        Alert.alert("Missing project info", "Provide the Per Project description for project contracts.");
+        Alert.alert("Missing details", "Provide what should be done for project contracts.");
         return;
       }
     }
@@ -200,7 +193,7 @@ export default function MiniContractorPage() {
     Alert.alert(
       "Contract Created",
       `${title}\n${roles}\n${location}\n${contractPay}\nType: ${contractType.toUpperCase()}\n${
-        contractType === "duration" ? `${startDate} - ${endDate}` : `Per Project: ${perProject}`
+        contractType === "duration" ? `${startDate} - ${endDate}` : `What: ${perProject}`
       }`
     );
 
@@ -215,8 +208,7 @@ export default function MiniContractorPage() {
       perProject: "",
       location: "",
       contractPay: "",
-      // keep last chosen type
-      contractType: p.contractType,
+      contractType: p.contractType, // keep last chosen type
     }));
   };
 
@@ -285,16 +277,15 @@ export default function MiniContractorPage() {
           </TouchableOpacity>
         </View>
 
-        {/* Double-blind note (always visible like your other page) */}
+        {/* Double-blind note */}
         <View style={styles.blindRow}>
           <Ionicons name="lock-closed-outline" size={14} color={MUTED} />
           <Text style={styles.blindTxt}>  Hidden until both parties submit (double-blind)</Text>
         </View>
 
-        {/* Feedback dropdown (ended & not yet submitted) */}
+        {/* Feedback dropdown */}
         {isEnded && isOpen && !isSubmitted && (
           <View style={styles.feedbackWrap}>
-            {/* Satisfaction */}
             <Text style={styles.formLabel}>Satisfaction Rating</Text>
             <View style={styles.starRow}>
               <StarsPicker
@@ -305,7 +296,6 @@ export default function MiniContractorPage() {
               <Text style={styles.starNum}>{(draft.satisfactionRating || 0).toFixed(1)}★</Text>
             </View>
 
-            {/* Customer Service */}
             <Text style={[styles.formLabel, { marginTop: 12 }]}>Customer Service Rating</Text>
             <View style={styles.starRow}>
               <StarsPicker
@@ -316,7 +306,6 @@ export default function MiniContractorPage() {
               <Text style={styles.starNum}>{(draft.customerServiceRating || 0).toFixed(1)}★</Text>
             </View>
 
-            {/* Green Tags */}
             <Text style={[styles.formLabel, { marginTop: 12 }]}>Green Tags (Strengths)</Text>
             <View style={styles.tagsWrap}>
               {GREEN_TAGS.map((t) => {
@@ -334,7 +323,6 @@ export default function MiniContractorPage() {
               })}
             </View>
 
-            {/* Red Tags */}
             <Text style={[styles.formLabel, { marginTop: 12 }]}>Red Tags (Risks)</Text>
             <View style={styles.tagsWrap}>
               {RED_TAGS.map((t) => {
@@ -352,7 +340,6 @@ export default function MiniContractorPage() {
               })}
             </View>
 
-            {/* Review (private) */}
             <Text style={[styles.formLabel, { marginTop: 12 }]}>
               Review <Text style={{ color: MUTED }}>(private to system)</Text>
             </Text>
@@ -398,7 +385,7 @@ export default function MiniContractorPage() {
             </Text>
           </View>
 
-          {/* Changed label from "Pick" to "View" as requested previously */}
+          {/* "View" button per earlier change */}
           <TouchableOpacity style={styles.pickButton}>
             <Text style={styles.pickText}>View</Text>
           </TouchableOpacity>
@@ -487,7 +474,7 @@ export default function MiniContractorPage() {
                 />
               </FormRow>
 
-              {/* ======== NEW: Type selector (minimal box) ======== */}
+              {/* ======== Type selector ======== */}
               <FormRow label="Contract Type">
                 <View style={styles.typeRow}>
                   <TouchableOpacity
@@ -551,7 +538,7 @@ export default function MiniContractorPage() {
                   </Half>
                 </View>
               ) : (
-                <FormRow label="Per Project">
+                <FormRow label="What should be done">
                   <TextInput
                     placeholder="e.g., Paint this room / Repair these cars"
                     placeholderTextColor="#999"
@@ -677,7 +664,7 @@ function StarsPicker({ value, onChange, disabled }) {
           <Ionicons
             name={i <= value ? "star" : "star-outline"}
             size={24}
-            color={disabled ? "#CCC" : "#111"} // keep black star to match soft UI
+            color={disabled ? "#CCC" : "#111"}
           />
         </TouchableOpacity>
       ))}
@@ -742,7 +729,7 @@ const styles = StyleSheet.create({
     color: BLACK,
   },
 
-  // NEW: contract type selector styles
+  // contract type selector styles
   typeRow: { flexDirection: "row", gap: 10 },
   typeBtn: {
     flex: 1,
@@ -836,7 +823,7 @@ const styles = StyleSheet.create({
   blindRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
   blindTxt: { color: MUTED, fontSize: 12, fontWeight: "600" },
 
-  /* Feedback dropdown (soft UI like Contractee list) */
+  /* Feedback dropdown */
   feedbackWrap: {
     marginTop: 10,
     padding: 12,
