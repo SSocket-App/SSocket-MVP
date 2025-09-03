@@ -41,9 +41,8 @@ export default function App() {
 
         <Text style={styles.topTitle}>Messages</Text>
 
-        <TouchableOpacity style={[styles.iconBox, { alignItems: "flex-end" }]}>
-          <Ionicons name="search" size={20} color={WHITE} />
-        </TouchableOpacity>
+        {/* Removed search icon — keep spacing with empty view */}
+        <View style={styles.iconBox} />
       </View>
       <View style={styles.topAccent} />
 
