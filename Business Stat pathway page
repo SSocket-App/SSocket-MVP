@@ -1,5 +1,4 @@
-
-// StatsHub.js — Central hub listing all user stat pages (Help Stats removed)
+// StatsHub.js — Central hub listing all user stat pages (Help Stats removed, Contractor toggle removed for Mega only)
 import React, { useState } from "react";
 import {
   SafeAreaView,
@@ -50,7 +49,6 @@ function Toggle2({ left, right, value, onChange }) {
 
 export default function StatsHub({ onNavigate }) {
   const [miniRole, setMiniRole] = useState("Contractee");
-  const [megaRole, setMegaRole] = useState("Contractee");
 
   const go = (screen, params) => {
     if (typeof onNavigate === "function") {
@@ -75,7 +73,7 @@ export default function StatsHub({ onNavigate }) {
       <View style={styles.topAccent} />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
-        {/* Mini Contract Stats (toggle) */}
+        {/* Mini Contract Stats (toggle kept) */}
         <Card>
           <Text style={styles.cardTitle}>Mini Contract Stats</Text>
           <Toggle2
@@ -99,26 +97,18 @@ export default function StatsHub({ onNavigate }) {
           </TouchableOpacity>
         </Card>
 
-        {/* Mega Contract Stats (toggle) */}
+        {/* Mega Contract Stats (only Contractee now) */}
         <Card>
           <Text style={styles.cardTitle}>Mega Contract Stats</Text>
-          <Toggle2
-            left="Contractee"
-            right="Contractor"
-            value={megaRole}
-            onChange={setMegaRole}
-          />
           <TouchableOpacity
             style={styles.viewBtn}
             activeOpacity={0.9}
             onPress={() =>
-              go("MegaContractStats", { role: megaRole.toLowerCase() })
+              go("MegaContractStats", { role: "contractee" })
             }
           >
             <Ionicons name="analytics-outline" size={16} color={BLACK} />
-            <Text style={styles.viewBtnTxt}>
-              View {megaRole} Stats
-            </Text>
+            <Text style={styles.viewBtnTxt}>View Contractee Stats</Text>
             <Ionicons name="chevron-forward" size={16} color={BLACK} />
           </TouchableOpacity>
         </Card>
