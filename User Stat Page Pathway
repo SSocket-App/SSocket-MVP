@@ -1,4 +1,4 @@
-// StatsHub.js — Central hub listing all user stat pages (Mega = Contractor only)
+// StatsHub.js — Central hub listing all user stat pages (Mega = Contractor only) 
 import React, { useState } from "react";
 import {
   SafeAreaView,
@@ -114,16 +114,16 @@ export default function StatsHub({ onNavigate }) {
           </TouchableOpacity>
         </Card>
 
-        {/* Mega Contract Stats (Contractor only) */}
+        {/* Competition Stats (Contractor only) */}
         <Card>
-          <Text style={styles.cardTitle}>Mega Contract Stats</Text>
+          <Text style={styles.cardTitle}>Competition Stats</Text>
           <TouchableOpacity
             style={styles.viewBtn}
             activeOpacity={0.9}
             onPress={() => go("MegaContractStats", { role: "contractor" })}
           >
             <Ionicons name="analytics-outline" size={16} color={BLACK} />
-            <Text style={styles.viewBtnTxt}>View Contractor Stats</Text>
+            <Text style={styles.viewBtnTxt}>View Competition Stats</Text>
             <Ionicons name="chevron-forward" size={16} color={BLACK} />
           </TouchableOpacity>
         </Card>
