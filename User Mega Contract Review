@@ -392,14 +392,7 @@ export default function SSocketContractorView({
                 <Text style={styles.actionGhostTxt}>Leave Contract Page</Text>
               </TouchableOpacity>
               <View style={{ width: 10 }} />
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.actionOutline]}
-                activeOpacity={0.9}
-                onPress={requestChanges}
-              >
-                <Text style={styles.actionOutlineTxt}>Request Changes</Text>
-              </TouchableOpacity>
-              <View style={{ width: 10 }} />
+              {/* Request Changes button removed as requested */}
               <TouchableOpacity
                 style={[styles.actionBtn, styles.actionPrimary]}
                 activeOpacity={0.9}
@@ -583,6 +576,7 @@ const styles = StyleSheet.create({
   actionGhost: { backgroundColor: WHITE, borderColor: BLACK },
   actionGhostTxt: { color: BLACK, fontWeight: "900", fontSize: 14 },
 
+  // actionOutline styles kept (unused) to avoid layout/style ripple
   actionOutline: { backgroundColor: WHITE, borderColor: BLACK },
   actionOutlineTxt: { color: BLACK, fontWeight: "900", fontSize: 14 },
 
