@@ -1,6 +1,6 @@
 // SSocketMyCompetitions_User.js
 // User-side: List of competitions they have joined.
-// - Each competition shows title, role, STATUS (Ongoing / Ended / Disqualified).
+// - Each competition shows avatar + business name, title, role, STATUS (Ongoing / Ended / Disqualified).
 // - Added details: CURRENT ROUND and ESTIMATED PAY RANGE.
 // - "Details" button opens the competition details (rounds, next questions, etc).
 // - Disqualified competitions show red badge "Disqualified".
@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
   FlatList,
   Alert,
+  Image, // ← added for avatar
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -32,6 +33,8 @@ export default function SSocketMyCompetitions_User({ competitions, onOpenDetails
     () => [
       {
         id: "cmp_101",
+        businessName: "Ada Ventures Ltd",
+        avatarUrl: "",
         title: "Marketing Hire – Q4 Funnel Sprint",
         jobRole: "Marketing Specialist",
         status: "ongoing", // ongoing | ended | disqualified
@@ -44,6 +47,8 @@ export default function SSocketMyCompetitions_User({ competitions, onOpenDetails
       },
       {
         id: "cmp_102",
+        businessName: "BrightLabs",
+        avatarUrl: "",
         title: "UI/UX Design Contest",
         jobRole: "Product Designer",
         status: "disqualified",
@@ -56,6 +61,8 @@ export default function SSocketMyCompetitions_User({ competitions, onOpenDetails
       },
       {
         id: "cmp_103",
+        businessName: "Nova Foods",
+        avatarUrl: "",
         title: "Accounting Challenge 2025",
         jobRole: "Accountant",
         status: "ended",
@@ -106,6 +113,7 @@ export default function SSocketMyCompetitions_User({ competitions, onOpenDetails
 
   const currentRoundText = (item) => {
     const ci = Number(item.currentRoundIndex);
+    thead = Number(item.totalRounds);
     const tr = Number(item.totalRounds);
     if (item.status === "ongoing" && ci && tr) return `Current: Round ${ci} of ${tr}`;
     if (item.status === "ended" && tr) return `Final Round: ${tr} of ${tr}`;
@@ -128,6 +136,22 @@ export default function SSocketMyCompetitions_User({ competitions, onOpenDetails
     return (
       <View style={styles.barrier}>
         <View style={styles.card}>
+          {/* Header: Avatar + Business Name */}
+          <View style={styles.headerRow}>
+            {item.avatarUrl ? (
+              <Image source={{ uri: item.avatarUrl }} style={styles.avatarImg} />
+            ) : (
+              <View style={styles.avatarMono}>
+                <Text style={styles.avatarMonoTxt}>
+                  {(item.businessName || item.title || "?").slice(0, 1).toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <Text style={styles.bizName} numberOfLines={1}>
+              {item.businessName || "—"}
+            </Text>
+          </View>
+
           {/* Title + Role */}
           <Text style={styles.title} numberOfLines={2}>
             {item.title}
@@ -243,6 +267,20 @@ const styles = StyleSheet.create({
     backgroundColor: WHITE,
     padding: 12,
   },
+
+  /* Header (Avatar + Business Name) */
+  headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+  avatarImg: {
+    width: 40, height: 40, borderRadius: 20,
+    borderWidth: 2, borderColor: BLACK,
+  },
+  avatarMono: {
+    width: 40, height: 40, borderRadius: 20,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+    alignItems: "center", justifyContent: "center",
+  },
+  avatarMonoTxt: { color: BLACK, fontWeight: "900", fontSize: 16 },
+  bizName: { marginLeft: 10, color: BLACK, fontSize: 14, fontWeight: "900", flexShrink: 1 },
 
   title: { color: BLACK, fontSize: 15, fontWeight: "900" },
   role: { color: "#444", fontSize: 12, marginTop: 2 },
