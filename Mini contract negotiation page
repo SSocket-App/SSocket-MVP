@@ -3,6 +3,7 @@
 // - Preserves your UI + wording
 // - Edit button toggles an inline form for the Overview fields
 // - Save updates local state and calls onEdit(updated) if provided
+// - Red warning: once sealed by both parties, no more edits
 
 import React, { useMemo, useRef, useState } from "react";
 import {
@@ -425,6 +426,11 @@ export default function MiniContractReview_Negotiate({
 
                 <Text style={styles.reviewDate}>Review date: {today}</Text>
 
+                {/* === Red warning about editing after seal === */}
+                <Text style={styles.sealWarning}>
+                  ⚠️ Once the contract is sealed and accepted by the contractee and contractor, no edit can be made again.
+                </Text>
+
                 {/* Action buttons below */}
                 <View style={[styles.actionRow, { marginTop: 10 }]}>
                   {/* Edit toggler (read-only mode only) */}
@@ -654,6 +660,15 @@ const styles = StyleSheet.create({
   conditionItem: { color: BLACK, fontSize: 12, lineHeight: 18, marginBottom: 6 },
 
   reviewDate: { marginTop: 6, color: "#666", fontSize: 11 },
+
+  /* Red warning about sealing (no more edits) */
+  sealWarning: {
+    marginTop: 8,
+    color: RED,
+    fontSize: 12,
+    fontWeight: "900",
+    textAlign: "center",
+  },
 
   /* Action buttons row & styles */
   actionRow: {
