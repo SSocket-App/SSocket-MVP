@@ -60,7 +60,7 @@ export default function MegaContractorsHome() {
         <TouchableOpacity style={styles.iconBox} activeOpacity={0.8}>
           <Ionicons name="chevron-back" size={24} color={WHITE} />
         </TouchableOpacity>
-        <Text style={styles.topTitle}>Business Mega Contractors</Text>
+        <Text style={styles.topTitle}>Mega Contract Page </Text>
         <View style={styles.iconBox} />
       </View>
       <View style={styles.topAccent} />
@@ -88,12 +88,7 @@ export default function MegaContractorsHome() {
               subtitle="Track contracts awaiting approval or response"
               tone="ghost"
             />
-            <LineButton
-              icon="checkmark-done-outline"
-              label="Confirmations"
-              subtitle="Confirm contractors claims"
-              tone="ghost"
-            />
+            {/* Removed: Confirmations */}
             <LineButton
               icon="trophy-outline"
               label="Host a Tournament"
