@@ -102,6 +102,33 @@ export default function BusinessContractsHub({ onNavigate }) {
             </TouchableOpacity>
           </View>
         </Card>
+
+        {/* Mini Contractees (NEW) */}
+        <Card>
+          <View style={styles.rowHeader}>
+            <Text style={styles.cardTitle}>Mini Contractees</Text>
+            <View style={[styles.badge, { backgroundColor: "#E0E7FF" }]}>
+              <Text style={styles.badgeSymbol}>≅</Text>
+              <Text style={styles.badgeTxt}>B2B Contracts</Text>
+            </View>
+          </View>
+
+          <Text style={styles.cardSub}>
+            Contracts from other businesses is possible here if need be
+          </Text>
+
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={styles.viewBtn}
+              activeOpacity={0.9}
+              onPress={() => go("MiniContractees")}
+            >
+              <Ionicons name="people-outline" size={16} color={BLACK} />
+              <Text style={styles.viewBtnTxt}>Open Mini Contractees</Text>
+              <Ionicons name="chevron-forward" size={16} color={BLACK} />
+            </TouchableOpacity>
+          </View>
+        </Card>
       </ScrollView>
     </SafeAreaView>
   );
@@ -154,6 +181,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   badgeTxt: { marginLeft: 6, fontSize: 10, fontWeight: "900", color: BLACK },
+  badgeSymbol: { fontSize: 12, fontWeight: "900", color: BLACK },
 
   actionsRow: { flexDirection: "row", alignItems: "center", marginTop: 10 },
 
