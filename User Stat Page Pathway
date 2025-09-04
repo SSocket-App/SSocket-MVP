@@ -67,35 +67,23 @@ export default function StatsHub({ onNavigate }) {
           <Text style={styles.cardTitle}>Mini Contract Stats</Text>
           <View style={styles.toggleRow}>
             <TouchableOpacity
-              style={[
-                styles.toggleBtn,
-                miniRole === "Contractee" && styles.toggleActive,
-              ]}
+              style={[styles.toggleBtn, miniRole === "Contractee" && styles.toggleActive]}
               onPress={() => setMiniRole("Contractee")}
               activeOpacity={0.9}
             >
               <Text
-                style={[
-                  styles.toggleTxt,
-                  miniRole === "Contractee" && styles.toggleTxtActive,
-                ]}
+                style={[styles.toggleTxt, miniRole === "Contractee" && styles.toggleTxtActive]}
               >
                 Contractee
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.toggleBtn,
-                miniRole === "Contractor" && styles.toggleActive,
-              ]}
+              style={[styles.toggleBtn, miniRole === "Contractor" && styles.toggleActive]}
               onPress={() => setMiniRole("Contractor")}
               activeOpacity={0.9}
             >
               <Text
-                style={[
-                  styles.toggleTxt,
-                  miniRole === "Contractor" && styles.toggleTxtActive,
-                ]}
+                style={[styles.toggleTxt, miniRole === "Contractor" && styles.toggleTxtActive]}
               >
                 Contractor
               </Text>
@@ -104,9 +92,7 @@ export default function StatsHub({ onNavigate }) {
           <TouchableOpacity
             style={styles.viewBtn}
             activeOpacity={0.9}
-            onPress={() =>
-              go("MiniContractStats", { role: miniRole.toLowerCase() })
-            }
+            onPress={() => go("MiniContractStats", { role: miniRole.toLowerCase() })}
           >
             <Ionicons name="analytics-outline" size={16} color={BLACK} />
             <Text style={styles.viewBtnTxt}>View {miniRole} Stats</Text>
@@ -124,6 +110,20 @@ export default function StatsHub({ onNavigate }) {
           >
             <Ionicons name="analytics-outline" size={16} color={BLACK} />
             <Text style={styles.viewBtnTxt}>View Competition Stats</Text>
+            <Ionicons name="chevron-forward" size={16} color={BLACK} />
+          </TouchableOpacity>
+        </Card>
+
+        {/* NEW: Mega Contract Stats (Contractor only) */}
+        <Card>
+          <Text style={styles.cardTitle}>Mega Contract Stats</Text>
+          <TouchableOpacity
+            style={styles.viewBtn}
+            activeOpacity={0.9}
+            onPress={() => go("MegaContractStats", { role: "contractor" })}
+          >
+            <Ionicons name="analytics-outline" size={16} color={BLACK} />
+            <Text style={styles.viewBtnTxt}>View Mega Contract Stats</Text>
             <Ionicons name="chevron-forward" size={16} color={BLACK} />
           </TouchableOpacity>
         </Card>
