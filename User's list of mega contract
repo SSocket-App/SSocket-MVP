@@ -1,4 +1,4 @@
-// SSocketContractorMegaContracts.js
+// SSocketContractorMegaContracts.js 
 // One page with a top title "Contractor Mega Contracts" and a toggle:
 // - Contract List  → ongoing + ended mega contracts (with "Achievement List" buttons)
 // - Pending Contract → single pending mega contract card
@@ -53,8 +53,8 @@ export default function SSocketContractorMegaContracts({
   const demoActive = useMemo(
     () => ({
       id: "sc_me_mine",
-      contracteeName: "Ada Ventures Ltd",
-      contractorName: "John Doe",
+      contracteeName: "Ada Ventures Ltd",     // BUSINESS NAME (shown)
+      contractorName: "Ada Ventures Ltd",     // kept for data, not shown
       jobRole: "Marketing Specialist",
       workDescription:
         "Lead generation campaigns, weekly performance report, and monthly growth experiments.",
@@ -72,8 +72,8 @@ export default function SSocketContractorMegaContracts({
     () => [
       {
         id: "sc_ended_01",
-        contracteeName: "BrightLabs",
-        contractorName: "John Doe",
+        contracteeName: "BrightLabs",         // BUSINESS NAME (shown)
+        contractorName: "BrightLabs",
         jobRole: "QA Engineer",
         workDescription: "Mobile QA with weekly reports and release certifications.",
         startDate: "2024-01-10",
@@ -85,8 +85,8 @@ export default function SSocketContractorMegaContracts({
       },
       {
         id: "sc_ended_02",
-        contracteeName: "Nova Foods",
-        contractorName: "John Doe",
+        contracteeName: "Nova Foods",         // BUSINESS NAME (shown)
+        contractorName: "Nova Foods",
         jobRole: "Brand Designer",
         workDescription: "Packaging refresh across 4 SKUs + print-ready assets.",
         startDate: "2023-02-01",
@@ -103,8 +103,8 @@ export default function SSocketContractorMegaContracts({
   const demoPending = useMemo(
     () => ({
       id: "mc_201",
-      contracteeName: "Ada Ventures Ltd",
-      contractorName: "John Doe",
+      contracteeName: "Ada Ventures Ltd",     // BUSINESS NAME (shown)
+      contractorName: "Ada Ventures Ltd",
       jobRole: "Accountant",
       workDescription: "Monthly accounts reconciliation and payroll processing",
       startDate: "2025-09-01",
@@ -145,7 +145,7 @@ export default function SSocketContractorMegaContracts({
   const renderActiveCard = (c) => (
     <View key={c.id} style={styles.barrier}>
       <View style={styles.card}>
-        {/* Header: avatar + names + badge */}
+        {/* Header: avatar + ONLY BUSINESS NAME + badge */}
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             {c.avatarUrl ? (
@@ -153,15 +153,13 @@ export default function SSocketContractorMegaContracts({
             ) : (
               <View style={styles.avatarMono}>
                 <Text style={styles.avatarMonoTxt}>
-                  {(c.contractorName || "?").slice(0, 1).toUpperCase()}
+                  {(c.contracteeName || "?").slice(0, 1).toUpperCase()}
                 </Text>
               </View>
             )}
             <View style={{ marginLeft: 10 }}>
+              {/* Show ONLY business name */}
               <Text style={styles.name} numberOfLines={1}>
-                {c.contractorName}
-              </Text>
-              <Text style={styles.subName} numberOfLines={1}>
                 {c.contracteeName}
               </Text>
             </View>
@@ -254,7 +252,7 @@ export default function SSocketContractorMegaContracts({
 
             {/* Details */}
             <View style={{ flex: 1, marginLeft: 12 }}>
-              {/* Company */}
+              {/* ONLY Business Name */}
               <Text style={styles.name} numberOfLines={1}>
                 {pending.contracteeName}
               </Text>
@@ -287,9 +285,8 @@ export default function SSocketContractorMegaContracts({
                 )}
               </View>
 
-              {/* Key-Value grid */}
+              {/* Key-Value grid (Contractor row REMOVED so only business name shows) */}
               <View style={styles.kvGrid}>
-                <KV label="Contractor" value={pending.contractorName} />
                 <KV label="Start Date" value={pending.startDate} />
                 <KV label="End / Deadline" value={pending.endDate} />
                 <KV label="Payment Period" value={periodToReadable(pending.paymentPeriod)} />
@@ -303,7 +300,11 @@ export default function SSocketContractorMegaContracts({
             </View>
 
             {/* Action */}
-            <TouchableOpacity activeOpacity={0.9} style={[styles.btn, styles.btnYellow, { marginLeft: 12 }]} onPress={openPending}>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={[styles.btn, styles.btnYellow, { marginLeft: 12 }]}
+              onPress={openPending}
+            >
               <Ionicons name="open-outline" size={16} color={BLACK} />
               <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Open</Text>
             </TouchableOpacity>
@@ -436,7 +437,7 @@ const styles = StyleSheet.create({
   },
   avatarMonoTxt: { color: BLACK, fontWeight: "900", fontSize: 16 },
   name: { color: BLACK, fontSize: 16, fontWeight: "900" },
-  subName: { color: "#444", fontSize: 12, marginTop: 2 },
+  subName: { color: "#444", fontSize: 12, marginTop: 2 }, // (unused now — kept to avoid touching styles)
 
   badgeChip: {
     paddingHorizontal: 10,
