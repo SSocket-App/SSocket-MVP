@@ -59,7 +59,6 @@ export default function SSocketContractForm() {
   const inputRef = useRef(null);
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const [preview, setPreview] = useState("");
 
   /* ===== Handlers ===== */
   const addNegotiationMsg = () => {
@@ -86,56 +85,6 @@ export default function SSocketContractForm() {
     return null;
   };
 
-  const generatePreview = () => {
-    const err = validate();
-    if (err) {
-      Alert.alert("Missing info", err);
-      return;
-    }
-    const negotiationBlock =
-      negotiationMsgs.length > 0
-        ? negotiationMsgs.map((m, i) => `   ${i + 1}. [${m.by}] ${m.text}`).join("\n")
-        : "   (No entries yet)";
-
-    const text =
-      `SSocket Basic Contractor Contract (MVP)\n\n` +
-      `1) Parties\n` +
-      `   Contractee: ${contracteeName}\n` +
-      `   Contractor: ${contractorName}\n\n` +
-      `2) Work Description\n` +
-      `   ${workDescription}\n\n` +
-      `3) Work Rules (by Contractee)\n` +
-      `   ${workRules || "(Not specified)"}\n\n` +
-      `4) Termination Terms\n` +
-      `   ${terminationTerms || "(Not specified)"}\n\n` +
-      `5) Duration\n` +
-      `   Start: ${startDate}\n` +
-      `   End/Deadline: ${endDate}\n` +
-      `   Probation: ${probationDays} day(s)\n\n` +
-      `6) Payment\n` +
-      `   Salary: ${currency} ${salary}\n` +
-      `   Schedule: ${labelizeSchedule(paymentSchedule)}\n` +
-      (paymentSchedule === "on_completion" || paymentSchedule === "milestones"
-        ? `   Details: ${paymentDetails}\n`
-        : ``) +
-      `   Please not SSocket does not charge you any percent of your payment. (Payments via SSocket bank app.)\n\n` +
-      `7) Bonus & Deductions\n` +
-      `   Bonus: ${bonusEnabled ? bonusTerms || "Yes (terms not specified)" : "None"}\n` +
-      `   Deductions: ${deductionEnabled ? deductionTerms || "Yes (terms not specified)" : "None"}\n\n` +
-      `8) Agreement\n` +
-      `   • ${contracteeName || "The Business"} agree to: deliver as described and to keep up with payment as promised.\n\n` +
-      `9) Role (Position)\n` + // show role as its own section so it stands out but keeps your UI text-only
-      `   ${jobRole}\n\n` +
-      `10) Negotiate Contract — Non-deletable Chat Log\n` +
-      `${negotiationBlock}\n\n` +
-      `   SSocket Conditions:\n` +
-      `   1. Use this chat to agree on: work rules, termination terms, payments, bonuses/deductions, probation & duration, and the work description. The details you agree here must match the form. If there’s a mismatch, this chat is SSocket’s first reference.\n` +
-      `   2. During probation, either party may terminate the contract without penalty.\n` +
-      `   3. If probation ends early, the contractor is paid for work already completed. Agree the probation payment structure here before probation starts.\n` +
-      `\nGenerated: ${today}`;
-    setPreview(text);
-  };
-
   const leavePage = () => {
     Alert.alert("Leave contract page", "Your changes may not be saved.", [
       { text: "Stay", style: "cancel" },
@@ -143,16 +92,16 @@ export default function SSocketContractForm() {
     ]);
   };
 
-  const sealContract = () => {
+  const sendContract = () => {
     const err = validate();
     if (err) {
-      Alert.alert("Cannot seal contract", err);
+      Alert.alert("Cannot send contract", err);
       return;
     }
     Alert.alert(
-      "Seal Contract",
-      "Once sealed by both parties, no adjustments can be made.",
-      [{ text: "Cancel", style: "cancel" }, { text: "Seal", style: "default" }]
+      "Send Contract",
+      "The contractor will be notified to review and respond.",
+      [{ text: "OK", style: "default" }]
     );
   };
 
@@ -324,7 +273,7 @@ export default function SSocketContractForm() {
             )}
 
             {/* Exact note text as requested */}
-            <Info text="Please not SSocket does not charge you any percent of your payment" />
+            <Info text="PLEASE NOTE: SSocket does not charge contractors any percent of salary payment" />
           </Card>
 
           {/* Bonus & Deductions */}
@@ -509,40 +458,14 @@ export default function SSocketContractForm() {
               <TouchableOpacity
                 style={[styles.actionBtn, styles.actionPrimary]}
                 activeOpacity={0.9}
-                onPress={sealContract}
+                onPress={sendContract}
               >
-                <Text style={styles.actionPrimaryTxt}>Seal Contract</Text>
+                <Text style={styles.actionPrimaryTxt}>Send Contract</Text>
               </TouchableOpacity>
             </View>
             <Text style={[styles.sealWarn, { color: RED, fontWeight: "900" }]}>
-              Once sealed by both parties, no adjustment can be made
+              Once sent, the contractor can review, negotiate, or accept.
             </Text>
-
-            {/* Preview Button */}
-            <TouchableOpacity
-              style={styles.previewBtn}
-              activeOpacity={0.9}
-              onPress={generatePreview}
-            >
-              <Ionicons name="eye-outline" size={16} color={BLACK} />
-              <Text style={{ color: BLACK, fontWeight: "900", fontSize: 13, marginLeft: 8 }}>
-                Preview Contract
-              </Text>
-            </TouchableOpacity>
-          </Card>
-
-          {/* Preview */}
-          <Card>
-            <Text style={styles.cardTitle}>Preview</Text>
-            {preview ? (
-              <View style={styles.previewBox}>
-                <Text selectable style={styles.previewText}>{preview}</Text>
-              </View>
-            ) : (
-              <Text style={styles.helperNote}>
-                Fill the form and tap Preview to see the generated contract.
-              </Text>
-            )}
           </Card>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -837,29 +760,6 @@ const styles = StyleSheet.create({
   actionPrimaryTxt: { color: BLACK, fontWeight: "900", fontSize: 14 },
 
   sealWarn: { marginTop: 8, fontSize: 12 },
-
-  previewBtn: {
-    marginTop: 10,
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: BLACK,
-    backgroundColor: WHITE,
-  },
-
-  previewBox: {
-    marginTop: 8,
-    borderWidth: 2,
-    borderColor: BLACK,
-    borderRadius: 12,
-    backgroundColor: WHITE,
-    padding: 12,
-  },
-  previewText: { color: BLACK, fontSize: 12, lineHeight: 18 },
 });
 
 /* ===== helpers ===== */
