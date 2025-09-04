@@ -1,9 +1,8 @@
-// SSocketMyMegaContract_Contractor.js
-// Contractor-side: Single Mega Contract + yellow "Achievement List" button.
-// - Shows ONE ongoing mega contract (no composer/dropdown here).
-// - Button "Achievement List" opens a separate page (to build later).
-// - Past ENDED mega contracts also show a yellow "Achievement List" button.
-// - RN warning-safe: no "gap" usage; stable keys; no unused states.
+// SSocketContractorMegaContracts.js
+// One page with a top title "Contractor Mega Contracts" and a toggle:
+// - Contract List  → ongoing + ended mega contracts (with "Achievement List" buttons)
+// - Pending Contract → single pending mega contract card
+// No external libs besides @expo/vector-icons. Avoids RN "gap" for compatibility.
 
 import React, { useMemo, useState } from "react";
 import {
@@ -24,11 +23,31 @@ const YELLOW = "#FFD54A";
 const BLACK = "#000";
 const WHITE = "#FFF";
 
-export default function SSocketMyMegaContract_Contractor({
-  contract,               // current (single) mega contract
-  endedContracts,         // array of ended mega contracts
-  onOpenAchievementsPage, // (contractObj) => void
+/* -------------------- Helpers -------------------- */
+function formatMoney(n) {
+  const x = Number(n);
+  if (Number.isNaN(x)) return "—";
+  return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+function periodToReadable(p) {
+  if (!p) return "";
+  const v = String(p).toLowerCase();
+  if (v.startsWith("week")) return "week";
+  if (v.startsWith("mon")) return "month";
+  if (v.startsWith("proj") || v === "on_completion") return "project";
+  if (v.startsWith("mile")) return "milestone";
+  return v;
+}
+
+/* -------------------- Page -------------------- */
+export default function SSocketContractorMegaContracts({
+  // Optional props for wiring into navigation
   onBack,
+  onOpenAchievementsPage, // (contractObj) => void
+  onOpenPending,          // (pendingContractObj) => void
+  activeContract,         // optional: pass active mega contract object
+  endedContracts,         // optional: pass array of ended mega contracts
+  pendingContract,        // optional: pass single pending mega contract
 }) {
   /* ===== Demo data fallbacks ===== */
   const demoActive = useMemo(
@@ -44,7 +63,7 @@ export default function SSocketMyMegaContract_Contractor({
       salary: 450000,
       paymentPeriod: "month",
       avatarUrl: "",
-      ongoing: true, // changed label from sealed -> ongoing
+      ongoing: true,
     }),
     []
   );
@@ -81,8 +100,30 @@ export default function SSocketMyMegaContract_Contractor({
     []
   );
 
-  const active = contract || demoActive;
-  const [ended] = useState(endedContracts && endedContracts.length ? endedContracts : demoEnded);
+  const demoPending = useMemo(
+    () => ({
+      id: "mc_201",
+      contracteeName: "Ada Ventures Ltd",
+      contractorName: "John Doe",
+      jobRole: "Accountant",
+      workDescription: "Monthly accounts reconciliation and payroll processing",
+      startDate: "2025-09-01",
+      endDate: "2025-12-01",
+      salary: 350000,
+      paymentPeriod: "month", // week | month | project | milestone | on_completion
+      lastMessage: "Please confirm Friday 4pm for weekly update.",
+      updatedAt: "2025-08-20",
+      unread: 2,
+      status: "Negotiation",
+    }),
+    []
+  );
+
+  const active = activeContract || demoActive;
+  const ended = (endedContracts && endedContracts.length ? endedContracts : demoEnded) || [];
+  const pending = pendingContract || demoPending;
+
+  const [tab, setTab] = useState("list"); // 'list' | 'pending'
 
   const goBack = () => {
     if (typeof onBack === "function") onBack();
@@ -91,8 +132,186 @@ export default function SSocketMyMegaContract_Contractor({
 
   const openAchievementsPage = (c) => {
     if (typeof onOpenAchievementsPage === "function") onOpenAchievementsPage(c || active);
-    else Alert.alert("Open", "Hook this into navigation to show the Achievements page.");
+    else Alert.alert("Open", "Wire this to your Achievements page.");
   };
+
+  const openPending = () => {
+    if (!pending) return;
+    if (typeof onOpenPending === "function") onOpenPending(pending);
+    else Alert.alert("Open", `Open contract with ${pending.contracteeName}`);
+  };
+
+  /* -------------------- Renders -------------------- */
+  const renderActiveCard = (c) => (
+    <View key={c.id} style={styles.barrier}>
+      <View style={styles.card}>
+        {/* Header: avatar + names + badge */}
+        <View style={styles.headerRow}>
+          <View style={styles.headerLeft}>
+            {c.avatarUrl ? (
+              <Image source={{ uri: c.avatarUrl }} style={styles.avatarImg} />
+            ) : (
+              <View style={styles.avatarMono}>
+                <Text style={styles.avatarMonoTxt}>
+                  {(c.contractorName || "?").slice(0, 1).toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <View style={{ marginLeft: 10 }}>
+              <Text style={styles.name} numberOfLines={1}>
+                {c.contractorName}
+              </Text>
+              <Text style={styles.subName} numberOfLines={1}>
+                {c.contracteeName}
+              </Text>
+            </View>
+          </View>
+          <View
+            style={[
+              styles.badgeChip,
+              { backgroundColor: c.ongoing ? YELLOW : "#EEE" },
+            ]}
+          >
+            <Text
+              style={[
+                styles.badgeChipTxt,
+                !c.ongoing && { color: BLACK },
+              ]}
+            >
+              {c.ongoing ? "Ongoing" : "Ended"}
+            </Text>
+          </View>
+        </View>
+
+        {/* Role */}
+        <View style={styles.roleBox}>
+          <Text style={styles.roleLabel}>Job Role</Text>
+          <Text style={styles.roleValue}>{c.jobRole || "—"}</Text>
+        </View>
+
+        {/* Description */}
+        <Text style={styles.desc}>{c.workDescription}</Text>
+
+        {/* Meta */}
+        <View style={styles.metaRow}>
+          <View style={styles.badgeOutline}>
+            <Text style={styles.badgeOutlineTxt}>
+              {`NGN ${formatMoney(c.salary)} per ${periodToReadable(c.paymentPeriod)}`}
+            </Text>
+          </View>
+          <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+            <Text style={styles.badgeOutlineTxt}>Start: {c.startDate || "—"}</Text>
+          </View>
+          <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+            <Text style={styles.badgeOutlineTxt}>End: {c.endDate || "—"}</Text>
+          </View>
+        </View>
+
+        {/* Yellow button to open Achievements page */}
+        <TouchableOpacity
+          style={[styles.btn, styles.btnYellow, { alignSelf: "flex-start", marginTop: 10 }]}
+          activeOpacity={0.9}
+          onPress={() => openAchievementsPage(c)}
+        >
+          <Ionicons name="list-outline" size={16} color={BLACK} />
+          <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Achievement List</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderListTab = () => (
+    <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+      {/* ACTIVE (ONGOING) — show single active card */}
+      {renderActiveCard(active)}
+
+      {/* ENDED contracts section */}
+      <Text style={[styles.h2, { marginHorizontal: 12, marginTop: 16 }]}>Ended Mega Contracts</Text>
+
+      {ended.length === 0 ? (
+        <Text style={[styles.emptyText, { marginHorizontal: 12 }]}>No ended contracts.</Text>
+      ) : (
+        ended.map((c) => renderActiveCard({ ...c, ongoing: false }))
+      )}
+    </ScrollView>
+  );
+
+  const renderPendingTab = () => (
+    <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+      {!pending ? (
+        <View style={[styles.emptyWrap, { paddingHorizontal: 12 }]}>
+          <Text style={styles.emptyText}>No pending mega contract.</Text>
+        </View>
+      ) : (
+        <View style={{ paddingHorizontal: 12 }}>
+          {/* Single Pending Contract Card */}
+          <View style={[styles.card, { flexDirection: "row", alignItems: "flex-start" }]}>
+            {/* Avatar-ish block */}
+            <View style={styles.avatar}>
+              <View style={styles.avatarHead} />
+              <View style={styles.avatarBody} />
+            </View>
+
+            {/* Details */}
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              {/* Company */}
+              <Text style={styles.name} numberOfLines={1}>
+                {pending.contracteeName}
+              </Text>
+
+              {/* Role */}
+              <View style={styles.roleBox}>
+                <Text style={styles.roleLabel}>Job Role</Text>
+                <Text style={styles.roleValue}>{pending.jobRole || "—"}</Text>
+              </View>
+
+              {/* Scope */}
+              <Text style={styles.desc} numberOfLines={3}>
+                {pending.workDescription}
+              </Text>
+
+              {/* Meta row: status + exact pay + unread */}
+              <View style={[styles.metaRow, { marginTop: 8 }]}>
+                <View style={styles.badgeYellowSmall}>
+                  <Text style={styles.badgeYellowText}>{pending.status || "Negotiation"}</Text>
+                </View>
+                <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
+                  <Text style={styles.badgeOutlineTxt}>
+                    {`NGN ${formatMoney(pending.salary)} per ${periodToReadable(pending.paymentPeriod)}`}
+                  </Text>
+                </View>
+                {pending.unread > 0 && (
+                  <View style={[styles.badgeUnread, { marginLeft: 8 }]}>
+                    <Text style={styles.badgeUnreadText}>{pending.unread}</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Key-Value grid */}
+              <View style={styles.kvGrid}>
+                <KV label="Contractor" value={pending.contractorName} />
+                <KV label="Start Date" value={pending.startDate} />
+                <KV label="End / Deadline" value={pending.endDate} />
+                <KV label="Payment Period" value={periodToReadable(pending.paymentPeriod)} />
+              </View>
+
+              {/* Last message + updated */}
+              <Text style={styles.lastMsg} numberOfLines={2}>
+                <Text style={{ fontWeight: "900" }}>Last:</Text> {pending.lastMessage || "No messages yet"}
+              </Text>
+              <Text style={styles.updatedAt}>Updated: {pending.updatedAt || "—"}</Text>
+            </View>
+
+            {/* Action */}
+            <TouchableOpacity activeOpacity={0.9} style={[styles.btn, styles.btnYellow, { marginLeft: 12 }]} onPress={openPending}>
+              <Ionicons name="open-outline" size={16} color={BLACK} />
+              <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Open</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+    </ScrollView>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -103,171 +322,52 @@ export default function SSocketMyMegaContract_Contractor({
         <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
           <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
         </TouchableOpacity>
-        <Text style={styles.topTitle}>My Mega Contract</Text>
+        <Text style={styles.topTitle}>Contractor Mega Contracts</Text>
         <View style={{ width: 40 }} />
       </View>
       <View style={styles.topAccent} />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
-        {/* ACTIVE (ONGOING) CONTRACT */}
-        <View style={styles.barrier}>
-          <View style={styles.card}>
-            {/* Header: avatar + names + badge */}
-            <View style={styles.headerRow}>
-              <View style={styles.headerLeft}>
-                {active.avatarUrl ? (
-                  <Image source={{ uri: active.avatarUrl }} style={styles.avatarImg} />
-                ) : (
-                  <View style={styles.avatarMono}>
-                    <Text style={styles.avatarMonoTxt}>
-                      {(active.contractorName || "?").slice(0, 1).toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-                <View style={{ marginLeft: 10 }}>
-                  <Text style={styles.name} numberOfLines={1}>
-                    {active.contractorName}
-                  </Text>
-                  <Text style={styles.subName} numberOfLines={1}>
-                    {active.contracteeName}
-                  </Text>
-                </View>
-              </View>
-              <View style={[styles.badgeChip, { backgroundColor: YELLOW }]}>
-                <Text style={styles.badgeChipTxt}>{active.ongoing ? "Ongoing" : "Pending"}</Text>
-              </View>
-            </View>
+      {/* Toggle */}
+      <View style={styles.toggleRow}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => setTab("list")}
+          style={[styles.toggleBtn, tab === "list" && styles.toggleBtnActive]}
+        >
+          <Text style={[styles.toggleTxt, tab === "list" && styles.toggleTxtActive]}>
+            Contract List
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => setTab("pending")}
+          style={[styles.toggleBtn, tab === "pending" && styles.toggleBtnActive]}
+        >
+          <Text style={[styles.toggleTxt, tab === "pending" && styles.toggleTxtActive]}>
+            Pending Contract
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-            {/* Role */}
-            <View style={styles.roleBox}>
-              <Text style={styles.roleLabel}>Job Role</Text>
-              <Text style={styles.roleValue}>{active.jobRole || "—"}</Text>
-            </View>
-
-            {/* Description */}
-            <Text style={styles.desc}>{active.workDescription}</Text>
-
-            {/* Meta */}
-            <View style={styles.metaRow}>
-              <View style={styles.badgeOutline}>
-                <Text style={styles.badgeOutlineTxt}>
-                  {`NGN ${formatMoney(active.salary)} per ${readablePeriod(active.paymentPeriod)}`}
-                </Text>
-              </View>
-              <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
-                <Text style={styles.badgeOutlineTxt}>Start: {active.startDate || "—"}</Text>
-              </View>
-              <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
-                <Text style={styles.badgeOutlineTxt}>End: {active.endDate || "—"}</Text>
-              </View>
-            </View>
-
-            {/* Single yellow button to open the separate Achievements page */}
-            <TouchableOpacity
-              style={[styles.btn, styles.btnYellow, { alignSelf: "flex-start", marginTop: 10 }]}
-              activeOpacity={0.9}
-              onPress={() => openAchievementsPage(active)}
-            >
-              <Ionicons name="list-outline" size={16} color={BLACK} />
-              <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Achievement List</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* ENDED CONTRACTS */}
-        <Text style={[styles.h2, { marginHorizontal: 12, marginTop: 16 }]}>Ended Mega Contracts</Text>
-
-        {ended.length === 0 ? (
-          <Text style={[styles.emptyText, { marginHorizontal: 12 }]}>No ended contracts.</Text>
-        ) : (
-          ended.map((c) => (
-            <View key={c.id} style={styles.barrier}>
-              <View style={styles.card}>
-                {/* Header */}
-                <View style={styles.headerRow}>
-                  <View style={styles.headerLeft}>
-                    {c.avatarUrl ? (
-                      <Image source={{ uri: c.avatarUrl }} style={styles.avatarImg} />
-                    ) : (
-                      <View style={styles.avatarMono}>
-                        <Text style={styles.avatarMonoTxt}>
-                          {(c.contractorName || "?").slice(0, 1).toUpperCase()}
-                        </Text>
-                      </View>
-                    )}
-                    <View style={{ marginLeft: 10 }}>
-                      <Text style={styles.name} numberOfLines={1}>
-                        {c.contractorName}
-                      </Text>
-                      <Text style={styles.subName} numberOfLines={1}>
-                        {c.contracteeName}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={[styles.badgeChip, { backgroundColor: "#EEE" }]}>
-                    <Text style={[styles.badgeChipTxt, { color: BLACK }]}>Ended</Text>
-                  </View>
-                </View>
-
-                {/* Role */}
-                <View style={styles.roleBox}>
-                  <Text style={styles.roleLabel}>Job Role</Text>
-                  <Text style={styles.roleValue}>{c.jobRole || "—"}</Text>
-                </View>
-
-                {/* Description */}
-                <Text style={styles.desc}>{c.workDescription}</Text>
-
-                {/* Meta */}
-                <View style={styles.metaRow}>
-                  <View style={styles.badgeOutline}>
-                    <Text style={styles.badgeOutlineTxt}>
-                      {`NGN ${formatMoney(c.salary)} per ${readablePeriod(c.paymentPeriod)}`}
-                    </Text>
-                  </View>
-                  <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
-                    <Text style={styles.badgeOutlineTxt}>Start: {c.startDate || "—"}</Text>
-                  </View>
-                  <View style={[styles.badgeOutline, { marginLeft: 8 }]}>
-                    <Text style={styles.badgeOutlineTxt}>End: {c.endDate || "—"}</Text>
-                  </View>
-                </View>
-
-                {/* Yellow button to open Achievements page for ENDED contract */}
-                <TouchableOpacity
-                  style={[styles.btn, styles.btnYellow, { alignSelf: "flex-start", marginTop: 10 }]}
-                  activeOpacity={0.9}
-                  onPress={() => openAchievementsPage(c)}
-                >
-                  <Ionicons name="list-outline" size={16} color={BLACK} />
-                  <Text style={[styles.btnYellowTxt, { marginLeft: 6 }]}>Achievement List</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
-        )}
-      </ScrollView>
+      {/* Content */}
+      {tab === "list" ? renderListTab() : renderPendingTab()}
     </SafeAreaView>
   );
 }
 
-/* ===== Helpers ===== */
-function formatMoney(n) {
-  const x = Number(n);
-  if (Number.isNaN(x)) return "—";
-  return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
-function readablePeriod(p) {
-  if (!p) return "";
-  const v = String(p).toLowerCase();
-  if (v.startsWith("week")) return "week";
-  if (v.startsWith("mon")) return "month";
-  if (v.startsWith("proj") || v === "on_completion") return "project";
-  if (v.startsWith("mile")) return "milestone";
-  return v;
+/* -------------------- Small pieces -------------------- */
+function KV({ label, value }) {
+  return (
+    <View style={styles.kvItem}>
+      <Text style={styles.kvLabel}>{label}</Text>
+      <Text style={styles.kvValue} numberOfLines={1}>
+        {value || "—"}
+      </Text>
+    </View>
+  );
 }
 
-/* ===== Styles ===== */
+/* -------------------- Styles -------------------- */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: WHITE },
 
@@ -285,7 +385,27 @@ const styles = StyleSheet.create({
   topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
   topAccent: { height: 3, backgroundColor: YELLOW },
 
-  /* Yellow barrier */
+  /* Toggle */
+  toggleRow: {
+    flexDirection: "row",
+    marginTop: 10,
+    paddingHorizontal: 12,
+  },
+  toggleBtn: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    backgroundColor: WHITE,
+    marginHorizontal: 4,
+  },
+  toggleBtnActive: { backgroundColor: YELLOW, borderColor: YELLOW },
+  toggleTxt: { color: BLACK, fontWeight: "800" },
+  toggleTxtActive: { color: BLACK },
+
+  /* Yellow barrier for cards in List tab */
   barrier: {
     marginTop: 12,
     marginHorizontal: 12,
@@ -371,5 +491,52 @@ const styles = StyleSheet.create({
   h2: { color: BLACK, fontSize: 16, fontWeight: "900" },
 
   /* Empty */
-  emptyText: { color: "#666", fontWeight: "600", marginTop: 6 },
+  emptyWrap: { marginTop: 40, alignItems: "center", justifyContent: "center" },
+  emptyText: { color: "#666", fontWeight: "600" },
+
+  /* Pending-specific small bits */
+  avatar: {
+    width: 46, height: 46, borderRadius: 23,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+    alignItems: "center", justifyContent: "center",
+  },
+  avatarHead: {
+    width: 12, height: 12, borderRadius: 6,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE, marginBottom: 2,
+  },
+  avatarBody: {
+    width: 22, height: 10, borderRadius: 6,
+    borderWidth: 2, borderColor: BLACK, backgroundColor: WHITE,
+  },
+
+  badgeYellowSmall: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: YELLOW,
+    borderWidth: 2, borderColor: BLACK,
+  },
+  badgeYellowText: { color: BLACK, fontSize: 12, fontWeight: "800" },
+
+  badgeUnread: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: WHITE,
+    borderWidth: 2, borderColor: BLACK, minWidth: 28, alignItems: "center",
+  },
+  badgeUnreadText: { color: BLACK, fontSize: 12, fontWeight: "900" },
+
+  kvGrid: {
+    marginTop: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    padding: 10,
+    backgroundColor: WHITE,
+  },
+  kvItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 6,
+  },
+  kvLabel: { color: "#444", fontSize: 11, fontWeight: "900", marginRight: 10 },
+  kvValue: { color: BLACK, fontSize: 12, fontWeight: "700", flexShrink: 1, textAlign: "right" },
+
+  lastMsg: { color: "#444", fontSize: 11, marginTop: 8 },
+  updatedAt: { color: "#777", fontSize: 10, marginTop: 2 },
 });
