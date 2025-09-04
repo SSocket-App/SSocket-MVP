@@ -1,0 +1,623 @@
+// App.js — MegaContractorStats (Snack/Expo Go ready)
+// - Exact replica of your Mini version, but with:
+//   (1) Top bar title -> "Mega Contractor Stats"
+//   (2) Updated GREEN/RED tag lists per request
+
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import Svg, { G, Path } from "react-native-svg";
+
+/* ===== Brand ===== */
+const BLACK = "#000";
+const WHITE = "#FFF";
+const YELLOW = "#FFD54A";
+const TOP_BAR_HEIGHT = 88;
+const TOP_ACCENT = 3;
+
+/* ===== PRNG + Mock data ===== */
+function prng(n) {
+  const x = Math.sin(n) * 10000;
+  return x - Math.floor(x);
+}
+function buildDailyMini(seed = 2, days = 90) {
+  const arr = [];
+  const now = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    const k = Number(`${d.getFullYear()}${d.getMonth() + 1}${d.getDate()}`) * seed;
+
+    // contracts offered per day
+    const jobs = Math.max(0, Math.round(prng(k) * 3 + (d.getDay() % 2)));
+
+    // satisfaction (result) only
+    const satBase = 3.9 + prng(k + 11) * 1.0;
+    const satisfactionRating = jobs ? Math.max(1, Math.min(5, satBase)) : 0;
+
+    arr.push({
+      date: d,
+      label: `${d.getDate()}/${d.getMonth() + 1}`,
+      jobs,
+      satisfactionRating: Number(satisfactionRating.toFixed(2)),
+    });
+  }
+  return arr;
+}
+
+const DATA = {
+  daily: buildDailyMini(2),
+  totalReviews: 142,
+  avgSatisfaction: 4.6,
+};
+
+/* ===== Utils ===== */
+const pad2 = (n) => (n < 10 ? `${n}`.padStart(2, "0") : `${n}`);
+const fmt = (dt) =>
+  `${pad2(dt.getDate())}/${pad2(dt.getMonth() + 1)}/${dt.getFullYear()}`;
+
+function roundPreserve(total, floats, seedBase = 0) {
+  const floors = floats.map(Math.floor);
+  let rem = total - floors.reduce((a, b) => a + b, 0);
+  const order = floats
+    .map((v, i) => ({ i, r: v - floors[i] }))
+    .sort((a, b) => b.r - a.r || prng(seedBase + a.i) - prng(seedBase + b.i));
+  const out = floors.slice();
+  for (let j = 0; j < rem; j++) out[order[j].i]++;
+  return out;
+}
+function dayStarCountsFromAvg(avg, count, seed = 0) {
+  const h = Math.max(0, count || 0);
+  if (!h) return { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  const r = Math.max(1, Math.min(5, avg || 3.5));
+  const sigma = 1.0 - Math.min(0.6, Math.log10(Math.max(1, h)) * 0.25);
+  const weights = [1, 2, 3, 4, 5].map((s, i) => {
+    const base = Math.exp(-Math.pow(s - r, 2) / (2 * sigma * sigma));
+    const jitter = 0.9 + 0.2 * prng(seed + i);
+    return base * jitter;
+  });
+  const sumW = weights.reduce((a, b) => a + b, 0) || 1;
+  const probs = weights.map((w) => w / sumW);
+  const floats = probs.map((p) => p * h);
+  const [c1, c2, c3, c4, c5] = roundPreserve(h, floats, seed);
+  return { 1: c1, 2: c2, 3: c3, 4: c4, 5: c5 };
+}
+function starDistributionForRange(days) {
+  return days.reduce(
+    (acc, p, idx) => {
+      const counts = dayStarCountsFromAvg(
+        p.satisfactionRating,
+        p.jobs,
+        (p.date?.getTime?.() || idx) + idx
+      );
+      acc[1] += counts[1];
+      acc[2] += counts[2];
+      acc[3] += counts[3];
+      acc[4] += counts[4];
+      acc[5] += counts[5];
+      return acc;
+    },
+    { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+  );
+}
+
+/* ===== UPDATED Tags (Contractor) ===== */
+const GREEN_TAGS = [
+  "hardworking",
+  "analytical",
+  "creative",
+  "strategic",
+  "flexible",
+  "leadership",
+  "collaborative",
+  "social",
+  "detail-oriented",
+  "trustworthy",
+];
+const RED_TAGS = [
+  "short-sighted",
+  "rigid",
+  "ineffective",
+  "untrustworthy",
+  "conflict-prone",
+  "lazy",
+  "unsociable",
+  "disloyal",
+  "disorganized",
+  "slow",
+];
+
+/* ===== DISTINCT color palettes (high-contrast categorical) ===== */
+const GREEN_PALETTE = [
+  "#1F77B4", "#FF7F0E", "#2CA02C", "#D62728", "#9467BD",
+  "#8C564B", "#E377C2", "#7F7F7F", "#BCBD22", "#17BECF",
+];
+const RED_PALETTE = [
+  "#4E79A7", "#F28E2B", "#59A14F", "#E15759", "#B07AA1",
+  "#76B7B2", "#EDC949", "#AF7AA1", "#FF9DA7", "#9C755F",
+];
+const colorForTag = (tag, list, palette) =>
+  palette[Math.max(0, list.indexOf(tag)) % palette.length];
+
+/* ===== counts (not %) for tags ===== */
+function tagCountsFromWindow(days, list, seedSalt = 0) {
+  const totals = Object.fromEntries(list.map((t) => [t, 0]));
+  days.forEach((p) => {
+    const jobs = p.jobs || 0;
+    list.forEach((t, i) => {
+      const s =
+        0.5 + 0.5 * prng((p.date?.getTime?.() || 0) + seedSalt * 1000 + i * 77);
+      totals[t] += jobs * s;
+    });
+  });
+  const maxVal = Math.max(1, ...Object.values(totals));
+  const scale = 40 / maxVal;
+  return list
+    .map((t) => ({ tag: t, count: Math.max(0, Math.round(totals[t] * scale)) }))
+    .sort((a, b) => b.count - a.count);
+}
+
+/* ===== Reusable UI ===== */
+function TitleRow({ title, help }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={{ marginBottom: open ? 8 : 0 }}>
+      <View style={styles.titleRow}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <TouchableOpacity
+          onPress={() => setOpen((v) => !v)}
+          activeOpacity={0.85}
+          style={styles.infoBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text style={styles.infoTxt}>i</Text>
+        </TouchableOpacity>
+      </View>
+      {open && (
+        <View style={styles.helpBox}>
+          <Text style={styles.helpText}>{help}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+function Card({ children }) {
+  return <View style={styles.card}>{children}</View>;
+}
+function StarMeter({ value = 0 }) {
+  const full = Math.floor(value);
+  const hasHalf = value - full >= 0.5;
+  const stars = Array(5)
+    .fill("star-outline")
+    .map((_, i) => (i < full ? "star" : i === full && hasHalf ? "star-half" : "star-outline"));
+  return (
+    <View style={styles.starRow}>
+      {stars.map((n, i) => (
+        <Ionicons key={i} name={n} size={16} color={BLACK} />
+      ))}
+      <Text style={styles.starVal}>{value.toFixed(1)}★</Text>
+    </View>
+  );
+}
+
+/* ===== tiny pie renderer (SVG via react-native-svg) ===== */
+function polarToCartesian(cx, cy, r, angle) {
+  const a = ((angle - 90) * Math.PI) / 180.0;
+  return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+}
+function arcPath(cx, cy, r, startAngle, endAngle) {
+  const start = polarToCartesian(cx, cy, r, endAngle);
+  const end = polarToCartesian(cx, cy, r, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y} Z`;
+}
+function PieChart({ data = [], size = 160, stroke = 2 }) {
+  const total = Math.max(1, data.reduce((s, d) => s + (d.count || 0), 0));
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size / 2 - stroke;
+  let angle = 0;
+  const paths = data.map((d, i) => {
+    const slice = (d.count / total) * 360;
+    const start = angle;
+    const end = angle + slice;
+    angle = end;
+    const dPath = arcPath(cx, cy, r, start, end);
+    return <Path key={i} d={dPath} stroke={BLACK} strokeWidth={1.5} fill={d.color} />;
+  });
+  return (
+    <Svg width={size} height={size}>
+      <G>{paths}</G>
+    </Svg>
+  );
+}
+
+/* ===== Main Page ===== */
+export default function MegaContractorStats() {
+  const all = DATA.daily;
+
+  // Date interval
+  const [startIdx, setStartIdx] = useState(Math.max(0, all.length - 14));
+  const [endIdx, setEndIdx] = useState(all.length - 1);
+  const inRange = useMemo(() => all.slice(startIdx, endIdx + 1), [all, startIdx, endIdx]);
+  const shiftStart = (dir) => setStartIdx((s) => Math.min(endIdx, Math.max(0, s + dir)));
+  const shiftEnd = (dir) => setEndIdx((e) => Math.max(startIdx, Math.min(all.length - 1, e + dir)));
+
+  // Interval aggregates
+  const interval = useMemo(() => {
+    const jobs = inRange.reduce((a, b) => a + b.jobs, 0);
+    let sum = 0;
+    inRange.forEach((p) => {
+      sum += p.satisfactionRating * p.jobs;
+    });
+    const avgInterval = jobs ? sum / jobs : 0;
+    const gainedStars = Math.round(sum);
+    const possibleStars = inRange.reduce((a, b) => a + b.jobs * 5, 0);
+    const dist = starDistributionForRange(inRange);
+    return { jobs, avgInterval, gainedStars, possibleStars, dist };
+  }, [inRange]);
+
+  // All-time aggregates
+  const allTime = useMemo(() => {
+    const jobs = all.reduce((a, b) => a + b.jobs, 0);
+    const sum = all.reduce((a, b) => a + b.satisfactionRating * b.jobs, 0);
+    const avg = jobs ? sum / jobs : 0;
+    const gainedStars = Math.round(sum);
+    const possibleStars = all.reduce((a, b) => a + b.jobs * 5, 0);
+    const dist = starDistributionForRange(all);
+    return { jobs, avg, gainedStars, possibleStars, dist };
+  }, [all]);
+
+  // Tag counts + colors (interval/all)
+  const greenIntervalRaw = useMemo(() => tagCountsFromWindow(inRange, GREEN_TAGS, 111), [inRange]);
+  const redIntervalRaw = useMemo(() => tagCountsFromWindow(inRange, RED_TAGS, 333), [inRange]);
+  const greenAllRaw = useMemo(() => tagCountsFromWindow(all, GREEN_TAGS, 111), [all]);
+  const redAllRaw = useMemo(() => tagCountsFromWindow(all, RED_TAGS, 333), [all]);
+
+  const greenInterval = useMemo(
+    () => greenIntervalRaw.map((x) => ({ ...x, color: colorForTag(x.tag, GREEN_TAGS, GREEN_PALETTE) })),
+    [greenIntervalRaw]
+  );
+  const redInterval = useMemo(
+    () => redIntervalRaw.map((x) => ({ ...x, color: colorForTag(x.tag, RED_TAGS, RED_PALETTE) })),
+    [redIntervalRaw]
+  );
+  const greenAll = useMemo(
+    () => greenAllRaw.map((x) => ({ ...x, color: colorForTag(x.tag, GREEN_TAGS, GREEN_PALETTE) })),
+    [greenAllRaw]
+  );
+  const redAll = useMemo(
+    () => redAllRaw.map((x) => ({ ...x, color: colorForTag(x.tag, RED_TAGS, RED_PALETTE) })),
+    [redAllRaw]
+  );
+
+  const [satScope, setSatScope] = useState("interval"); // 'interval' | 'all'
+  const [tagsScope, setTagsScope] = useState("interval");
+
+  const activeGreen = tagsScope === "interval" ? greenInterval : greenAll;
+  const activeRed = tagsScope === "interval" ? redInterval : redAll;
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={24} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Mega Contractor Stats</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 24 }}>
+        {/* Date Interval */}
+        <Card>
+          <TitleRow
+            title="Date Interval"
+            help="Choose a window to analyze your activity."
+          />
+          <View style={styles.rangeRow}>
+            <Text style={styles.rangeLbl}>From</Text>
+            <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftStart(-1)}>
+              <Ionicons name="chevron-back" size={16} color={BLACK} />
+            </TouchableOpacity>
+            <Text style={styles.rangeVal}>{fmt(all[startIdx].date)}</Text>
+            <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftStart(1)}>
+              <Ionicons name="chevron-forward" size={16} color={BLACK} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.rangeRow}>
+            <Text style={styles.rangeLbl}>To</Text>
+            <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftEnd(-1)}>
+              <Ionicons name="chevron-back" size={16} color={BLACK} />
+            </TouchableOpacity>
+            <Text style={styles.rangeVal}>{fmt(all[endIdx].date)}</Text>
+            <TouchableOpacity style={styles.arrowBtn} onPress={() => shiftEnd(1)}>
+              <Ionicons name="chevron-forward" size={16} color={BLACK} />
+            </TouchableOpacity>
+          </View>
+        </Card>
+
+        {/* Rating (Interval / All-Time) */}
+        <Card>
+          <TitleRow
+            title="Rating"
+            help="Switch between This Interval and All-Time to see average rating, stars earned, and star distribution."
+          />
+          <View style={styles.toggleRow}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, satScope === "interval" && styles.toggleActive]}
+              onPress={() => setSatScope("interval")}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.toggleTxt, satScope === "interval" && styles.toggleTxtActive]}>
+                This Interval
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, satScope === "all" && styles.toggleActive]}
+              onPress={() => setSatScope("all")}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.toggleTxt, satScope === "all" && styles.toggleTxtActive]}>
+                All-Time
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {satScope === "interval" ? (
+            <View style={styles.kpiBlock}>
+              <Text style={styles.kpiBlockTitle}>Average Rating (this interval)</Text>
+              <StarMeter value={interval.avgInterval || 0} />
+              <Text style={[styles.kpiHint, { marginTop: 6 }]}>
+                Stars earned: <Text style={styles.bigStatInline}>{interval.gainedStars}</Text> / {interval.possibleStars}
+              </Text>
+              <Text style={styles.kpiHint}>
+                Contracts offered in this interval: <Text style={styles.bigStatInline}>{interval.jobs}</Text>
+              </Text>
+
+              <View style={{ marginTop: 8 }}>
+                <Text style={styles.kpiBlockTitle}>Star Distribution</Text>
+                <Text style={styles.kidRow}>⭐⭐⭐⭐⭐ = {interval.dist[5]}</Text>
+                <Text style={styles.kidRow}>⭐⭐⭐⭐ = {interval.dist[4]}</Text>
+                <Text style={styles.kidRow}>⭐⭐⭐ = {interval.dist[3]}</Text>
+                <Text style={styles.kidRow}>⭐⭐ = {interval.dist[2]}</Text>
+                <Text style={styles.kidRow}>⭐ = {interval.dist[1]}</Text>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.kpiBlock}>
+              <Text style={styles.kpiBlockTitle}>Average Rating (all-time)</Text>
+              <StarMeter value={allTime.avg || 0} />
+              <Text style={styles.kpiHint}>
+                {DATA.totalReviews} total reviews • <Text style={styles.bigStatInline}>{allTime.jobs}</Text> total contracts
+              </Text>
+              <Text style={[styles.kpiHint, { marginTop: 6 }]}>
+                Stars earned: <Text style={styles.bigStatInline}>{allTime.gainedStars}</Text> / {allTime.possibleStars}
+              </Text>
+
+              <View style={{ marginTop: 8 }}>
+                <Text style={styles.kpiBlockTitle}>Star Distribution</Text>
+                <Text style={styles.kidRow}>⭐⭐⭐⭐⭐ = {allTime.dist[5]}</Text>
+                <Text style={styles.kidRow}>⭐⭐⭐⭐ = {allTime.dist[4]}</Text>
+                <Text style={styles.kidRow}>⭐⭐⭐ = {allTime.dist[3]}</Text>
+                <Text style={styles.kidRow}>⭐⭐ = {allTime.dist[2]}</Text>
+                <Text style={styles.kidRow}>⭐ = {allTime.dist[1]}</Text>
+              </View>
+            </View>
+          )}
+        </Card>
+
+        {/* Green Tags */}
+        <Card>
+          <TitleRow title="Green Tags" help="Top strengths." />
+          <View style={styles.toggleRow}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, tagsScope === "interval" && styles.toggleActive]}
+              onPress={() => setTagsScope("interval")}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.toggleTxt, tagsScope === "interval" && styles.toggleTxtActive]}>
+                This Interval
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, tagsScope === "all" && styles.toggleActive]}
+              onPress={() => setTagsScope("all")}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.toggleTxt, tagsScope === "all" && styles.toggleTxtActive]}>
+                All-Time
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.pieRow}>
+            <PieChart data={tagsScope === "interval" ? greenInterval : greenAll} size={160} />
+            <View style={styles.legendCol}>
+              {(tagsScope === "interval" ? greenInterval : greenAll).map((t) => (
+                <View key={t.tag} style={styles.legendItem}>
+                  <View style={[styles.legendSwatch, { backgroundColor: t.color }]} />
+                  <Text style={styles.legendText} numberOfLines={1}>
+                    {t.tag} ({t.count} {t.count === 1 ? "tag" : "tags"})
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </Card>
+
+        {/* Red Tags */}
+        <Card>
+          <TitleRow title="Red Tags" help="Weakness signals." />
+          <View style={styles.toggleRow}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, tagsScope === "interval" && styles.toggleActive]}
+              onPress={() => setTagsScope("interval")}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.toggleTxt, tagsScope === "interval" && styles.toggleTxtActive]}>
+                This Interval
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, tagsScope === "all" && styles.toggleActive]}
+              onPress={() => setTagsScope("all")}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.toggleTxt, tagsScope === "all" && styles.toggleTxtActive]}>
+                All-Time
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.pieRow}>
+            <PieChart data={tagsScope === "interval" ? redInterval : redAll} size={160} />
+            <View style={styles.legendCol}>
+              {(tagsScope === "interval" ? redInterval : redAll).map((t) => (
+                <View key={t.tag} style={styles.legendItem}>
+                  <View style={[styles.legendSwatch, { backgroundColor: t.color }]} />
+                  <Text style={styles.legendText} numberOfLines={1}>
+                    {t.tag} ({t.count})
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top bar */
+  topBar: {
+    backgroundColor: BLACK,
+    height: TOP_BAR_HEIGHT,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  topAccent: { height: TOP_ACCENT, backgroundColor: YELLOW },
+  backBtn: { width: 40, height: 36, justifyContent: "center" },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+
+  /* Cards */
+  card: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+  },
+  titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  cardTitle: { fontSize: 14, fontWeight: "900", color: BLACK },
+  infoBtn: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: WHITE,
+  },
+  infoTxt: { fontSize: 12, fontWeight: "900", color: BLACK },
+  helpBox: {
+    marginTop: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 10,
+    padding: 8,
+    backgroundColor: "#FFFDF2",
+  },
+  helpText: { color: BLACK, fontSize: 12 },
+
+  /* Range */
+  rangeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+  rangeLbl: { width: 38, fontSize: 12, color: BLACK, fontWeight: "900" },
+  arrowBtn: {
+    width: 30,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: WHITE,
+  },
+  rangeVal: {
+    minWidth: 120,
+    textAlign: "center",
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    fontSize: 12,
+    fontWeight: "900",
+    color: BLACK,
+    backgroundColor: "#FFFDF2",
+  },
+
+  /* Toggle */
+  toggleRow: { flexDirection: "row", gap: 8, marginTop: 8 },
+  toggleBtn: {
+    flex: 1,
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+    backgroundColor: WHITE,
+  },
+  toggleActive: { backgroundColor: "#FFFDF2", borderColor: YELLOW },
+  toggleTxt: { fontSize: 12, fontWeight: "900", color: BLACK, textAlign: "center" },
+  toggleTxtActive: { color: BLACK },
+
+  /* KPI blocks */
+  kpiBlock: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: WHITE,
+    marginTop: 8,
+  },
+  kpiBlockTitle: { fontSize: 12, color: BLACK, fontWeight: "900", marginBottom: 6 },
+  bigStatInline: { fontSize: 16, fontWeight: "900", color: BLACK },
+  kpiHint: { fontSize: 11, color: BLACK, opacity: 0.8 },
+
+  /* Star meter */
+  starRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  starVal: { marginLeft: 6, fontSize: 16, fontWeight: "900", color: BLACK },
+
+  /* Star distribution line items */
+  kidRow: { fontSize: 14, fontWeight: "900", color: BLACK, marginTop: 4 },
+
+  /* Pie + legend */
+  pieRow: { flexDirection: "row", gap: 12, alignItems: "center", marginTop: 10 },
+  legendCol: { flex: 1, gap: 6 },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 8 },
+  legendSwatch: { width: 14, height: 14, borderRadius: 3, borderWidth: 1.5, borderColor: BLACK },
+  legendText: { fontSize: 12, color: BLACK, fontWeight: "900", flexShrink: 1 },
+});
