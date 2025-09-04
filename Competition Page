@@ -1,0 +1,163 @@
+// SSocketCompetitionPage.js
+// Hub page with two big card-like actions:
+// 1) Create Competition  — businesses create competitions for users to compete for contracts
+// 2) Competition List    — businesses view their current ongoing competitions
+// Consistent SSocket UI (Black/White/Yellow). Expo-compatible, only @expo/vector-icons.
+
+import React from "react";
+import {
+  SafeAreaView,
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const YELLOW = "#FFD54A";
+const BLACK = "#000";
+const WHITE = "#FFF";
+
+export default function SSocketCompetitionPage({
+  onBack,
+  onCreateCompetition,     // () => void
+  onOpenCompetitionList,   // () => void
+}) {
+  const goBack = () => {
+    if (typeof onBack === "function") onBack();
+    else Alert.alert("Back", "Hook this into navigation.");
+  };
+
+  const openCreate = () => {
+    if (typeof onCreateCompetition === "function") onCreateCompetition();
+    else Alert.alert("Create", "Open Create Competition flow.");
+  };
+
+  const openList = () => {
+    if (typeof onOpenCompetitionList === "function") onOpenCompetitionList();
+    else Alert.alert("List", "Open Competition List.");
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={BLACK} />
+
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} activeOpacity={0.85} onPress={goBack}>
+          <Ionicons name="arrow-back-outline" size={22} color={WHITE} />
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Competition Page</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={styles.topAccent} />
+
+      {/* Body */}
+      <View style={styles.body}>
+        {/* Card 1: Create Competition */}
+        <View style={styles.barrier}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            style={[styles.card, styles.cardPrimary]}
+            onPress={openCreate}
+            accessibilityLabel="Create Competition"
+          >
+            <View style={styles.cardRow}>
+              <View style={[styles.iconBadge, { backgroundColor: WHITE }]}>
+                <Ionicons name="add-circle-outline" size={20} color={BLACK} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.cardTitle}>Create Competition</Text>
+                <Text style={styles.cardDesc}>
+                  This is where businesses create competitions for users to compete for a contract.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={BLACK} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Card 2: Competition List */}
+        <View style={[styles.barrier, { marginTop: 14 }]}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            style={styles.card}
+            onPress={openList}
+            accessibilityLabel="Competition List"
+          >
+            <View style={styles.cardRow}>
+              <View style={[styles.iconBadge, { backgroundColor: YELLOW }]}>
+                <Ionicons name="list-outline" size={20} color={BLACK} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.cardTitle}>Competition List</Text>
+                <Text style={styles.cardDesc}>
+                  This is where businesses view the current ongoing competitions they have created.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={BLACK} />
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+/* -------------------- Styles -------------------- */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: WHITE },
+
+  /* Top Bar (consistent) */
+  topBar: {
+    backgroundColor: BLACK,
+    height: 88,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) : 12,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingBottom: 14,
+    position: "relative",
+  },
+  backBtn: { position: "absolute", left: 12, bottom: 14, padding: 6 },
+  topTitle: { color: WHITE, fontSize: 20, fontWeight: "900" },
+  topAccent: { height: 3, backgroundColor: YELLOW },
+
+  /* Body */
+  body: { paddingHorizontal: 12, paddingTop: 16, paddingBottom: 20 },
+
+  /* Yellow barrier + card (same structure as other pages) */
+  barrier: {
+    borderWidth: 3,
+    borderColor: YELLOW,
+    borderRadius: 16,
+    backgroundColor: WHITE,
+    padding: 4,
+  },
+  card: {
+    borderWidth: 2,
+    borderColor: BLACK,
+    borderRadius: 12,
+    backgroundColor: WHITE,
+    padding: 14,
+    minHeight: 110, // gives it presence
+    justifyContent: "center",
+  },
+  cardPrimary: {
+    backgroundColor: YELLOW, // primary call-to-action
+  },
+  cardRow: { flexDirection: "row", alignItems: "center" },
+  iconBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: BLACK,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardTitle: { color: BLACK, fontSize: 16, fontWeight: "900" },
+  cardDesc: { color: "#333", fontSize: 12, marginTop: 4, lineHeight: 18 },
+});
