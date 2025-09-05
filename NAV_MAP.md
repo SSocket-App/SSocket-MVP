@@ -61,7 +61,7 @@ BusinessCompetitionList
 BusinessCompetitionReviewPage
 BusinessContractsPool
 
-# Stats (both have stats, but different focus)
+# Stats (both personal + business)
 StatsHub
 MyMiniContractorStatsPage
 MyMiniContracteeStatsPage
