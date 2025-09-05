@@ -1,0 +1,15 @@
+{
+  "name": "ssocket-mvp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "expo start",
+    "start:tunnel": "expo start --tunnel",
+    "doctor": "expo doctor"
+  },
+  "dependencies": {
+    "expo": "latest",
+    "react": "latest",
+    "react-native": "latest"
+  }
+}
